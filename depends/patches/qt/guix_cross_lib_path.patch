@@ -1,6 +1,6 @@
 Facilitate guix building with CROSS_LIBRARY_PATH
 
-See discussion in https://github.com/bitcoinoil/bitcoinoil/pull/15277.
+See discussion in https://github.com/nito/nito/pull/15277.
 
 --- a/qtbase/mkspecs/features/toolchain.prf
 +++ b/qtbase/mkspecs/features/toolchain.prf
