@@ -3239,10 +3239,12 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         bool is_height_compatible = (current_block_height < Params().GetConsensus().V2ForkHeight);
 
         // Log all compatibility checks
+/**
         LogPrintf("Peer %d: Checking compatibility - Peer version: %d, Protocol requirement: %d, Version requirement: %d, "
                   "Current block height: %d, Fork height: %d\n",
                   pfrom.GetId(), peer_version, MIN_PEER_VERSION_FOR_V2_FORK, 
                   current_block_height, Params().GetConsensus().V2ForkHeight);
+**/
 
         // Disconnect if both version and height compatibility conditions are not met
         if (!is_version_compatible && !is_height_compatible) {
