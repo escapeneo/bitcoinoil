@@ -123,35 +123,9 @@ public:
 
         genesis = CreateGenesisBlock(1729360335, 45125248, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        // calculate main genesis block
-        //consensus.hashGenesisBlock = uint256S("0x00");
-        if (true && (genesis.GetHash() != consensus.hashGenesisBlock)) {
-		std::cout << std::string("Calculating main genesis block...\n");
-            arith_uint256 hashTarget = arith_uint256().SetCompact(genesis.nBits);
-            uint256 hash;
-            genesis.nNonce = 0;
-            while (UintToArith256(genesis.GetHash()) > hashTarget)
-            {
-                ++genesis.nNonce;
-                if (genesis.nNonce == 0)
-                {
-                    ++genesis.nTime;
-                }
-            }
-            std::cout << "Genesis block found!\n";
-            std::cout << "nonce: " << genesis.nNonce << "\n";
-            std::cout << "time: " << genesis.nTime << "\n";
-            std::cout << "blockhash: " << genesis.GetHash().ToString().c_str() << "\n";
-            std::cout << "merklehash: " << genesis.hashMerkleRoot.ToString().c_str() << "\n";
-        }
         assert(consensus.hashGenesisBlock == uint256S("0x00000000baccc78f2852f3943bb19ff89df6d374252e72f6b487e68c0d839d54"));
         assert(genesis.hashMerkleRoot == uint256S("0xb801b2e8168a92d6cc7739832ad7b95bfbfbea44b17789fc8a65f60759fcdfed"));
 
-        // Note that of those which support the service bits prefix, most only support a subset of
-        // possible options.
-        // This is fine at runtime as we'll fall back to using them as an addrfetch if they don't support the
-        // service bits we want, but we should get them updated to support all service bits wanted by any
-        // release ASAP to avoid it where possible.
         vSeeds.emplace_back("node.petrobtc.org");
         vSeeds.emplace_back("node2.petrobtc.org");
 
