@@ -3228,8 +3228,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         CDataStream vRecvCopy = vRecv;
         int peer_version;
         vRecvCopy >> peer_version;
+/*
 
         LogPrintf("DEBUG: Received VERSION message with peer version: %d\n", peer_version);
+*/
 
         // Get the current block height from the active chain
         int current_block_height = m_chainman.ActiveChain().Height();
