@@ -77,12 +77,12 @@ public:
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 185900;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256();
+        consensus.BIP34Hash = uint256S("0x00000000baccc78f2852f3943bb19ff89df6d374252e72f6b487e68c0d839d54");
         consensus.BIP65Height = 0; 
         consensus.BIP66Height = 0; 
         consensus.CSVHeight = 0; 
         consensus.SegwitHeight = 0; 
-        consensus.MinBIP9WarningHeight = 0; // segwit activation height + miner confirmation window
+        consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  24 * 60;
         consensus.nPowTargetSpacing = 6 * 60;
@@ -96,7 +96,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0;
 
         // Deployment of Taproot (BIPs 340-342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
@@ -104,8 +104,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; 
 
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
-        consensus.defaultAssumeValid = uint256S("0x00000000baccc78f2852f3943bb19ff89df6d374252e72f6b487e68c0d839d54"); 
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000c463a50a6880b43628");
+        consensus.defaultAssumeValid = uint256S("0x000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d"); 
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -173,6 +173,12 @@ public:
         checkpointData = {
             {
                 { 0, uint256S("0x00000000baccc78f2852f3943bb19ff89df6d374252e72f6b487e68c0d839d54")},
+                { 1, uint256S("0x0000000087fac752558df4ea1f610da12333d2a5cc07c145ad1ca546a0e084ed")},
+                { 16, uint256S("0x0000000040265ff43fe4ad4b64bd511e18e804e3b82cc854c9f2949a35ca2d4d")},
+                { 101, uint256S("0x00000000000002b0c389b6265f0c7d915c9620fcb4c0283ae8c2de3fbd4355b1")},
+                { 147, uint256S("0x000000000000039dc63ff3597a900b8aff2f8878b9258f6a13250116c6671c49")},
+                { 3170, uint256S("0x00000000000000071a309ee60b4ecc607f199214bbb32f86c26f15ff9cce084a")},
+                { 3541, uint256S("0x000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d")},
             }
         };
 
@@ -181,10 +187,10 @@ public:
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 4096 00000000baccc78f2852f3943bb19ff89df6d374252e72f6b487e68c0d839d54
-            .nTime    = 1729360335,
-            .nTxCount = 0,
-            .dTxRate  = 0,
+            // Data from RPC: getchaintxstats 3541 000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d
+            .nTime    = 1731634713,
+            .nTxCount = 4596,
+            .dTxRate  = 0.00203373,
         };
     }
 };
