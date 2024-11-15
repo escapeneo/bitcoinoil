@@ -3224,6 +3224,37 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             return;
         }
 
+    if (msg_type == NetMsgType::VERSION) {
+        CDataStream vRecvCopy = vRecv;
+        int peer_version;
+        vRecvCopy >> peer_version;
+
+        LogPrintf("DEBUG: Received VERSION message with peer version: %d\n", peer_version);
+
+        // Get the current block height from the active chain
+        int current_block_height = m_chainman.ActiveChain().Height();
+
+        // Define checks for protocol, version, and height compatibility
+        bool is_version_compatible = (peer_version >= MIN_PEER_VERSION_FOR_V2_FORK);
+        bool is_height_compatible = (current_block_height < Params().GetConsensus().V2ForkHeight);
+
+        // Log all compatibility checks
+        LogPrintf("Peer %d: Checking compatibility - Peer version: %d, Protocol requirement: %d, Version requirement: %d, "
+                  "Current block height: %d, Fork height: %d\n",
+                  pfrom.GetId(), peer_version, MIN_PEER_VERSION_FOR_V2_FORK, 
+                  current_block_height, Params().GetConsensus().V2ForkHeight);
+
+        // Disconnect if both version and height compatibility conditions are not met
+        if (!is_version_compatible && !is_height_compatible) {
+            LogPrintf("Disconnecting incompatible peer %d: Both version and height requirements not met\n", pfrom.GetId());
+            pfrom.fDisconnect = true; // Explicit disconnection
+        } else {
+            // Explicitly maintain connection if compatible
+            pfrom.fDisconnect = false;
+            LogPrintf("Peer %d is compatible: Connection maintained.\n", pfrom.GetId());
+        }
+    }
+
         if (!vRecv.empty()) {
             // The version message includes information about the sending node which we don't use:
             //   - 8 bytes (service bits)
@@ -5864,4 +5895,12 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
     } // release cs_main
     MaybeSendFeefilter(*pto, *peer, current_time);
     return true;
+}
+
+
+
+
+bool IsCompatibleVersion(int peer_version, int current_block_height) {
+    const int v2ForkHeight = Params().GetConsensus().V2ForkHeight;
+    return (peer_version >= MIN_PEER_VERSION_FOR_V2_FORK || current_block_height < v2ForkHeight);
 }

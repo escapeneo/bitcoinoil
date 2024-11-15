@@ -47,6 +47,9 @@
 #include <versionbits.h>
 #include <warnings.h>
 
+#include <logging.h>
+#include <pow.h>
+
 #include <stdint.h>
 
 #include <condition_variable>
@@ -1218,6 +1221,11 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
 }
 
 // used by rest.cpp:rest_chaininfo, so cannot be static
+#include <string>
+#include <iostream>
+
+#define V2FORK_WALLET_VERSION "25.1.0"
+
 RPCHelpMan getblockchaininfo()
 {
     return RPCHelpMan{"getblockchaininfo",
@@ -1255,6 +1263,10 @@ RPCHelpMan getblockchaininfo()
 
     const CBlockIndex& tip{*CHECK_NONFATAL(active_chainstate.m_chain.Tip())};
     const int height{tip.nHeight};
+
+    const CChain& active_chain = chainman.ActiveChain();
+    const Consensus::Params& params = Params().GetConsensus();
+
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("chain", chainman.GetParams().NetworkIDString());
     obj.pushKV("blocks", height);
@@ -1278,7 +1290,23 @@ RPCHelpMan getblockchaininfo()
         }
     }
 
-    obj.pushKV("warnings", GetWarnings(false).original);
+    // Detect wallet version and block height
+    std::string walletVersion = std::to_string(CLIENT_VERSION_MAJOR) + "." +
+                                std::to_string(CLIENT_VERSION_MINOR) + "." +
+                                std::to_string(CLIENT_VERSION_BUILD);
+
+    if (height < params.V2ForkHeight) {
+        obj.pushKV("V2ForkHeightStatus", "Not reached, inactive");
+    } else {
+        obj.pushKV("V2ForkHeightStatus", "Reached, active");
+    }
+
+    if (height >= params.V2ForkHeight && walletVersion != V2FORK_WALLET_VERSION) {
+        obj.pushKV("warnings", "Upgrade to wallet version " + std::string(V2FORK_WALLET_VERSION) + " required to proceed after height " + std::to_string(params.V2ForkHeight));
+    } else {
+        obj.pushKV("warnings", GetWarnings(false).original);
+    }
+
     return obj;
 },
     };
