@@ -2729,9 +2729,182 @@ UniValue CreateUTXOSnapshot(
     return result;
 }
 
+
+
+static RPCHelpMan getversionbitsinfo()
+{
+    return RPCHelpMan{"getversionbitsinfo",
+                      "Returns the state of each version bit.",
+                      {},
+                      RPCResults{},
+                      RPCExamples{
+                          HelpExampleCli("getversionbitsinfo", "")
+                      },
+                      [](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+                          LogPrintf("Starting getversionbitsinfo command\n");
+
+                          UniValue result(UniValue::VARR);
+
+                          // Access chainman from request.context
+                          node::NodeContext& node = EnsureAnyNodeContext(request.context);
+                          ChainstateManager& chainman = *node.chainman;
+
+                          LogPrintf("Successfully accessed ChainstateManager\n");
+
+                          // Access the active chain
+                          const CChain& active_chain = chainman.ActiveChain();
+                          const CBlockIndex* pindex = active_chain.Tip();  // Access chain tip
+                          const CChainParams& params = Params();
+
+                          if (!pindex) {
+                              LogPrintf("Error: Chain tip (pindex) is null\n");
+                              throw JSONRPCError(RPC_MISC_ERROR, "Chain tip not available");
+                          }
+                          LogPrintf("Active chain tip accessed: height=%d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+
+                          static ThresholdConditionCache warningcache;
+                          static VersionBitsCache versionbitscache;
+
+                          // Log the start of the loop through version bits
+                          LogPrintf("Starting limited loop through version bits\n");
+
+                          for (int bit = 0; bit < 3; ++bit) {  // Limiting to version bits 0-3 for testing
+                              UniValue obj(UniValue::VOBJ);
+                              obj.pushKV("bit", bit);
+
+                              LogPrintf("Checking state for version bit %d\n", bit);
+
+                              // Get the state of the current version bit
+                              ThresholdState state = versionbitscache.State(pindex, params.GetConsensus(), static_cast<Consensus::DeploymentPos>(bit));
+
+                              std::string stateStr;
+                              switch (state) {
+                                  case ThresholdState::DEFINED: stateStr = "DEFINED"; break;
+                                  case ThresholdState::STARTED: stateStr = "STARTED"; break;
+                                  case ThresholdState::LOCKED_IN: stateStr = "LOCKED_IN"; break;
+                                  case ThresholdState::ACTIVE: stateStr = "ACTIVE"; break;
+                                  case ThresholdState::FAILED: stateStr = "FAILED"; break;
+        			  default: stateStr = "UNKNOWN"; break;
+                              }
+
+                              LogPrintf("Version bit %d state: %s\n", bit, stateStr);
+
+                              obj.pushKV("state", stateStr);
+                              result.push_back(obj);
+                          }
+
+                          LogPrintf("Completed limited loop through version bits\n");
+                          LogPrintf("getversionbitsinfo command executed successfully\n");
+
+                          return result;
+                      }};
+}
+
+static RPCHelpMan getactivationthresholdinfo()
+{
+    return RPCHelpMan{
+        "getactivationthresholdinfo",
+        "Returns the current activation thresholds and confirmation windows based on the current block height.",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "", {
+                {RPCResult::Type::NUM, "nRuleChangeActivationThreshold", "The current rule change activation threshold"},
+                {RPCResult::Type::NUM, "nMinerConfirmationWindow", "The current miner confirmation window"},
+            }},
+        RPCExamples{HelpExampleCli("getactivationthresholdinfo", "")},
+        [](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            LogPrintf("Starting getactivationthresholdinfo command\n");
+            
+            UniValue result(UniValue::VOBJ);
+
+            // Access the chain manager and active chain state
+            node::NodeContext& node = EnsureAnyNodeContext(request.context);
+            ChainstateManager& chainman = *node.chainman;
+            const CChain& active_chain = chainman.ActiveChain();
+            const Consensus::Params& params = Params().GetConsensus(); // Access the consensus params
+
+            // Get the current block height
+            const CBlockIndex* pindex = active_chain.Tip();
+            if (!pindex) {
+                throw JSONRPCError(RPC_MISC_ERROR, "Chain tip not available");
+            }
+
+            int height = pindex->nHeight;
+
+            // Determine which values are in use
+            int currentThreshold = (height >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
+            int currentWindow = (height >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
+
+            // Add the results to the response
+            result.pushKV("nRuleChangeActivationThreshold", currentThreshold);
+            result.pushKV("nMinerConfirmationWindow", currentWindow);
+
+            LogPrintf("getactivationthresholdinfo command executed successfully\n");
+
+            return result;
+        }};
+}
+
+
+
+static RPCHelpMan getdifficultyalgorithm()
+{
+    return RPCHelpMan{"getdifficultyalgorithm",
+                      "Returns the current difficulty adjustment algorithm used to calculate the next block difficulty.",
+                      {},
+                      RPCResult{RPCResult::Type::OBJ, "", "",
+                          {
+                              {RPCResult::Type::STR, "current_algorithm", "The active difficulty algorithm"}
+                          }},
+                      RPCExamples{
+                          HelpExampleCli("getdifficultyalgorithm", "")
+                          + HelpExampleRpc("getdifficultyalgorithm", "")
+                      },
+                      [](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+                          LOCK(cs_main);
+
+                          node::NodeContext& node = EnsureAnyNodeContext(request.context);
+                          ChainstateManager& chainman = *node.chainman;
+                          const Consensus::Params& params = Params().GetConsensus();
+                          const CBlockIndex* pindexLast = chainman.ActiveChain().Tip();
+
+                          if (!pindexLast) {
+                              throw JSONRPCError(RPC_MISC_ERROR, "Chain tip not available");
+                          }
+
+                          unsigned int nextWorkRequired = GetNextWorkRequired(pindexLast, nullptr, params);
+                          std::string algorithm;
+
+                          if (pindexLast->nHeight + 1 >= params.V2ForkHeight) {
+                              unsigned int lwmaWorkRequired = LwmaCalculateNextWorkRequired(pindexLast, params);
+                              LogPrintf("getdifficultyalgorithm: lwmaWorkRequired = %u, nextWorkRequired = %u\n", lwmaWorkRequired, nextWorkRequired);
+                              if (abs((int)nextWorkRequired - (int)lwmaWorkRequired) < 200) {
+                                  algorithm = "LwmaCalculateNextWorkRequired";
+                              } else {
+                                  algorithm = "Unknown Algorithm - LWMA mismatch";
+                              }
+                          } else {
+                              unsigned int legacyWorkRequired = CalculateNextWorkRequired(pindexLast, pindexLast->GetBlockTime(), params);
+                              LogPrintf("getdifficultyalgorithm: legacyWorkRequired = %u, nextWorkRequired = %u\n", legacyWorkRequired, nextWorkRequired);
+                              if (abs((int)nextWorkRequired - (int)legacyWorkRequired) < 200) { // this is not accurate enough but is only temporary - as long as it works for LWMA.
+                                  algorithm = "CalculateNextWorkRequired";
+                              } else {
+                                  algorithm = "Unknown Algorithm - Legacy mismatch";
+                              }
+                          }
+
+                          UniValue result(UniValue::VOBJ);
+                          result.pushKV("current_algorithm", algorithm);
+                          return result;
+                      }};
+}
+
+
+
 void RegisterBlockchainRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
+        {"blockchain", &getactivationthresholdinfo},
         {"blockchain", &getblockchaininfo},
         {"blockchain", &getchaintxstats},
         {"blockchain", &getblockstats},
@@ -2743,9 +2916,11 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &getblockheader},
         {"blockchain", &getchaintips},
         {"blockchain", &getdifficulty},
+        {"blockchain", &getdifficultyalgorithm},
         {"blockchain", &getdeploymentinfo},
         {"blockchain", &gettxout},
         {"blockchain", &gettxoutsetinfo},
+        {"blockchain", &getversionbitsinfo},
         {"blockchain", &pruneblockchain},
         {"blockchain", &verifychain},
         {"blockchain", &preciousblock},
