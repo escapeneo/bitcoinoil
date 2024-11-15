@@ -1,0 +1,33 @@
+# /etc/conf.d/bitcoinoild: config file for /etc/init.d/bitcoinoild
+
+# Config file location
+#BITCOINOILD_CONFIGFILE="/etc/bitcoinoil/bitcoinoil.conf"
+
+# What directory to write pidfile to?  (created and owned by $BITCOINOILD_USER)
+#BITCOINOILD_PIDDIR="/var/run/bitcoinoild"
+
+# What filename to give the pidfile
+#BITCOINOILD_PIDFILE="${BITCOINOILD_PIDDIR}/bitcoinoild.pid"
+
+# Where to write bitcoinoild data (be mindful that the blockchain is large)
+#BITCOINOILD_DATADIR="/var/lib/bitcoinoild"
+
+# User and group to own bitcoinoild process
+#BITCOINOILD_USER="bitcoinoil"
+#BITCOINOILD_GROUP="bitcoinoil"
+
+# Path to bitcoinoild executable
+#BITCOINOILD_BIN="/usr/bin/bitcoinoild"
+
+# Nice value to run bitcoinoild under
+#BITCOINOILD_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#BITCOINOILD_OPTS=""
+
+# The timeout in seconds OpenRC will wait for bitcoinoild to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+BITCOINOILD_SIGTERM_TIMEOUT=600

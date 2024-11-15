@@ -1,0 +1,93 @@
+#!/sbin/openrc-run
+
+# backward compatibility for existing gentoo layout 
+#
+if [ -d "/var/lib/bitcoinoil/.bitcoinoil" ]; then
+	BITCOINOILD_DEFAULT_DATADIR="/var/lib/bitcoinoil/.bitcoinoil"
+else
+	BITCOINOILD_DEFAULT_DATADIR="/var/lib/bitcoinoild"
+fi
+
+BITCOINOILD_CONFIGFILE=${BITCOINOILD_CONFIGFILE:-/etc/bitcoinoil/bitcoinoil.conf}
+BITCOINOILD_PIDDIR=${BITCOINOILD_PIDDIR:-/var/run/bitcoinoild}
+BITCOINOILD_PIDFILE=${BITCOINOILD_PIDFILE:-${BITCOINOILD_PIDDIR}/bitcoinoild.pid}
+BITCOINOILD_DATADIR=${BITCOINOILD_DATADIR:-${BITCOINOILD_DEFAULT_DATADIR}}
+BITCOINOILD_USER=${BITCOINOILD_USER:-${BITCOINOIL_USER:-bitcoinoil}}
+BITCOINOILD_GROUP=${BITCOINOILD_GROUP:-bitcoinoil}
+BITCOINOILD_BIN=${BITCOINOILD_BIN:-/usr/bin/bitcoinoild}
+BITCOINOILD_NICE=${BITCOINOILD_NICE:-${NICELEVEL:-0}}
+BITCOINOILD_OPTS="${BITCOINOILD_OPTS:-${BITCOINOIL_OPTS}}"
+
+name="BitcoinOil Core Daemon"
+description="BitcoinOil cryptocurrency P2P network daemon"
+
+command="/usr/bin/bitcoinoild"
+command_args="-pid=\"${BITCOINOILD_PIDFILE}\" \
+		-conf=\"${BITCOINOILD_CONFIGFILE}\" \
+		-datadir=\"${BITCOINOILD_DATADIR}\" \
+		-daemon \
+		${BITCOINOILD_OPTS}"
+
+required_files="${BITCOINOILD_CONFIGFILE}"
+start_stop_daemon_args="-u ${BITCOINOILD_USER} \
+			-N ${BITCOINOILD_NICE} -w 2000"
+pidfile="${BITCOINOILD_PIDFILE}"
+
+# The retry schedule to use when stopping the daemon. Could be either
+# a timeout in seconds or multiple signal/timeout pairs (like
+# "SIGKILL/180 SIGTERM/300")
+retry="${BITCOINOILD_SIGTERM_TIMEOUT}"
+
+depend() {
+	need localmount net
+}
+
+# verify
+# 1) that the datadir exists and is writable (or create it)
+# 2) that a directory for the pid exists and is writable
+# 3) ownership and permissions on the config file
+start_pre() {
+	checkpath \
+	-d \
+	--mode 0750 \
+	--owner "${BITCOINOILD_USER}:${BITCOINOILD_GROUP}" \
+	"${BITCOINOILD_DATADIR}"
+
+	checkpath \
+	-d \
+	--mode 0755 \
+	--owner "${BITCOINOILD_USER}:${BITCOINOILD_GROUP}" \
+	"${BITCOINOILD_PIDDIR}"
+
+	checkpath -f \
+	-o "${BITCOINOILD_USER}:${BITCOINOILD_GROUP}" \
+	-m 0660 \
+	"${BITCOINOILD_CONFIGFILE}"
+
+	checkconfig || return 1
+}
+
+checkconfig()
+{
+	if grep -qs '^rpcuser=' "${BITCOINOILD_CONFIGFILE}" && \
+		! grep -qs '^rpcpassword=' "${BITCOINOILD_CONFIGFILE}" ; then
+		eerror ""
+		eerror "ERROR: You must set a secure rpcpassword to run bitcoinoild."
+		eerror "The setting must appear in ${BITCOINOILD_CONFIGFILE}"
+		eerror ""
+		eerror "This password is security critical to securing wallets "
+		eerror "and must not be the same as the rpcuser setting."
+		eerror "You can generate a suitable random password using the following "
+		eerror "command from the shell:"
+		eerror ""
+		eerror "bash -c 'tr -dc a-zA-Z0-9 < /dev/urandom | head -c32 && echo'"
+		eerror ""
+		eerror "It is recommended that you also set alertnotify so you are "
+		eerror "notified of problems:"
+		eerror ""
+		eerror "ie: alertnotify=echo %%s | mail -s \"BitcoinOil Alert\"" \
+			"admin@foo.com"
+		eerror ""
+		return 1
+	fi
+}

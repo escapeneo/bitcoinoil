@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+#  bitcoinoild The bitcoinoil core server.
+#
+#
+# chkconfig: 345 80 20
+# description: bitcoinoild
+# processname: bitcoinoild
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/bitcoinoild, see below
+if [ -f /etc/sysconfig/bitcoinoild ]; then
+        . /etc/sysconfig/bitcoinoild
+fi
+
+RETVAL=0
+
+prog=bitcoinoild
+# you can override the lockfile via BITCOINOILD_LOCKFILE in /etc/sysconfig/bitcoinoild
+lockfile=${BITCOINOILD_LOCKFILE-/var/lock/subsys/bitcoinoild}
+
+# bitcoinoild defaults to /usr/bin/bitcoinoild, override with BITCOINOILD_BIN
+bitcoinoild=${BITCOINOILD_BIN-/usr/bin/bitcoinoild}
+
+# bitcoinoild opts default to -disablewallet, override with BITCOINOILD_OPTS
+bitcoinoild_opts=${BITCOINOILD_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $bitcoinoild $bitcoinoild_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog -t600
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

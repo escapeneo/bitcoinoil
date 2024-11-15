@@ -1,0 +1,7 @@
+[main]
+host = https://www.transifex.com
+
+[o:bitcoinoil:p:bitcoinoil:r:qt-translation-025x]
+file_filter = src/qt/locale/bitcoinoil_<lang>.xlf
+source_file = src/qt/locale/bitcoinoil_en.xlf
+source_lang = en
