@@ -182,14 +182,31 @@ private:
     const Consensus::DeploymentPos id;
 
 protected:
+    // Overloads to satisfy the base class
+    int Period(const Consensus::Params& params) const override {
+        return Period(params, nullptr);
+    }
+
+    int Threshold(const Consensus::Params& params) const override {
+        return Threshold(params, nullptr);
+    }
+
+    // Updated methods that use `pindex` to support V2 logic
+    int Period(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
+    }
+
+    int Threshold(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
+    }
+
     int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
     int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
     int MinActivationHeight(const Consensus::Params& params) const override { return params.vDeployments[id].min_activation_height; }
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
 
-    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
-    {
+
+
+    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override {
         return (((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) && (pindex->nVersion & Mask(params)) != 0);
     }
 

@@ -1993,11 +1993,38 @@ public:
 
     int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
     int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
+    // Wrapper functions to call the new functions with pindex argument
+    int Period(const Consensus::Params& params) const override {
+        const CBlockIndex* pindex = m_chainman.ActiveTip();
+        return PeriodWithHeight(params, pindex);
+    }
+
+    int Threshold(const Consensus::Params& params) const override {
+        const CBlockIndex* pindex = m_chainman.ActiveTip();
+        return ThresholdWithHeight(params, pindex);
+    }
+
+    // New functions with pindex as argument
+    int PeriodWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
+    }
+
+    int ThresholdWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
+    }
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
     {
+        // Treat Taproot (versionbit 2) as always active
+        if (m_bit == 2) {
+            return true;  // Force Taproot to be considered active
+        }
+
+        // Force all unused version bits to remain inactive
+        if (m_bit != 2) {  // Only allow Taproot (2)
+            return false;
+        }
+
         return pindex->nHeight >= params.MinBIP9WarningHeight &&
                ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> m_bit) & 1) != 0 &&
@@ -2663,6 +2690,14 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
             ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(), warningcache.at(bit));
+
+            // Exclude Taproot (versionbit 2) from warnings
+            if (bit == 2) {
+                LogPrintf("Checking versionbit %i: state = %d (Taproot)\n", bit, static_cast<int>(ThresholdState::ACTIVE));
+                continue;
+            }
+    	    LogPrintf("Checking versionbit %i: state = %d\n", bit, static_cast<int>(state));
+
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
