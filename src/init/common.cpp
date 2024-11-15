@@ -131,6 +131,34 @@ bool StartLogging(const ArgsManager& args)
     } else {
         // Not categorizing as "Warning" because it's the default behavior
         LogPrintf("Config file: %s (not found, skipping)\n", fs::PathToString(config_file_path));
+
+        // Attempt to create a new config file with default content
+        FILE* configFile = fopen(fs::PathToString(config_file_path).c_str(), "a");
+        if (configFile != nullptr) {
+            std::string strHeader = "# BitcoinOIL(BTCO) config file:\n"
+                                    "rpcuser=username\n"
+                                    "rpcpassword=password\n"
+                                    "server=1\n"
+                                    "listen=1\n"
+                                    "daemon=1\n"
+                                    "upnp=1\n"
+                                    "port=19712\n"
+                                    "rpcport=19711\n"
+                                    "rpcbind=127.0.0.1\n"
+                                    "maxconnections=20\n"
+                                    "fallbackfee=0.0001\n"
+                                    "rpcallowip=127.0.0.1\n"
+                                    "deprecatedrpc=accounts\n"
+                                    "\n"
+                                    "# Addnodes:\n"
+                                    "addnode=194.163.138.154:19712\n"
+                                    "addnode=178.18.253.62:19712\n"
+                                    "addnode=node.petrobtc.org\n"
+                                    "addnode=node2.petrobtc.org\n"
+                                    "\n";
+            fwrite(strHeader.c_str(), 1, strHeader.size(), configFile);
+            fclose(configFile);
+        }
     }
 
     // Log the config arguments to debug.log

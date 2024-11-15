@@ -160,6 +160,7 @@ public:
 
         bech32_hrp = "btco";
 
+        vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
