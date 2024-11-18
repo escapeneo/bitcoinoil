@@ -41,7 +41,4 @@ static const int WTXID_RELAY_VERSION = 70016;
 // Make sure that none of the values above collide with
 // `SERIALIZE_TRANSACTION_NO_WITNESS` or `ADDRV2_FORMAT`.
 
-//! Minimum peer version required for V2ForkHeight compatibility
-static const int MIN_PEER_VERSION_FOR_V2_FORK = 250100;  // v25.1.0 or later
-
 #endif // BITCOINOIL_VERSION_H

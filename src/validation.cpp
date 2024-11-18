@@ -2015,14 +2015,21 @@ public:
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
     {
-        // Treat Taproot (versionbit 2) as always active
-        if (m_bit == 2) {
-            return true;  // Force Taproot to be considered active
-        }
 
-        // Force all unused version bits to remain inactive
-        if (m_bit != 2) {  // Only allow Taproot (2)
-            return false;
+
+        if (pindex && pindex->nHeight >= params.V2ForkHeight) {
+            if (m_bit == 2) {
+                return true;  // Force Taproot to be considered active after V2ForkHeight
+            }
+
+            // Force all unused version bits to remain inactive after V2ForkHeight
+            if (m_bit != 2) {  
+                return false;
+            }
+        } else {
+            // Before V2ForkHeight, use default logic
+            //return AbstractThresholdConditionChecker::Condition(pindex, params);
+	    return (pindex->nVersion & (1 << m_bit)) != 0;
         }
 
         return pindex->nHeight >= params.MinBIP9WarningHeight &&
@@ -2687,15 +2694,20 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
     bilingual_str warning_messages;
     if (!this->IsInitialBlockDownload()) {
         const CBlockIndex* pindex = pindexNew;
+        const Consensus::Params& consensusParams = m_chainman.GetParams().GetConsensus();
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
             ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(), warningcache.at(bit));
-
-            // Exclude Taproot (versionbit 2) from warnings
-            if (bit == 2) {
-                LogPrintf("Checking versionbit %i: state = %d (Taproot)\n", bit, static_cast<int>(ThresholdState::ACTIVE));
-                continue;
+            if (pindex && pindex->nHeight >= consensusParams.V2ForkHeight) {
+                if (bit == 2) {
+                    LogPrintf("DEBUG: Checking versionbit %i: state = %d (Taproot - V2ForkHeight Active)\n", 
+                              bit, static_cast<int>(ThresholdState::ACTIVE));
+                    continue;
+                }
             }
+            LogPrintf("DEBUG: Checking versionbit %i: state = %d\n", bit, static_cast<int>(state));
+
+
     	    LogPrintf("Checking versionbit %i: state = %d\n", bit, static_cast<int>(state));
 
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
