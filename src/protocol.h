@@ -512,8 +512,4 @@ public:
 /** Convert a TX/WITNESS_TX/WTX CInv to a GenTxid. */
 GenTxid ToGenTxid(const CInv& inv);
 
-
-bool IsCompatibleVersion(int peer_version, int current_block_height);
-
-
 #endif // BITCOINOIL_PROTOCOL_H
