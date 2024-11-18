@@ -2730,7 +2730,7 @@ UniValue CreateUTXOSnapshot(
 static RPCHelpMan getversionbitsinfo()
 {
     return RPCHelpMan{"getversionbitsinfo",
-                      "Returns the state of each version bit.",
+                      "Returns the state of all version bits (0 to 28) and includes descriptions for bits 0, 1, and 2.",
                       {},
                       RPCResults{},
                       RPCExamples{
@@ -2747,54 +2747,98 @@ static RPCHelpMan getversionbitsinfo()
 
                           LogPrintf("Successfully accessed ChainstateManager\n");
 
-                          // Access the active chain
+                          // Access the active chain tip
                           const CChain& active_chain = chainman.ActiveChain();
-                          const CBlockIndex* pindex = active_chain.Tip();  // Access chain tip
-                          const CChainParams& params = Params();
+                          const CBlockIndex* pindex = active_chain.Tip();
 
                           if (!pindex) {
                               LogPrintf("Error: Chain tip (pindex) is null\n");
-                              throw JSONRPCError(RPC_MISC_ERROR, "Chain tip not available");
+                              UniValue obj(UniValue::VOBJ);
+                              obj.pushKV("error", "Chain tip not available. The wallet might be syncing.");
+                              result.push_back(obj);
+                              return result;
                           }
+
                           LogPrintf("Active chain tip accessed: height=%d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
 
+                          // Static caches to manage deployment state
                           static ThresholdConditionCache warningcache;
                           static VersionBitsCache versionbitscache;
 
-                          // Log the start of the loop through version bits
-                          LogPrintf("Starting limited loop through version bits\n");
+                          // Bits to check (0 to 28)
+                          const std::vector<int> bits_to_check = []() {
+                              std::vector<int> bits;
+                              for (int i = 0; i <= 28; ++i) {
+                                  bits.push_back(i);
+                              }
+                              return bits;
+                          }();
 
-                          for (int bit = 0; bit < 3; ++bit) {  // Limiting to version bits 0-3 for testing
+                          // Map version bits to descriptions (only for 0, 1, and 2)
+                          const std::map<int, std::string> bit_descriptions = {
+                              {0, "BIP68, BIP112, BIP113 (CSV)"},
+                              {1, "BIP141, BIP143, BIP147 (SegWit)"},
+                              {2, "BIP342 (Taproot)"}
+                          };
+
+                          for (int bit : bits_to_check) {
                               UniValue obj(UniValue::VOBJ);
                               obj.pushKV("bit", bit);
 
-                              LogPrintf("Checking state for version bit %d\n", bit);
-
-                              // Get the state of the current version bit
-                              ThresholdState state = versionbitscache.State(pindex, params.GetConsensus(), static_cast<Consensus::DeploymentPos>(bit));
-
-                              std::string stateStr;
-                              switch (state) {
-                                  case ThresholdState::DEFINED: stateStr = "DEFINED"; break;
-                                  case ThresholdState::STARTED: stateStr = "STARTED"; break;
-                                  case ThresholdState::LOCKED_IN: stateStr = "LOCKED_IN"; break;
-                                  case ThresholdState::ACTIVE: stateStr = "ACTIVE"; break;
-                                  case ThresholdState::FAILED: stateStr = "FAILED"; break;
-        			  default: stateStr = "UNKNOWN"; break;
+                              // Add description if available
+                              if (bit_descriptions.count(bit)) {
+                                  obj.pushKV("description", bit_descriptions.at(bit));
                               }
 
-                              LogPrintf("Version bit %d state: %s\n", bit, stateStr);
+                              LogPrintf("Checking state for version bit %d at height %d\n", bit, pindex->nHeight);
 
-                              obj.pushKV("state", stateStr);
+                              try {
+                                  // Map the bit to a deployment
+                                  Consensus::DeploymentPos deployment_pos;
+
+                                  if (bit == 2) {
+                                      deployment_pos = Consensus::DEPLOYMENT_TAPROOT;
+                                  } else if (bit < 0 || bit >= (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS) {
+                                      obj.pushKV("state", "UNDEFINED");
+                                      obj.pushKV("error_message", "Version bit is not defined in deployments.");
+                                      result.push_back(obj);
+                                      LogPrintf("Version bit %d is not defined; skipping.\n", bit);
+                                      continue;
+                                  } else {
+                                      deployment_pos = static_cast<Consensus::DeploymentPos>(bit);
+                                  }
+
+                                  // Query the state
+                                  ThresholdState state = versionbitscache.State(pindex, Params().GetConsensus(), deployment_pos);
+
+                                  std::string stateStr;
+                                  switch (state) {
+                                      case ThresholdState::DEFINED: stateStr = "DEFINED"; break;
+                                      case ThresholdState::STARTED: stateStr = "STARTED"; break;
+                                      case ThresholdState::LOCKED_IN: stateStr = "LOCKED_IN"; break;
+                                      case ThresholdState::ACTIVE: stateStr = "ACTIVE"; break;
+                                      case ThresholdState::FAILED: stateStr = "FAILED"; break;
+                                      default: stateStr = "UNKNOWN"; break;
+                                  }
+
+                                  obj.pushKV("state", stateStr);
+                                  LogPrintf("Version bit %d state: %s\n", bit, stateStr);
+                              } catch (const std::exception& e) {
+                                  obj.pushKV("state", "ERROR");
+                                  obj.pushKV("error_message", e.what());
+                                  LogPrintf("Error processing version bit %d: %s\n", bit, e.what());
+                              }
+
                               result.push_back(obj);
                           }
 
-                          LogPrintf("Completed limited loop through version bits\n");
+                          LogPrintf("Completed loop for specified version bits\n");
                           LogPrintf("getversionbitsinfo command executed successfully\n");
 
                           return result;
                       }};
 }
+
 
 static RPCHelpMan getactivationthresholdinfo()
 {
