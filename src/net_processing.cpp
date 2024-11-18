@@ -3217,47 +3217,12 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             return;
         }
 
-        if (nVersion < MIN_PEER_PROTO_VERSION) {
+          if (nVersion < MIN_PEER_PROTO_VERSION) {
             // disconnect from peers older than this proto version
             LogPrint(BCLog::NET, "peer=%d using obsolete version %i; disconnecting\n", pfrom.GetId(), nVersion);
             pfrom.fDisconnect = true;
             return;
-        }
-
-    if (msg_type == NetMsgType::VERSION) {
-        CDataStream vRecvCopy = vRecv;
-        int peer_version;
-        vRecvCopy >> peer_version;
-/*
-
-        LogPrintf("DEBUG: Received VERSION message with peer version: %d\n", peer_version);
-*/
-
-        // Get the current block height from the active chain
-        int current_block_height = m_chainman.ActiveChain().Height();
-
-        // Define checks for protocol, version, and height compatibility
-        bool is_version_compatible = (peer_version >= MIN_PEER_VERSION_FOR_V2_FORK);
-        bool is_height_compatible = (current_block_height < Params().GetConsensus().V2ForkHeight);
-
-        // Log all compatibility checks
-/**
-        LogPrintf("Peer %d: Checking compatibility - Peer version: %d, Protocol requirement: %d, Version requirement: %d, "
-                  "Current block height: %d, Fork height: %d\n",
-                  pfrom.GetId(), peer_version, MIN_PEER_VERSION_FOR_V2_FORK, 
-                  current_block_height, Params().GetConsensus().V2ForkHeight);
-**/
-
-        // Disconnect if both version and height compatibility conditions are not met
-        if (!is_version_compatible && !is_height_compatible) {
-            LogPrintf("Disconnecting incompatible peer %d: Both version and height requirements not met\n", pfrom.GetId());
-            pfrom.fDisconnect = true; // Explicit disconnection
-        } else {
-            // Explicitly maintain connection if compatible
-            pfrom.fDisconnect = false;
-            LogPrintf("Peer %d is compatible: Connection maintained.\n", pfrom.GetId());
-        }
-    }
+          }
 
         if (!vRecv.empty()) {
             // The version message includes information about the sending node which we don't use:
@@ -3277,6 +3242,11 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         }
         if (!vRecv.empty())
             vRecv >> fRelay;
+
+        // Log the cleanSubVer for debugging for testing purpose only
+        // LogPrintf("DEBUG: Peer %d SubVer '%s'\n", pfrom.GetId(), cleanSubVer);
+
+
         // Disconnect if we connected to ourself
         if (pfrom.IsInboundConn() && !m_connman.CheckIncomingNonce(nNonce))
         {
@@ -3323,6 +3293,24 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             LOCK(pfrom.m_subver_mutex);
             pfrom.cleanSubVer = cleanSubVer;
         }
+
+
+
+        ////////// Compatibility Checks START //////////
+        int currentHeight = m_chainman.ActiveChain().Height();
+	int64_t currentTime = GetTime(); // Get the current Unix timestamp
+        if (currentHeight >= Params().GetConsensus().V2ForkHeight) {
+            std::string localSubVer = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, {});
+            if (pfrom.cleanSubVer != localSubVer) {
+                LogPrintf("DEBUG: Peer %d has unsupported SubVer '%s'; disconnecting.\n", pfrom.GetId(), pfrom.cleanSubVer);
+                pfrom.fDisconnect = true;
+                return;
+            }
+        }
+        ////////// Compatibility Checks END //////////
+
+
+
         peer->m_starting_height = starting_height;
 
         // Only initialize the Peer::TxRelay m_relay_txs data structure if:
@@ -5899,12 +5887,4 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
     } // release cs_main
     MaybeSendFeefilter(*pto, *peer, current_time);
     return true;
-}
-
-
-
-
-bool IsCompatibleVersion(int peer_version, int current_block_height) {
-    const int v2ForkHeight = Params().GetConsensus().V2ForkHeight;
-    return (peer_version >= MIN_PEER_VERSION_FOR_V2_FORK || current_block_height < v2ForkHeight);
 }

@@ -151,8 +151,6 @@ bool StartLogging(const ArgsManager& args)
                                     "deprecatedrpc=accounts\n"
                                     "\n"
                                     "# Addnodes:\n"
-                                    "addnode=194.163.138.154:19712\n"
-                                    "addnode=178.18.253.62:19712\n"
                                     "addnode=node.petrobtc.org\n"
                                     "addnode=node2.petrobtc.org\n"
                                     "\n";
