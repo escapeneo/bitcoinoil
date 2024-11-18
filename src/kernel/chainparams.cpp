@@ -88,11 +88,11 @@ public:
         consensus.nPowTargetSpacing = 6 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
+        consensus.V2ForkHeight = 3690;
         consensus.nRuleChangeActivationThreshold = 4;
         consensus.nMinerConfirmationWindow = 4;
         consensus.nRuleChangeActivationThresholdV2 = 1800;
         consensus.nMinerConfirmationWindowV2 = 2400;
-        consensus.V2ForkHeight = 3690;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
@@ -104,8 +104,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; 
 
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000c463a50a6880b43628");
-        consensus.defaultAssumeValid = uint256S("0x000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d"); 
+        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000089ebbdce68a3bd89df");
+        consensus.defaultAssumeValid = uint256S("0x000000000000000a22d593f73bb24dee585ebfad4c9531b0c565da411c54a861"); // 2000
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -151,8 +151,12 @@ public:
                 { 16, uint256S("0x0000000040265ff43fe4ad4b64bd511e18e804e3b82cc854c9f2949a35ca2d4d")},
                 { 101, uint256S("0x00000000000002b0c389b6265f0c7d915c9620fcb4c0283ae8c2de3fbd4355b1")},
                 { 147, uint256S("0x000000000000039dc63ff3597a900b8aff2f8878b9258f6a13250116c6671c49")},
+                { 1999, uint256S("0x0000000000000021017bcd7ff907af83d6426db557ac0f614a4588ea2f3e2643")},
+                { 2000, uint256S("0x000000000000000a22d593f73bb24dee585ebfad4c9531b0c565da411c54a861")},
                 { 3170, uint256S("0x00000000000000071a309ee60b4ecc607f199214bbb32f86c26f15ff9cce084a")},
                 { 3541, uint256S("0x000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d")},
+                { 3689, uint256S("0x000000000000001817097f68a623bb27c90ab6395a008125cda4a0a7ee3bc361")},
+                { 3690, uint256S("0x0000000000000024cf45b402b4aa1a7bb977fbfa674065e80a68a168b700338a")}, // V2ForkHeight
             }
         };
 
@@ -161,10 +165,10 @@ public:
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 3541 000000000000000c101df07f52b0f47cab15478911479081633d7cb4c7b50a2d
-            .nTime    = 1731634713,
-            .nTxCount = 4596,
-            .dTxRate  = 0.00203373,
+            // Data from RPC: getchaintxstats 3690
+            .nTime    = 1731953524,
+            .nTxCount = 4791,
+            .dTxRate  = 0.00203054592,
         };
     }
 };
