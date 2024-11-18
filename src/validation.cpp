@@ -1993,7 +1993,9 @@ public:
 
     int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
     int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
-    // Wrapper functions to call the new functions with pindex argument
+    //int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
+    //int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
+
     int Period(const Consensus::Params& params) const override {
         const CBlockIndex* pindex = m_chainman.ActiveTip();
         return PeriodWithHeight(params, pindex);
@@ -2006,11 +2008,33 @@ public:
 
     // New functions with pindex as argument
     int PeriodWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
+        if (!pindex) {
+            LogPrintf("DEBUG: Using default nMinerConfirmationWindow (pindex is null)\n");
+            return params.nMinerConfirmationWindow;
+        }
+
+        if (pindex->nHeight < params.V2ForkHeight) {
+            LogPrintf("DEBUG: Using nMinerConfirmationWindow at height %d\n", pindex->nHeight);
+            return params.nMinerConfirmationWindow;
+        } else {
+            LogPrintf("DEBUG: Using V2MinerConfirmationWindow at height %d\n", pindex->nHeight);
+            return params.nMinerConfirmationWindowV2;
+        }
     }
 
     int ThresholdWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
+        if (!pindex) {
+            LogPrintf("DEBUG: Using default nRuleChangeActivationThreshold (pindex is null)\n");
+            return params.nRuleChangeActivationThreshold;
+        }
+
+        if (pindex->nHeight < params.V2ForkHeight) {
+            LogPrintf("DEBUG: Using nRuleChangeActivationThreshold at height %d\n", pindex->nHeight);
+            return params.nRuleChangeActivationThreshold;
+        } else {
+            LogPrintf("DEBUG: Using V2RuleChangeActivationThreshold at height %d\n", pindex->nHeight);
+            return params.nRuleChangeActivationThresholdV2;
+        }
     }
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
