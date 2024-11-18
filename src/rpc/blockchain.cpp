@@ -1224,7 +1224,7 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
 #include <string>
 #include <iostream>
 
-#define V2FORK_WALLET_VERSION "25.1.0"
+
 
 RPCHelpMan getblockchaininfo()
 {
@@ -1301,11 +1301,7 @@ RPCHelpMan getblockchaininfo()
         obj.pushKV("V2ForkHeightStatus", "Reached, active");
     }
 
-    if (height >= params.V2ForkHeight && walletVersion != V2FORK_WALLET_VERSION) {
-        obj.pushKV("warnings", "Upgrade to wallet version " + std::string(V2FORK_WALLET_VERSION) + " required to proceed after height " + std::to_string(params.V2ForkHeight));
-    } else {
-        obj.pushKV("warnings", GetWarnings(false).original);
-    }
+
 
     return obj;
 },
