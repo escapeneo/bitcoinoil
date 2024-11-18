@@ -1993,9 +1993,7 @@ public:
 
     int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
     int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
-    //int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    //int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
-
+    // Wrapper functions to call the new functions with pindex argument
     int Period(const Consensus::Params& params) const override {
         const CBlockIndex* pindex = m_chainman.ActiveTip();
         return PeriodWithHeight(params, pindex);
@@ -2006,34 +2004,13 @@ public:
         return ThresholdWithHeight(params, pindex);
     }
 
+    // New functions with pindex as argument
     int PeriodWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        if (!pindex) {
-            LogPrintf("DEBUG: Using default nMinerConfirmationWindow (pindex is null)\n");
-            return params.nMinerConfirmationWindow;
-        }
-
-        if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nMinerConfirmationWindow at height %d\n", pindex->nHeight);
-            return params.nMinerConfirmationWindow;
-        } else {
-            LogPrintf("DEBUG: Using V2MinerConfirmationWindow at height %d\n", pindex->nHeight);
-            return params.nMinerConfirmationWindowV2;
-        }
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
     }
 
     int ThresholdWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        if (!pindex) {
-            LogPrintf("DEBUG: Using default nRuleChangeActivationThreshold (pindex is null)\n");
-            return params.nRuleChangeActivationThreshold;
-        }
-
-        if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nRuleChangeActivationThreshold at height %d\n", pindex->nHeight);
-            return params.nRuleChangeActivationThreshold;
-        } else {
-            LogPrintf("DEBUG: Using V2RuleChangeActivationThreshold at height %d\n", pindex->nHeight);
-            return params.nRuleChangeActivationThresholdV2;
-        }
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
     }
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
@@ -3744,20 +3721,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
  */
 static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& state, const ChainstateManager& chainman, const CBlockIndex* pindexPrev)
 {
-
-
-    // Enhanced null check for pindexPrev // fix for reindex
-    if (pindexPrev == nullptr) {
-        if (!block.hashPrevBlock.IsNull()) { // Not the genesis block
-            LogPrintf("pindexPrev is unexpectedly null for non-genesis block %s.\n", block.GetHash().ToString());
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-prev-index", "Previous block index is null unexpectedly");
-        }
-        LogPrintf("pindexPrev is null for genesis block or during reindexing. Skipping context checks.\n");
-        return true; // Allow block validation to continue for genesis or reindex scenarios
-    }
-
-    //const int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
-    const int nHeight = pindexPrev->nHeight + 1;
+    const int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
 
     // Enforce BIP113 (Median Time Past).
     bool enforce_locktime_median_time_past{false};
@@ -3777,25 +3741,15 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
         }
     }
 
-    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_HEIGHTINCB)) {
-        // Skip height validation for the genesis block (height 0)
-        if (nHeight == 0) {
-            LogPrintf("Skipping height check for genesis block.\n");
-        } else if (nHeight == 1) {
-            LogPrintf("Skipping height check for known issue at height 1.\n");
-        } else {
-            CScript expect = CScript() << nHeight;
-            if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
-                !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
-                LogPrintf("Block %s failed coinbase height validation. Expected: %s, Actual: %s\n",
-                          block.GetHash().ToString(),
-                          HexStr(expect),
-                          HexStr(block.vtx[0]->vin[0].scriptSig));
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-height", "block height mismatch in coinbase");
-            }
+    // Enforce rule that the coinbase starts with serialized block height
+    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_HEIGHTINCB))
+    {
+        CScript expect = CScript() << nHeight;
+        if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
+            !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-height", "block height mismatch in coinbase");
         }
     }
-
 
     // Validation for witness commitments.
     // * We compute the witness hash (which is the hash including witnesses) of all the block's transactions, except the

@@ -183,51 +183,28 @@ private:
     const Consensus::DeploymentPos id;
 
 protected:
-    int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
-    int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
-    int MinActivationHeight(const Consensus::Params& params) const override { return params.vDeployments[id].min_activation_height; }
-    //int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    //int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
-
-
     // Overloads to satisfy the base class
     int Period(const Consensus::Params& params) const override {
-        return PeriodWithHeight(params, nullptr);
+        return Period(params, nullptr);
     }
 
     int Threshold(const Consensus::Params& params) const override {
-        return ThresholdWithHeight(params, nullptr);
+        return Threshold(params, nullptr);
     }
 
-    int PeriodWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        if (!pindex) {
-            LogPrintf("DEBUG: Using default nMinerConfirmationWindow (pindex is null)\n");
-            return params.nMinerConfirmationWindow;
-        }
-
-        if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nMinerConfirmationWindow at height %d\n", pindex->nHeight);
-            return params.nMinerConfirmationWindow;
-        } else {
-            LogPrintf("DEBUG: Using V2MinerConfirmationWindow at height %d\n", pindex->nHeight);
-            return params.nMinerConfirmationWindowV2;
-        }
+    // Updated methods that use `pindex` to support V2 logic
+    int Period(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nMinerConfirmationWindowV2 : params.nMinerConfirmationWindow;
     }
 
-    int ThresholdWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
-        if (!pindex) {
-            LogPrintf("DEBUG: Using default nRuleChangeActivationThreshold (pindex is null)\n");
-            return params.nRuleChangeActivationThreshold;
-        }
-
-        if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nRuleChangeActivationThreshold at height %d\n", pindex->nHeight);
-            return params.nRuleChangeActivationThreshold;
-        } else {
-            LogPrintf("DEBUG: Using V2RuleChangeActivationThreshold at height %d\n", pindex->nHeight);
-            return params.nRuleChangeActivationThresholdV2;
-        }
+    int Threshold(const Consensus::Params& params, const CBlockIndex* pindex) const {
+        return (pindex && pindex->nHeight >= params.V2ForkHeight) ? params.nRuleChangeActivationThresholdV2 : params.nRuleChangeActivationThreshold;
     }
+
+    int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
+    int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
+    int MinActivationHeight(const Consensus::Params& params) const override { return params.vDeployments[id].min_activation_height; }
+
 
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override {
