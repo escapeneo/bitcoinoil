@@ -93,7 +93,7 @@ If you're stuck on a fork or want to resync your blockchain, you can delete the 
    - `chainstate/`
    - `indexes/` (if applicable)
    - `peers.dat`
-4. **Do NOT delete `wallet.dat`.**
+4. Do **NOT** delete the `wallet.dat` file or the folder containing it. You can identify this folder by its name, which matches the wallet name you selected.
 5. Restart BitcoinOil Core to begin syncing.
 
 ---
@@ -108,7 +108,7 @@ If you're stuck on a fork or want to resync your blockchain, you can delete the 
    ```bash
    rm -rf blocks/ chainstate/ peers.dat
    ```
-4. **Ensure `wallet.dat` remains intact.**
+4. Do **NOT** delete the `wallet.dat` file or the folder containing it. You can identify this folder by its name, which matches the wallet name you selected.
 5. Restart BitcoinOil Core to resync.
 
 ---
@@ -124,7 +124,7 @@ If you're stuck on a fork or want to resync your blockchain, you can delete the 
    - `chainstate/`
    - `indexes/` (if applicable)
    - `peers.dat`
-4. **Do NOT delete `wallet.dat`.**
+4. Do **NOT** delete the `wallet.dat` file or the folder containing it. You can identify this folder by its name, which matches the wallet name you selected.
 5. Restart BitcoinOil Core to sync from scratch.
 
 ---
