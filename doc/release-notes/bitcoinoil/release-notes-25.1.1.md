@@ -53,6 +53,86 @@ For detailed changes, see the commits included in this release.
 ---
 
 
+
+### **IF YOU ARE ON THE WRONG CHAIN**
+
+If your node is on a fork, you need to invalidate the block 3690 and reconnect to the main chain. Follow these steps:
+
+1. Open your BitcoinOil console or RPC interface.
+2. Run the following command to invalidate the forked block:
+   ```
+   invalidateblock 000000000000000e4643fdd5621478a86103ad982bf7615b021b23064c82aa64
+   ```
+3. Restart your node to ensure it connects to the correct chain.
+4. Optionally, you can run:
+   ```
+   reconsiderblock 0000000000000024cf45b402b4aa1a7bb977fbfa674065e80a68a168b700338a
+   ```
+
+
+This will force your node to abandon the incorrect chain and sync with the correct network. 
+
+Ensure you are using the latest BitcoinOil version to avoid similar issues.
+
+
+## **IF THAT DOESN'T HELP**:
+### **How to Reset Your Blockchain Data Without Losing Your Wallet**
+
+If you're stuck on a fork or want to resync your blockchain, you can delete the block data while keeping your wallet file intact. Follow these steps based on your operating system:
+
+---
+
+#### **For Windows**
+1. Close BitcoinOil Core.
+2. Navigate to your data directory, usually:
+   ```
+   C:\Users\<YourUsername>\AppData\Roaming\BitcoinOil
+   ```
+3. Delete the following folders/files:
+   - `blocks/`
+   - `chainstate/`
+   - `indexes/` (if applicable)
+   - `peers.dat`
+4. **Do NOT delete `wallet.dat`.**
+5. Restart BitcoinOil Core to begin syncing.
+
+---
+
+#### **For Linux**
+1. Close BitcoinOil Core.
+2. Open a terminal and navigate to your data directory, typically:
+   ```
+   ~/.bitcoinoil/
+   ```
+3. Run the following commands:
+   ```bash
+   rm -rf blocks/ chainstate/ peers.dat
+   ```
+4. **Ensure `wallet.dat` remains intact.**
+5. Restart BitcoinOil Core to resync.
+
+---
+
+#### **For macOS**
+1. Close BitcoinOil Core.
+2. Open Finder and navigate to:
+   ```
+   ~/Library/Application Support/BitcoinOil
+   ```
+3. Delete these folders/files:
+   - `blocks/`
+   - `chainstate/`
+   - `indexes/` (if applicable)
+   - `peers.dat`
+4. **Do NOT delete `wallet.dat`.**
+5. Restart BitcoinOil Core to sync from scratch.
+
+---
+
+This process resets your blockchain data while preserving your wallet and funds. Ensure you're connected to the correct network and running the latest version of BitcoinOil Core.
+
+
+
 ### **All commits**
 [4152a36ae5...](https://github.com/escapeneo/bitcoinoil/commit/4152a36ae5770217324fb4a763b02ee7ebd5fdf8)
 
