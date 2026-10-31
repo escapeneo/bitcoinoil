@@ -59,6 +59,8 @@ static constexpr int64_t VALIDATION_WEIGHT_PER_SIGOP_PASSED{50};
 // How much weight budget is added to the witness size (Tapscript only, see BIP 342).
 static constexpr int64_t VALIDATION_WEIGHT_OFFSET{50};
 
+using valtype = std::vector<unsigned char>;
+
 template <typename T>
 std::vector<unsigned char> ToByteVector(const T& in)
 {

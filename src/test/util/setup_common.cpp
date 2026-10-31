@@ -273,7 +273,7 @@ TestChain100Setup::TestChain100Setup(
         const bool block_tree_db_in_memory)
     : TestingSetup{CBaseChainParams::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
 {
-    SetMockTime(1598887952);
+    SetMockTime(1729400000); // BitcoinOil: must be after the regtest genesis time
     constexpr std::array<unsigned char, 32> vchKey = {
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
     coinbaseKey.Set(vchKey.begin(), vchKey.end(), true);
@@ -285,7 +285,7 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
-            "571d80a9967ae599cec0448b0b0ba1cfb606f584d8069bd7166b86854ba7a191");
+            "6b6086700b60b86a845d95828bdb49c6ec1e345030345fcf8e9d54ffc5086c66");
     }
 }
 

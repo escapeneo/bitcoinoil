@@ -154,6 +154,7 @@ public:
         std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
         std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
         bool fastprune{false};
+        std::optional<int> auxpow_start_height{};
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);

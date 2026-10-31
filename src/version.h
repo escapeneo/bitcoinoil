@@ -9,7 +9,7 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 70016;
+static const int PROTOCOL_VERSION = 70017;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
@@ -22,6 +22,10 @@ static const int BIP0031_VERSION = 60000;
 
 //! "filter*" commands are disabled without NODE_BLOOM after and including this version
 static const int NO_BLOOM_VERSION = 70011;
+
+//! Version when we switched to a size-based "headers" limit (needed for
+//! merge-mined headers, which carry the parent block's auxpow data).
+static const int SIZE_HEADERS_LIMIT_VERSION = 70017;
 
 //! "sendheaders" command and announcing blocks with headers starts with this version
 static const int SENDHEADERS_VERSION = 70012;

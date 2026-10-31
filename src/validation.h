@@ -355,6 +355,14 @@ bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consens
 /** Return the sum of the work on a given set of headers */
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers);
 
+/**
+ * Check proof-of-work of a block header, taking auxpow into account.
+ * @param block The block header.
+ * @param params Consensus parameters.
+ * @return True iff the PoW is correct.
+ */
+bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params);
+
 enum class VerifyDBResult {
     SUCCESS,
     CORRUPTED_BLOCK_DB,

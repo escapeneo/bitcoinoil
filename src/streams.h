@@ -10,6 +10,7 @@
 #include <span.h>
 #include <support/allocators/zeroafterfree.h>
 #include <util/overflow.h>
+#include <version.h>
 
 #include <algorithm>
 #include <assert.h>
@@ -376,6 +377,21 @@ public:
         return *this;
     }
 };
+
+/* In auxpow, serialising the block header includes a transaction.  The logic
+   for those depends on GetVersion(), so it can check the witness flag.
+   Thus upstream code assuming that we can write a block header to DataStream
+   breaks, which we fix hereby.  */
+template <typename Stream>
+  inline int GetVersionOrProtocol (const Stream& s)
+{
+    return s.GetVersion();
+}
+template <>
+  inline int GetVersionOrProtocol<DataStream> (const DataStream& s)
+{
+    return PROTOCOL_VERSION;
+}
 
 template <typename IStream>
 class BitStreamReader
