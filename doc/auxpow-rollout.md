@@ -10,9 +10,8 @@ deployment. Merging a PR does not install new software on network participants.
 - Review the consensus implementation and [activation guide](auxpow-activation.md),
   especially height boundaries, parent proof validation, index persistence,
   headers limits and reorganizations. Obtain independent review of the final SHA.
-- Run the AuxPoW workflow on the final PR SHA. Record existing test failures
-  separately from new regressions; a focused green workflow is not a claim that
-  the entire inherited test suite passes.
+- Run the AuxPoW workflow on the final PR SHA. Require the full unit suite, Qt tests, wallet upgrade tests and platform
+  checks; preparing a workflow locally is not a successful GitHub run.
 - Agree that 155000 still provides adequate deployment time. Measure the live
   tip and recent block rate; do not convert the remaining blocks into a promised
   calendar deadline. If the window is insufficient, agree a later height and
