@@ -17,6 +17,10 @@ a merge-mining tag alone does not make a block an AuxPoW block.
 
 ## Upgrade and deployment
 
+Maintainers and operators should use the [rollout checklist](auxpow-rollout.md)
+and [validation record](auxpow-validation.md) when reviewing and scheduling
+this proposal.
+
 Publishing a GitHub commit does not update deployed nodes. Pool operators,
 explorers, exchanges and wallet users must install the coordinated release
 **before block 155000**. Older nodes cannot validate an AuxPoW block and may
