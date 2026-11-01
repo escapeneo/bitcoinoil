@@ -546,7 +546,11 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{};
+        // Deterministic TestChain100Setup fixture, extended to height 110.
+        // Regtest only: no production snapshot trust is introduced.
+        m_assumeutxo_data = MapAssumeutxo{
+            {110, {AssumeutxoHash{uint256S("ba5d4bc634522f09f690e352ee3759c493b35aad047f0e8f6ac2f463434f4266")}, 111}},
+        };
 
         chainTxData = ChainTxData{
             0,

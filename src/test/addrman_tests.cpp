@@ -135,18 +135,19 @@ BOOST_AUTO_TEST_CASE(addrman_ports)
 
 BOOST_AUTO_TEST_CASE(addrman_select)
 {
+    // Fixed fixture ports are inputs to the upstream deterministic bucket vectors.
     auto addrman = std::make_unique<AddrMan>(EMPTY_NETGROUPMAN, DETERMINISTIC, GetCheckRatio(m_node));
 
     CNetAddr source = ResolveIP("252.2.2.2");
 
     // Test: Select from new with 1 addr in new.
-    CService addr1 = ResolveService("250.1.1.1", 19712);
+    CService addr1 = ResolveService("250.1.1.1", 8333);
     BOOST_CHECK(addrman->Add({CAddress(addr1, NODE_NONE)}, source));
     BOOST_CHECK_EQUAL(addrman->Size(), 1U);
 
     bool newOnly = true;
     auto addr_ret1 = addrman->Select(newOnly).first;
-    BOOST_CHECK_EQUAL(addr_ret1.ToStringAddrPort(), "250.1.1.1:19712");
+    BOOST_CHECK_EQUAL(addr_ret1.ToStringAddrPort(), "250.1.1.1:8333");
 
     // Test: move addr to tried, select from new expected nothing returned.
     BOOST_CHECK(addrman->Good(CAddress(addr1, NODE_NONE)));
@@ -155,30 +156,30 @@ BOOST_AUTO_TEST_CASE(addrman_select)
     BOOST_CHECK_EQUAL(addr_ret2.ToStringAddrPort(), "[::]:0");
 
     auto addr_ret3 = addrman->Select().first;
-    BOOST_CHECK_EQUAL(addr_ret3.ToStringAddrPort(), "250.1.1.1:19712");
+    BOOST_CHECK_EQUAL(addr_ret3.ToStringAddrPort(), "250.1.1.1:8333");
 
     BOOST_CHECK_EQUAL(addrman->Size(), 1U);
 
 
     // Add three addresses to new table.
-    CService addr2 = ResolveService("250.3.1.1", 19712);
+    CService addr2 = ResolveService("250.3.1.1", 8333);
     CService addr3 = ResolveService("250.3.2.2", 9999);
     CService addr4 = ResolveService("250.3.3.3", 9999);
 
-    BOOST_CHECK(addrman->Add({CAddress(addr2, NODE_NONE)}, ResolveService("250.3.1.1", 19712)));
-    BOOST_CHECK(addrman->Add({CAddress(addr3, NODE_NONE)}, ResolveService("250.3.1.1", 19712)));
-    BOOST_CHECK(addrman->Add({CAddress(addr4, NODE_NONE)}, ResolveService("250.4.1.1", 19712)));
+    BOOST_CHECK(addrman->Add({CAddress(addr2, NODE_NONE)}, ResolveService("250.3.1.1", 8333)));
+    BOOST_CHECK(addrman->Add({CAddress(addr3, NODE_NONE)}, ResolveService("250.3.1.1", 8333)));
+    BOOST_CHECK(addrman->Add({CAddress(addr4, NODE_NONE)}, ResolveService("250.4.1.1", 8333)));
 
     // Add three addresses to tried table.
-    CService addr5 = ResolveService("250.4.4.4", 19712);
+    CService addr5 = ResolveService("250.4.4.4", 8333);
     CService addr6 = ResolveService("250.4.5.5", 7777);
-    CService addr7 = ResolveService("250.4.6.6", 19712);
+    CService addr7 = ResolveService("250.4.6.6", 8333);
 
-    BOOST_CHECK(addrman->Add({CAddress(addr5, NODE_NONE)}, ResolveService("250.3.1.1", 19712)));
+    BOOST_CHECK(addrman->Add({CAddress(addr5, NODE_NONE)}, ResolveService("250.3.1.1", 8333)));
     BOOST_CHECK(addrman->Good(CAddress(addr5, NODE_NONE)));
-    BOOST_CHECK(addrman->Add({CAddress(addr6, NODE_NONE)}, ResolveService("250.3.1.1", 19712)));
+    BOOST_CHECK(addrman->Add({CAddress(addr6, NODE_NONE)}, ResolveService("250.3.1.1", 8333)));
     BOOST_CHECK(addrman->Good(CAddress(addr6, NODE_NONE)));
-    BOOST_CHECK(addrman->Add({CAddress(addr7, NODE_NONE)}, ResolveService("250.1.1.3", 19712)));
+    BOOST_CHECK(addrman->Add({CAddress(addr7, NODE_NONE)}, ResolveService("250.1.1.3", 8333)));
     BOOST_CHECK(addrman->Good(CAddress(addr7, NODE_NONE)));
 
     // Test: 6 addrs + 1 addr from last test = 7.
@@ -346,7 +347,8 @@ BOOST_AUTO_TEST_CASE(addrman_getaddr)
 
 BOOST_AUTO_TEST_CASE(caddrinfo_get_tried_bucket_legacy)
 {
-    CAddress addr1 = CAddress(ResolveService("250.1.1.1", 19712), NODE_NONE);
+    // Fixed fixture ports are inputs to the upstream deterministic bucket vectors.
+    CAddress addr1 = CAddress(ResolveService("250.1.1.1", 8333), NODE_NONE);
     CAddress addr2 = CAddress(ResolveService("250.1.1.1", 9999), NODE_NONE);
 
     CNetAddr source1 = ResolveIP("250.1.1.1");
@@ -471,10 +473,11 @@ BOOST_AUTO_TEST_CASE(caddrinfo_get_new_bucket_legacy)
 // 101.8.0.0/16 AS8
 BOOST_AUTO_TEST_CASE(caddrinfo_get_tried_bucket)
 {
+    // Fixed fixture ports are inputs to the upstream deterministic bucket vectors.
     std::vector<bool> asmap = FromBytes(asmap_raw, sizeof(asmap_raw) * 8);
     NetGroupManager ngm_asmap{asmap};
 
-    CAddress addr1 = CAddress(ResolveService("250.1.1.1", 19712), NODE_NONE);
+    CAddress addr1 = CAddress(ResolveService("250.1.1.1", 8333), NODE_NONE);
     CAddress addr2 = CAddress(ResolveService("250.1.1.1", 9999), NODE_NONE);
 
     CNetAddr source1 = ResolveIP("250.1.1.1");
