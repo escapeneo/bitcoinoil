@@ -12,6 +12,7 @@ import json
 import shutil
 import socket
 import struct
+import sys
 import subprocess
 import tempfile
 import time
@@ -356,7 +357,8 @@ def run(binary, root, height):
                         base64.b64encode(cookie) + b'\r\nContent-Type: application/json\r\nContent-Length: ' +
                         str(len(body)).encode() + b'\r\n\r\n' + body)
         wait(lambda: any(cmd['method'] == 'waitfornewblock' for cmd in a.rpc('getrpcinfo')['active_commands']))
-        pending.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+        linger_format = 'HH' if sys.platform == 'win32' else 'ii'
+        pending.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack(linger_format, 1, 0))
         pending.close()
         a.rpc('generatetoaddress', 1, address)
         a.stop(timeout=20)

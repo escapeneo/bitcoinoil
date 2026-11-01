@@ -11,11 +11,12 @@ permissions:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -24,9 +25,23 @@ jobs:
         run: |
           ./autogen.sh
           CXXFLAGS="-O2 -g0" ./configure --with-gui=qt5 --without-bdb --disable-bench --disable-fuzz-binary
-          make -C src -j2 bitcoinoild bitcoinoil-cli qt/bitcoinoil-qt test/test_bitcoinoil
-      - name: AuxPoW unit and header-sync tests
-        run: src/test/test_bitcoinoil --run_test=auxpow_tests,headers_sync_chainwork_tests --log_level=test_suite
+          make -C src -j2 bitcoinoild bitcoinoil-cli qt/bitcoinoil-qt test/test_bitcoinoil qt/test/test_bitcoinoil-qt
+      - name: Full unit suite including pinned script vectors
+        run: |
+          python3 contrib/auxpow/fetch_test_assets.py /tmp/btco-script-assets
+          DIR_UNIT_TEST_DATA=/tmp/btco-script-assets src/test/test_bitcoinoil --log_level=test_suite
+      - name: Qt interface tests
+        run: QT_QPA_PLATFORM=offscreen src/qt/test/test_bitcoinoil-qt
+      - name: Build previous official daemon for wallet upgrade test
+        run: |
+          mkdir /tmp/btco-old
+          git archive 9e491b31013bb379302d28e57803916147537a2c | tar -x -C /tmp/btco-old
+          cd /tmp/btco-old
+          ./autogen.sh
+          CXXFLAGS="-O2 -g0" ./configure --without-gui --without-bdb --disable-bench --disable-fuzz-binary
+          make -C src -j2 bitcoinoild
+      - name: Encrypted wallet upgrade from the official previous version
+        run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/wallet_upgrade_regtest.py --old-binary=/tmp/btco-old/src/bitcoinoild --binary=src/qt/bitcoinoil-qt --tmpdir=/tmp/btco-wallet-upgrade
       - name: Fast activation, headers, pruning and reorg regression
         run: python3 contrib/auxpow/activation_regtest.py --height=120 --tmpdir=/tmp/btco-auxpow-fast
       - name: Exact 154999 / 155000 boundary
@@ -49,3 +64,5 @@ jobs:
             /tmp/btco-auxpow-qt/**/process.log
             /tmp/btco-auxpow-headers/**/debug.log
             /tmp/btco-auxpow-headers/**/process.log
+            /tmp/btco-wallet-upgrade/**/debug.log
+            /tmp/btco-wallet-upgrade/**/process.log
