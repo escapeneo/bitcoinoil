@@ -31,6 +31,8 @@ jobs:
         run: python3 contrib/auxpow/activation_regtest.py --height=120 --tmpdir=/tmp/btco-auxpow-fast
       - name: Exact 154999 / 155000 boundary
         run: python3 contrib/auxpow/activation_regtest.py --height=155000 --tmpdir=/tmp/btco-auxpow-mainnet-height
+      - name: Cold P2P sync across AuxPoW headers-message limits
+        run: python3 contrib/auxpow/headers_regtest.py --tmpdir=/tmp/btco-auxpow-headers
       - name: Qt wallet regression without a display
         run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
       - name: Preserve node logs on failure
@@ -45,3 +47,5 @@ jobs:
             /tmp/btco-auxpow-mainnet-height/**/process.log
             /tmp/btco-auxpow-qt/**/debug.log
             /tmp/btco-auxpow-qt/**/process.log
+            /tmp/btco-auxpow-headers/**/debug.log
+            /tmp/btco-auxpow-headers/**/process.log

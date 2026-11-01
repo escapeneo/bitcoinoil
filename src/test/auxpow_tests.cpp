@@ -728,6 +728,7 @@ BOOST_FIXTURE_TEST_CASE(ordinary_header_index_disk_compatibility, BasicTestingSe
   actual << disk;
 
   // Exact format used by the original non-AuxPoW block index.
+  LOCK(cs_main);
   CDataStream original(SER_DISK, PROTOCOL_VERSION);
   int stream_version = original.GetVersion();
   original << VARINT_MODE(stream_version, VarIntMode::NONNEGATIVE_SIGNED);

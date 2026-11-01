@@ -101,6 +101,7 @@ From the repository root, after building daemon and tests:
 src/test/test_bitcoinoil --run_test=auxpow_tests,headers_sync_chainwork_tests --log_level=test_suite
 python3 contrib/auxpow/activation_regtest.py --height=120
 python3 contrib/auxpow/activation_regtest.py --height=155000
+python3 contrib/auxpow/headers_regtest.py
 # After a Qt-enabled build, test the graphical wallet backend headlessly:
 QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120
 ```
@@ -119,6 +120,10 @@ prefix, the 600-block pruning fixture and reindexing, avoiding quadratic test
 cost. Normal consensus, transaction and PoW validation remain enabled. The
 default global index checks are enabled for the activation, header restart,
 reorganizations, pruned-node restart and final startup.
+
+The additional headers regression cold-syncs 2100 consecutive AuxPoW blocks
+from genesis, crossing both the legacy 2000-header count and the new variable-
+size headers-message budgets.
 
 These tests and existing-mainnet validation reduce implementation risk. They
 do not guarantee zero bugs, certify all pool software or replace operator
