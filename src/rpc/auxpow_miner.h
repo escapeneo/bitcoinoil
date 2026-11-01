@@ -21,7 +21,7 @@
 
 class ChainstateManager;
 namespace node {
-class CBlockTemplate;
+struct CBlockTemplate;
 } // namespace node
 
 namespace auxpow_tests

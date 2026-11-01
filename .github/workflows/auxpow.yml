@@ -1,0 +1,47 @@
+name: AuxPoW consensus regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdextrautils python3 libevent-dev libboost-dev libboost-test-dev libboost-system-dev libboost-filesystem-dev libsqlite3-dev qtbase5-dev qttools5-dev qttools5-dev-tools libqrencode-dev
+      - name: Configure and build daemon, CLI, Qt and unit tests
+        run: |
+          ./autogen.sh
+          CXXFLAGS="-O2 -g0" ./configure --with-gui=qt5 --without-bdb --disable-bench --disable-fuzz-binary
+          make -C src -j2 bitcoinoild bitcoinoil-cli qt/bitcoinoil-qt test/test_bitcoinoil
+      - name: AuxPoW unit and header-sync tests
+        run: src/test/test_bitcoinoil --run_test=auxpow_tests,headers_sync_chainwork_tests --log_level=test_suite
+      - name: Fast activation, headers, pruning and reorg regression
+        run: python3 contrib/auxpow/activation_regtest.py --height=120 --tmpdir=/tmp/btco-auxpow-fast
+      - name: Exact 154999 / 155000 boundary
+        run: python3 contrib/auxpow/activation_regtest.py --height=155000 --tmpdir=/tmp/btco-auxpow-mainnet-height
+      - name: Qt wallet regression without a display
+        run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
+      - name: Preserve node logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: auxpow-regtest-logs
+          path: |
+            /tmp/btco-auxpow-fast/**/debug.log
+            /tmp/btco-auxpow-fast/**/process.log
+            /tmp/btco-auxpow-mainnet-height/**/debug.log
+            /tmp/btco-auxpow-mainnet-height/**/process.log
+            /tmp/btco-auxpow-qt/**/debug.log
+            /tmp/btco-auxpow-qt/**/process.log

@@ -207,6 +207,9 @@ public:
     uint32_t nBits{0};
     uint32_t nNonce{0};
 
+    //! Keep the full proof even for headers-only and pruned blocks.
+    std::shared_ptr<CAuxPow> auxpow;
+
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId{0};
 
@@ -220,6 +223,12 @@ public:
           nBits{block.nBits},
           nNonce{block.nNonce}
     {
+    }
+
+    explicit CBlockIndex(const CBlockHeader& block)
+        : CBlockIndex(static_cast<const CPureBlockHeader&>(block))
+    {
+        auxpow = block.auxpow;
     }
 
     FlatFilePos GetBlockPos() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -422,6 +431,12 @@ public:
         READWRITE(obj.nTime);
         READWRITE(obj.nBits);
         READWRITE(obj.nNonce);
+        // Ordinary pre-fork index entries retain their exact disk format.
+        if (CPureBlockHeader::IsAuxpow(obj.nVersion)) {
+            SER_READ(obj, obj.auxpow = std::make_shared<CAuxPow>());
+            if (!obj.auxpow) throw std::ios_base::failure("Missing AuxPoW in block index");
+            READWRITE(*obj.auxpow);
+        }
     }
 
     uint256 ConstructBlockHash() const

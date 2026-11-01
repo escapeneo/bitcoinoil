@@ -416,6 +416,12 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
                         {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
+                        {RPCResult::Type::OBJ, "auxpow", "Merge-mining activation for the next block", {
+                            {RPCResult::Type::NUM, "chainid", "AuxPoW chain ID"},
+                            {RPCResult::Type::NUM, "startheight", "First height accepting AuxPoW"},
+                            {RPCResult::Type::NUM, "nextblockheight", "Height of the next candidate block"},
+                            {RPCResult::Type::BOOL, "enabled", "Whether AuxPoW is allowed for that candidate"},
+                        }},
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
                     }},
                 RPCExamples{
@@ -438,6 +444,13 @@ static RPCHelpMan getmininginfo()
     obj.pushKV("networkhashps",    getnetworkhashps().HandleRequest(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain", chainman.GetParams().NetworkIDString());
+    const auto& consensus = chainman.GetConsensus();
+    UniValue auxpow(UniValue::VOBJ);
+    auxpow.pushKV("chainid", consensus.nAuxpowChainId);
+    auxpow.pushKV("startheight", consensus.nAuxpowStartHeight);
+    auxpow.pushKV("nextblockheight", active_chain.Height() + 1);
+    auxpow.pushKV("enabled", consensus.IsAuxpowEnabled(active_chain.Height() + 1));
+    obj.pushKV("auxpow", std::move(auxpow));
     obj.pushKV("warnings",         GetWarnings(false).original);
     return obj;
 },

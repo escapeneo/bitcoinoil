@@ -40,13 +40,13 @@ void auxMiningCheck(const node::NodeContext& node)
     throw JSONRPCError (RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                         "BitcoinOil is downloading blocks...");
 
-  /* This should never fail, since the chain is already
-     past the point of merge-mining start.  Check nevertheless.  */
+  /* Pools may request work for the activation block when its parent is tip. */
   {
     LOCK (cs_main);
     const auto auxpowStart = Params ().GetConsensus ().nAuxpowStartHeight;
-    if (chainman.ActiveHeight () + 1 < auxpowStart)
-      throw std::runtime_error ("mining auxblock method is not yet available");
+    if (!Params ().GetConsensus ().IsAuxpowEnabled(chainman.ActiveHeight () + 1))
+      throw JSONRPCError (RPC_MISC_ERROR,
+                          strprintf("mining auxblock method is not yet available; activation height is %d", auxpowStart));
   }
 }
 
@@ -180,10 +180,14 @@ AuxpowMiner::submitAuxBlock (const JSONRPCRequest& request,
     shared_block = std::make_shared<CBlock> (*pblock);
   }
 
+  if (!IsHex(auxpowHex))
+    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "AuxPoW must be hexadecimal");
   const std::vector<unsigned char> vchAuxPow = ParseHex (auxpowHex);
   CDataStream ss(vchAuxPow, SER_GETHASH, PROTOCOL_VERSION);
   std::unique_ptr<CAuxPow> pow(new CAuxPow ());
   ss >> *pow;
+  if (!ss.empty())
+    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Trailing data after AuxPoW");
   shared_block->SetAuxpow (std::move (pow));
   assert (shared_block->GetHash ().GetHex () == hashHex);
 

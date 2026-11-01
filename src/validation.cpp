@@ -3753,7 +3753,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
                              "legacy block after auxpow start");
 
     // Merge-mined blocks are only valid from the auxpow fork height on.
-    if (block.IsAuxpow() && nHeight < consensusParams.nAuxpowStartHeight)
+    if (block.IsAuxpow() && !consensusParams.IsAuxpowEnabled(nHeight))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER,
                              "early-auxpow-block",
                              "auxpow block before auxpow start");

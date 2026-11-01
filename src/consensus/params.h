@@ -15,6 +15,10 @@
 
 namespace Consensus {
 
+/** Fixed mainnet hard-fork height. Not configurable by mainnet operators. */
+static constexpr int MAINNET_AUXPOW_START_HEIGHT{155000};
+static constexpr int32_t AUXPOW_CHAIN_ID{0x0B0C};
+
 /**
  * A buried deployment is one where the height of the activation has been hardcoded into
  * the client implementation long after the consensus change has activated. See BIP 90.
@@ -153,6 +157,9 @@ struct Params {
     int nAuxpowStartHeight;
     bool fStrictChainId;
     int nLegacyBlocksBefore; // -1 for "always allow"
+
+    /** The height is that of the candidate block, not its parent. */
+    bool IsAuxpowEnabled(int height) const { return height >= nAuxpowStartHeight; }
 
     /**
      * Check whether or not to allow legacy blocks at the given height.

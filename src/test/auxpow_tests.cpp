@@ -5,6 +5,7 @@
 #include <arith_uint256.h>
 #include <auxpow.h>
 #include <chainparams.h>
+#include <chainparamsbase.h>
 #include <coins.h>
 #include <consensus/merkle.h>
 #include <validation.h>
@@ -12,6 +13,7 @@
 #include <primitives/block.h>
 #include <rpc/auxpow_miner.h>
 #include <script/script.h>
+#include <streams.h>
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <uint256.h>
@@ -33,6 +35,53 @@ std::vector<uint256> BlockMerkleBranch (const CBlock& block, uint32_t position);
 /* No space between BOOST_AUTO_TEST_SUITE and '(', so that extraction of
    the test-suite name works with grep as done in the Makefile.  */
 BOOST_AUTO_TEST_SUITE(auxpow_tests)
+
+BOOST_FIXTURE_TEST_CASE(mainnet_activation_height, BasicTestingSetup)
+{
+  const auto main = CChainParams::Main();
+  const auto& params = main->GetConsensus();
+  BOOST_CHECK_EQUAL(params.nAuxpowStartHeight, 155000);
+  BOOST_CHECK_EQUAL(params.nAuxpowChainId, 0x0B0C);
+  BOOST_CHECK(!params.IsAuxpowEnabled(154999));
+  BOOST_CHECK(params.IsAuxpowEnabled(155000));
+  BOOST_CHECK(params.IsAuxpowEnabled(155001));
+  BOOST_CHECK(params.AllowLegacyBlocks(155001));
+}
+
+BOOST_FIXTURE_TEST_CASE(regtest_fixed_target_after_lwma_height, BasicTestingSetup)
+{
+  auto params = Params().GetConsensus();
+  params.fPowNoRetargeting = true;
+  params.V2ForkHeight = 0;
+  CBlockIndex previous;
+  previous.nHeight = 155000;
+  previous.nBits = 0x207fffff;
+  CBlockHeader candidate;
+  BOOST_CHECK_EQUAL(GetNextWorkRequired(&previous, &candidate, params), previous.nBits);
+  BOOST_CHECK(!CChainParams::Main()->GetConsensus().fPowNoRetargeting);
+}
+
+BOOST_FIXTURE_TEST_CASE(activation_override_validation, BasicTestingSetup)
+{
+  for (const auto& value : {"-1", "2147483647", "2147483648", "4294967296", "abc"}) {
+    ArgsManager args;
+    SetupChainParamsBaseOptions(args);
+    const std::string option = std::string("-auxpowstartheight=") + value;
+    const char* argv[]{"test", option.c_str()};
+    std::string error;
+    BOOST_REQUIRE(args.ParseParameters(2, argv, error));
+    BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::REGTEST), std::runtime_error);
+  }
+  ArgsManager args;
+  SetupChainParamsBaseOptions(args);
+  const char* argv[]{"test", "-auxpowstartheight=120"};
+  std::string error;
+  BOOST_REQUIRE(args.ParseParameters(2, argv, error));
+  BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::MAIN), std::runtime_error);
+  BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::TESTNET), std::runtime_error);
+  BOOST_CHECK_THROW(CreateChainParams(args, CBaseChainParams::SIGNET), std::runtime_error);
+  BOOST_CHECK_EQUAL(CreateChainParams(args, CBaseChainParams::REGTEST)->GetConsensus().nAuxpowStartHeight, 120);
+}
 
 /* ************************************************************************** */
 
@@ -634,5 +683,58 @@ BOOST_FIXTURE_TEST_CASE (auxpow_miner_createAndLookupBlock, TestChain100Setup)
 }
 
 /* ************************************************************************** */
+
+BOOST_FIXTURE_TEST_CASE(auxpow_header_index_roundtrip, BasicTestingSetup)
+{
+  CAuxpowBuilder builder(1, 0);
+  builder.setCoinbase(CScript() << OP_1);
+  CBlockHeader header;
+  header.SetBaseVersion(4, Consensus::AUXPOW_CHAIN_ID);
+  header.SetAuxpow(builder.getUnique());
+  header.nTime = 1800000000;
+  header.nBits = 0x207fffff;
+  header.hashMerkleRoot = uint256S("01");
+
+  // No block file exists: the full header must survive in memory and on disk.
+  const CBlockIndex index(header);
+  CDataStream expected(SER_NETWORK, PROTOCOL_VERSION);
+  expected << header;
+  CDataStream memory(SER_NETWORK, PROTOCOL_VERSION);
+  memory << index.GetBlockHeader(Params().GetConsensus());
+  BOOST_CHECK_EQUAL(HexStr(memory), HexStr(expected));
+
+  CDiskBlockIndex disk(&index);
+  CDataStream encoded(SER_DISK, PROTOCOL_VERSION);
+  encoded << disk;
+  CDiskBlockIndex decoded;
+  encoded >> decoded;
+  BOOST_CHECK(encoded.empty());
+  BOOST_REQUIRE(decoded.auxpow);
+  CDataStream restored(SER_NETWORK, PROTOCOL_VERSION);
+  restored << decoded.GetBlockHeader(Params().GetConsensus());
+  BOOST_CHECK_EQUAL(HexStr(restored), HexStr(expected));
+  BOOST_CHECK(decoded.ConstructBlockHash() == header.GetHash());
+}
+
+BOOST_FIXTURE_TEST_CASE(ordinary_header_index_disk_compatibility, BasicTestingSetup)
+{
+  CBlockHeader header;
+  header.nVersion = 0x20010000;
+  header.nBits = 0x207fffff;
+  header.nTime = 1800000000;
+  const CBlockIndex index(header);
+  CDiskBlockIndex disk(&index);
+  CDataStream actual(SER_DISK, PROTOCOL_VERSION);
+  actual << disk;
+
+  // Exact format used by the original non-AuxPoW block index.
+  CDataStream original(SER_DISK, PROTOCOL_VERSION);
+  int stream_version = original.GetVersion();
+  original << VARINT_MODE(stream_version, VarIntMode::NONNEGATIVE_SIGNED);
+  original << VARINT_MODE(disk.nHeight, VarIntMode::NONNEGATIVE_SIGNED);
+  original << VARINT(disk.nStatus) << VARINT(disk.nTx);
+  original << static_cast<const CPureBlockHeader&>(header);
+  BOOST_CHECK_EQUAL(HexStr(actual), HexStr(original));
+}
 
 BOOST_AUTO_TEST_SUITE_END ()

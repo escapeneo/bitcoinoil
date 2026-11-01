@@ -1422,10 +1422,19 @@ void PeerManagerImpl::PushNodeVersion(CNode& pnode, const Peer& peer)
     uint64_t your_services{addr.nServices};
 
     const bool tx_relay{!RejectIncomingTxs(pnode)};
+    // Existing 25.1.1 nodes enforce an exact user-agent match after their V2
+    // fork. Retain that wire identifier before the AuxPoW activation so an
+    // upgraded node can bootstrap from the live pre-fork network. The actual
+    // release remains visible via RPC, and protocol 70017 identifies AuxPoW
+    // capability. Never use the remote user-agent as a consensus check.
+    const auto& chainparams = m_chainman.GetParams();
+    const bool legacy_mainnet_agent = chainparams.NetworkIDString() == "main" &&
+        nNodeStartingHeight < chainparams.GetConsensus().nAuxpowStartHeight;
+    const std::string advertised_subversion = legacy_mainnet_agent ? "/BitcoinOil:25.1.1/" : strSubVersion;
     m_connman.PushMessage(&pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, my_services, nTime,
             your_services, addr_you, // Together the pre-version-31402 serialization of CAddress "addrYou" (without nTime)
             my_services, CService(), // Together the pre-version-31402 serialization of CAddress "addrMe" (without nTime)
-            nonce, strSubVersion, nNodeStartingHeight, tx_relay));
+            nonce, advertised_subversion, nNodeStartingHeight, tx_relay));
 
     if (fLogIPs) {
         LogPrint(BCLog::NET, "send version message: version %d, blocks=%d, them=%s, txrelay=%d, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addr_you.ToStringAddrPort(), tx_relay, nodeid);
@@ -3346,18 +3355,8 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
 
 
-        ////////// Compatibility Checks START //////////
-        int currentHeight = m_chainman.ActiveChain().Height();
-	int64_t currentTime = GetTime(); // Get the current Unix timestamp
-        if (currentHeight >= Params().GetConsensus().V2ForkHeight) {
-            std::string localSubVer = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, {});
-            if (pfrom.cleanSubVer != localSubVer) {
-                LogPrintf("DEBUG: Peer %d has unsupported SubVer '%s'; disconnecting.\n", pfrom.GetId(), pfrom.cleanSubVer);
-                pfrom.fDisconnect = true;
-                return;
-            }
-        }
-        ////////// Compatibility Checks END //////////
+        // Compatibility is established by protocol capabilities and block
+        // validation, not equality of human-readable version strings.
 
 
 

@@ -123,8 +123,10 @@ public:
      */
     inline bool IsAuxpow() const
     {
-        return nVersion & VERSION_AUXPOW;
+        return IsAuxpow(nVersion);
     }
+
+    static bool IsAuxpow(int32_t version) { return version & VERSION_AUXPOW; }
 
     /**
      * Set the auxpow flag.  This is used for testing.

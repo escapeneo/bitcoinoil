@@ -13,6 +13,7 @@
 #include <uint256.h>
 #include <util/translation.h>
 #include <util/vector.h>
+#include <validation.h>
 
 #include <stdint.h>
 
@@ -316,13 +317,15 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
+                pindexNew->auxpow         = diskindex.auxpow;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                /* Bitcoin checks the PoW here.  We don't do this because
-                   the CDiskBlockIndex does not contain the auxpow.
-                   This check isn't important, since the data on disk should
-                   already be valid and can be trusted.  */
+                const CBlockHeader header = pindexNew->GetBlockHeader(consensusParams);
+                if (!CheckProofOfWork(header, consensusParams) ||
+                    (header.IsAuxpow() && !consensusParams.IsAuxpowEnabled(pindexNew->nHeight))) {
+                    return error("%s: invalid proof of work in block index", __func__);
+                }
 
                 pcursor->Next();
             } else {

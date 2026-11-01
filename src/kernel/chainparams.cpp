@@ -109,8 +109,8 @@ public:
 
         // Merge mining (AuxPoW).  Regular blocks stay valid at all heights;
         // merge-mined blocks are accepted from nAuxpowStartHeight on.
-        consensus.nAuxpowChainId = 0x0B0C;
-        consensus.nAuxpowStartHeight = 155000; // TODO: set above the real tip once synced (network was at 152303 on 2026-11-01)
+        consensus.nAuxpowChainId = Consensus::AUXPOW_CHAIN_ID;
+        consensus.nAuxpowStartHeight = Consensus::MAINNET_AUXPOW_START_HEIGHT;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
 
@@ -135,6 +135,8 @@ public:
 
         vSeeds.emplace_back("node.petrobtc.org");
         vSeeds.emplace_back("node2.petrobtc.org");
+        // Public full node verified on 2026-11-01; also usable as an A-record seed.
+        vSeeds.emplace_back("stratum.shears.co.uk");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,26);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,25);
