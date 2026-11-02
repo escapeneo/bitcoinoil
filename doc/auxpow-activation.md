@@ -133,3 +133,13 @@ These tests and existing-mainnet validation reduce implementation risk. They
 do not guarantee zero bugs, certify all pool software or replace operator
 coordination and review. No production release is implied by preparing this
 candidate.
+
+## Changing the activation height before release
+
+155000 was chosen on 2026-11-01 with the network near 152400. Re-measure the
+tip before merging and keep enough margin for operators to upgrade (for
+example about 30 days, roughly 7200 blocks at the 6-minute target). The code
+reads a single constant, `Consensus::MAINNET_AUXPOW_START_HEIGHT` in
+`src/consensus/params.h`; unit tests derive their boundaries from it. Also
+update the height in this document, `doc/auxpow-rollout.md`, the release notes
+and the CI boundary run (`activation_regtest.py --height=...`).

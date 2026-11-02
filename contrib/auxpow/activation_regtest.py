@@ -376,8 +376,8 @@ def main():
     parser.add_argument('--tmpdir', type=Path, help='New directory; retained for inspection')
     parser.add_argument('--resume-prefix', action='store_true', help='Resume an interrupted prefix preparation in --tmpdir')
     args = parser.parse_args()
-    if args.height < 3 or args.height > 155000:
-        parser.error('Use an activation height between 3 and 155000')
+    if args.height < 3 or args.height > 250000:
+        parser.error('Use an activation height between 3 and 250000')
     if args.resume_prefix and args.tmpdir is None:
         parser.error('--resume-prefix requires --tmpdir')
     if args.tmpdir:

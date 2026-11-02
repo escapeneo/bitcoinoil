@@ -107,7 +107,7 @@ const CChainParams &Params() {
 std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain)
 {
     if (chain != CBaseChainParams::REGTEST && args.IsArgSet("-auxpowstartheight")) {
-        throw std::runtime_error("-auxpowstartheight is only available on regtest; mainnet activation is fixed at block 155000.");
+        throw std::runtime_error(strprintf("-auxpowstartheight is only available on regtest; mainnet activation is fixed at block %d.", Consensus::MAINNET_AUXPOW_START_HEIGHT));
     }
     if (chain == CBaseChainParams::MAIN) {
         return CChainParams::Main();

@@ -40,12 +40,13 @@ BOOST_FIXTURE_TEST_CASE(mainnet_activation_height, BasicTestingSetup)
 {
   const auto main = CChainParams::Main();
   const auto& params = main->GetConsensus();
-  BOOST_CHECK_EQUAL(params.nAuxpowStartHeight, 155000);
+  const int height{Consensus::MAINNET_AUXPOW_START_HEIGHT};
+  BOOST_CHECK_EQUAL(params.nAuxpowStartHeight, height);
   BOOST_CHECK_EQUAL(params.nAuxpowChainId, 0x0B0C);
-  BOOST_CHECK(!params.IsAuxpowEnabled(154999));
-  BOOST_CHECK(params.IsAuxpowEnabled(155000));
-  BOOST_CHECK(params.IsAuxpowEnabled(155001));
-  BOOST_CHECK(params.AllowLegacyBlocks(155001));
+  BOOST_CHECK(!params.IsAuxpowEnabled(height - 1));
+  BOOST_CHECK(params.IsAuxpowEnabled(height));
+  BOOST_CHECK(params.IsAuxpowEnabled(height + 1));
+  BOOST_CHECK(params.AllowLegacyBlocks(height + 1));
 }
 
 BOOST_FIXTURE_TEST_CASE(regtest_fixed_target_after_lwma_height, BasicTestingSetup)
