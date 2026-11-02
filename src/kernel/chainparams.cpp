@@ -206,6 +206,10 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 4; // nPowTargetTimespan / nPowTargetSpacing
+        // The V2 rules (LWMA, V2 signalling window) apply from genesis, with mainnet's V2 window.
+        consensus.V2ForkHeight = 0;
+        consensus.nRuleChangeActivationThresholdV2 = 1800;
+        consensus.nMinerConfirmationWindowV2 = 2400;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
@@ -359,6 +363,10 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 4; // 90% of 4
         consensus.nMinerConfirmationWindow = 4; // nPowTargetTimespan / nPowTargetSpacing
+        // The V2 rules (LWMA, V2 signalling window) apply from genesis, with mainnet's V2 window.
+        consensus.V2ForkHeight = 0;
+        consensus.nRuleChangeActivationThresholdV2 = 1800;
+        consensus.nMinerConfirmationWindowV2 = 2400;
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("00000377ae000000000000000000000000000000000000000000000000000000");
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -451,6 +459,10 @@ public:
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+        // The V2 rules apply from genesis, keeping regtest's short signalling window.
+        consensus.V2ForkHeight = 0;
+        consensus.nRuleChangeActivationThresholdV2 = 108;
+        consensus.nMinerConfirmationWindowV2 = 144;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
