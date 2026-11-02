@@ -361,7 +361,6 @@ arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers);
  * @param params Consensus parameters.
  * @return True iff the PoW is correct.
  */
-bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params);
 
 enum class VerifyDBResult {
     SUCCESS,
