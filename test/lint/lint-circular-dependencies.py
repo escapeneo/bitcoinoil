@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 EXPECTED_CIRCULAR_DEPENDENCIES = (
+    "auxpow -> primitives/block -> auxpow",
     "chainparamsbase -> util/system -> chainparamsbase",
     "node/blockstorage -> validation -> node/blockstorage",
     "node/utxo_snapshot -> validation -> node/utxo_snapshot",

@@ -18,6 +18,8 @@ test ! -e "$workdir/db-4.8.30.NC"
 tar -xf "$workdir/db.tar.gz" -C "$workdir"
 cd "$workdir/db-4.8.30.NC"
 patch -p1 < "$repo/depends/patches/bdb/clang_cxx_11.patch"
+# The tarball ships these read-only; replace them with the newer copies.
+chmod u+w dist/config.guess dist/config.sub
 cp "$repo/depends/config.guess" "$repo/depends/config.sub" dist/
 cd build_unix
 CFLAGS='-Wno-error=implicit-function-declaration -Wno-error=implicit-int' ../dist/configure --prefix="$prefix" --disable-shared --enable-cxx --disable-replication

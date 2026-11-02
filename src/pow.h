@@ -22,6 +22,14 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);
 
 /**
+ * Check proof of work of a block header, taking auxpow into account.
+ * @param block The block header.
+ * @param params Consensus parameters.
+ * @return True iff the PoW is correct.
+ */
+bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params);
+
+/**
  * Return false if the proof-of-work requirement specified by new_nbits at a
  * given height is not possible, given the proof-of-work on the prior block as
  * specified by old_nbits.
