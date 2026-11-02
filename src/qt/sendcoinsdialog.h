@@ -10,6 +10,7 @@
 
 #include <QDialog>
 #include <QMessageBox>
+#include <QPointer>
 #include <QString>
 #include <QTimer>
 
@@ -66,7 +67,9 @@ Q_SIGNALS:
 private:
     Ui::SendCoinsDialog *ui;
     ClientModel* clientModel{nullptr};
-    WalletModel* model{nullptr};
+    // Queued block-tip events can arrive after the wallet model is deleted
+    // (wallet unload or shutdown); QPointer turns that into a null check.
+    QPointer<WalletModel> model;
     std::unique_ptr<wallet::CCoinControl> m_coin_control;
     std::unique_ptr<WalletModelTransaction> m_current_transaction;
     bool fNewRecipientAllowed{true};
