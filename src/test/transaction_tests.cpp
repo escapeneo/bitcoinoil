@@ -237,8 +237,16 @@ BOOST_AUTO_TEST_CASE(tx_valid)
             CTransaction tx(deserialize, stream);
 
             TxValidationState state;
-            BOOST_CHECK_MESSAGE(CheckTransaction(tx, state), strTest);
-            BOOST_CHECK(state.IsValid());
+            // Bitcoin script vectors can exceed BTCO's lower monetary limit.
+            // Preserve their signed bytes and still execute every script check below.
+            const bool oversized = std::any_of(tx.vout.begin(), tx.vout.end(),
+                [](const CTxOut& out) { return out.nValue > MAX_MONEY; });
+            BOOST_CHECK_MESSAGE(CheckTransaction(tx, state) == !oversized, strTest);
+            if (oversized) {
+                BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-vout-toolarge");
+            } else {
+                BOOST_CHECK(state.IsValid());
+            }
 
             PrecomputedTransactionData txdata(tx);
             unsigned int verify_flags = ParseScriptFlags(test[2].get_str());

@@ -107,6 +107,13 @@ public:
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000089ebbdce68a3bd89df");
         consensus.defaultAssumeValid = uint256S("0x000000000000000a22d593f73bb24dee585ebfad4c9531b0c565da411c54a861"); // 2000
 
+        // Merge mining (AuxPoW).  Regular blocks stay valid at all heights;
+        // merge-mined blocks are accepted from nAuxpowStartHeight on.
+        consensus.nAuxpowChainId = Consensus::AUXPOW_CHAIN_ID;
+        consensus.nAuxpowStartHeight = Consensus::MAINNET_AUXPOW_START_HEIGHT;
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = -1;
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -128,6 +135,8 @@ public:
 
         vSeeds.emplace_back("node.petrobtc.org");
         vSeeds.emplace_back("node2.petrobtc.org");
+        // Public full node verified on 2026-11-01; also usable as an A-record seed.
+        vSeeds.emplace_back("stratum.shears.co.uk");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,26);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,25);
@@ -210,6 +219,11 @@ public:
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
         consensus.defaultAssumeValid = uint256S("0x00000000f130184486dad044d14fff1d39665f09551dfafccd5a8f938c05df57"); 
+
+        consensus.nAuxpowChainId = 0x0B0C;
+        consensus.nAuxpowStartHeight = 0;
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = -1;
 
         pchMessageStart[0] = 0x27;
         pchMessageStart[1] = 0x7b;
@@ -328,6 +342,10 @@ public:
         strNetworkID = CBaseChainParams::SIGNET;
         consensus.signet_blocks = true;
         consensus.signet_challenge.assign(bin.begin(), bin.end());
+        consensus.nAuxpowChainId = 0x0B0C;
+        consensus.nAuxpowStartHeight = 0;
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = -1;
         consensus.nSubsidyHalvingInterval = 185900;
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
@@ -447,6 +465,11 @@ public:
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
 
+        consensus.nAuxpowChainId = 0x0B0C;
+        consensus.nAuxpowStartHeight = opts.auxpow_start_height.value_or(0);
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = -1;
+
         pchMessageStart[0] = 0xfe;
         pchMessageStart[1] = 0xdc;
         pchMessageStart[2] = 0x9a;
@@ -523,7 +546,11 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{};
+        // Deterministic TestChain100Setup fixture, extended to height 110.
+        // Regtest only: no production snapshot trust is introduced.
+        m_assumeutxo_data = MapAssumeutxo{
+            {110, {AssumeutxoHash{uint256S("ba5d4bc634522f09f690e352ee3759c493b35aad047f0e8f6ac2f463434f4266")}, 111}},
+        };
 
         chainTxData = ChainTxData{
             0,

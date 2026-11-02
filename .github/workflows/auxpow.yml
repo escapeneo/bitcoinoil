@@ -1,0 +1,68 @@
+name: AuxPoW consensus regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdextrautils python3 libevent-dev libboost-dev libboost-test-dev libboost-system-dev libboost-filesystem-dev libsqlite3-dev qtbase5-dev qttools5-dev qttools5-dev-tools libqrencode-dev
+      - name: Configure and build daemon, CLI, Qt and unit tests
+        run: |
+          ./autogen.sh
+          CXXFLAGS="-O2 -g0" ./configure --with-gui=qt5 --without-bdb --disable-bench --disable-fuzz-binary
+          make -C src -j2 bitcoinoild bitcoinoil-cli qt/bitcoinoil-qt test/test_bitcoinoil qt/test/test_bitcoinoil-qt
+      - name: Full unit suite including pinned script vectors
+        run: |
+          python3 contrib/auxpow/fetch_test_assets.py /tmp/btco-script-assets
+          DIR_UNIT_TEST_DATA=/tmp/btco-script-assets src/test/test_bitcoinoil --log_level=test_suite
+      - name: Qt interface tests
+        run: QT_QPA_PLATFORM=offscreen src/qt/test/test_bitcoinoil-qt
+      - name: Build previous official daemon for wallet upgrade test
+        run: |
+          mkdir /tmp/btco-old
+          git archive 9e491b31013bb379302d28e57803916147537a2c | tar -x -C /tmp/btco-old
+          cd /tmp/btco-old
+          ./autogen.sh
+          CXXFLAGS="-O2 -g0" ./configure --without-gui --without-bdb --disable-bench --disable-fuzz-binary
+          make -C src -j2 bitcoinoild
+      - name: Encrypted wallet upgrade from the official previous version
+        run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/wallet_upgrade_regtest.py --old-binary=/tmp/btco-old/src/bitcoinoild --binary=src/qt/bitcoinoil-qt --tmpdir=/tmp/btco-wallet-upgrade
+      - name: Fast activation, headers, pruning and reorg regression
+        run: python3 contrib/auxpow/activation_regtest.py --height=120 --tmpdir=/tmp/btco-auxpow-fast
+      - name: Exact 154999 / 155000 boundary
+        run: python3 contrib/auxpow/activation_regtest.py --height=155000 --tmpdir=/tmp/btco-auxpow-mainnet-height
+      - name: Cold P2P sync across AuxPoW headers-message limits
+        run: python3 contrib/auxpow/headers_regtest.py --tmpdir=/tmp/btco-auxpow-headers
+      - name: Qt wallet regression without a display
+        run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
+      - name: Preserve node logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: auxpow-regtest-logs
+          path: |
+            /tmp/btco-auxpow-fast/**/debug.log
+            /tmp/btco-auxpow-fast/**/process.log
+            /tmp/btco-auxpow-mainnet-height/**/debug.log
+            /tmp/btco-auxpow-mainnet-height/**/process.log
+            /tmp/btco-auxpow-qt/**/debug.log
+            /tmp/btco-auxpow-qt/**/process.log
+            /tmp/btco-auxpow-headers/**/debug.log
+            /tmp/btco-auxpow-headers/**/process.log
+            /tmp/btco-wallet-upgrade/**/debug.log
+            /tmp/btco-wallet-upgrade/**/process.log

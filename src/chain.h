@@ -11,6 +11,7 @@
 #include <flatfile.h>
 #include <kernel/cs_main.h>
 #include <primitives/block.h>
+#include <primitives/pureheader.h>
 #include <sync.h>
 #include <uint256.h>
 #include <util/time.h>
@@ -206,19 +207,28 @@ public:
     uint32_t nBits{0};
     uint32_t nNonce{0};
 
+    //! Keep the full proof even for headers-only and pruned blocks.
+    std::shared_ptr<CAuxPow> auxpow;
+
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId{0};
 
     //! (memory only) Maximum nTime in the chain up to and including this block.
     unsigned int nTimeMax{0};
 
-    explicit CBlockIndex(const CBlockHeader& block)
+    explicit CBlockIndex(const CPureBlockHeader& block)
         : nVersion{block.nVersion},
           hashMerkleRoot{block.hashMerkleRoot},
           nTime{block.nTime},
           nBits{block.nBits},
           nNonce{block.nNonce}
     {
+    }
+
+    explicit CBlockIndex(const CBlockHeader& block)
+        : CBlockIndex(static_cast<const CPureBlockHeader&>(block))
+    {
+        auxpow = block.auxpow;
     }
 
     FlatFilePos GetBlockPos() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -243,9 +253,9 @@ public:
         return ret;
     }
 
-    CBlockHeader GetBlockHeader() const
+    CPureBlockHeader GetPureHeader() const
     {
-        CBlockHeader block;
+        CPureBlockHeader block;
         block.nVersion = nVersion;
         if (pprev)
             block.hashPrevBlock = pprev->GetBlockHash();
@@ -255,6 +265,8 @@ public:
         block.nNonce = nNonce;
         return block;
     }
+
+    CBlockHeader GetBlockHeader(const Consensus::Params& consensusParams) const;
 
     uint256 GetBlockHash() const
     {
@@ -351,6 +363,12 @@ public:
     CBlockIndex* GetAncestor(int height);
     const CBlockIndex* GetAncestor(int height) const;
 
+    /* Analyse the block version.  */
+    inline int GetBaseVersion() const
+    {
+        return CPureBlockHeader::GetBaseVersion(nVersion);
+    }
+
     CBlockIndex() = default;
     ~CBlockIndex() = default;
 
@@ -413,11 +431,17 @@ public:
         READWRITE(obj.nTime);
         READWRITE(obj.nBits);
         READWRITE(obj.nNonce);
+        // Ordinary pre-fork index entries retain their exact disk format.
+        if (CPureBlockHeader::IsAuxpow(obj.nVersion)) {
+            SER_READ(obj, obj.auxpow = std::make_shared<CAuxPow>());
+            if (!obj.auxpow) throw std::ios_base::failure("Missing AuxPoW in block index");
+            READWRITE(*obj.auxpow);
+        }
     }
 
     uint256 ConstructBlockHash() const
     {
-        CBlockHeader block;
+        CPureBlockHeader block;
         block.nVersion = nVersion;
         block.hashPrevBlock = hashPrev;
         block.hashMerkleRoot = hashMerkleRoot;

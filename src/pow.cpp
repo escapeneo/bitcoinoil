@@ -13,6 +13,9 @@
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     assert(pindexLast != nullptr);
+    // Regtest must stay at its fixed target even after the LWMA fork height.
+    // Mainnet and testnet do not enable this flag.
+    if (params.fPowNoRetargeting) return pindexLast->nBits;
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
     if (pindexLast->nHeight >= params.V2ForkHeight) {

@@ -1,0 +1,118 @@
+name: AuxPoW platform builds
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: brew install automake libtool pkg-config boost libevent sqlite qt@5
+      - name: Build wallet-compatible Berkeley DB
+        run: bash contrib/auxpow/build_bdb4.sh "$RUNNER_TEMP/bdb" "$RUNNER_TEMP/bdb-build"
+      - name: Build daemon, Qt and tests
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix qt@5)/lib/pkgconfig:$(brew --prefix sqlite)/lib/pkgconfig"
+          export BDB_LIBS="-L$RUNNER_TEMP/bdb/lib -ldb_cxx-4.8"
+          export BDB_CFLAGS="-I$RUNNER_TEMP/bdb/include"
+          ./autogen.sh
+          CXXFLAGS="-O2 -g0" ./configure --with-gui=qt5 --disable-bench --disable-fuzz-binary
+          make -C src -j3 bitcoinoild bitcoinoil-cli qt/bitcoinoil-qt test/test_bitcoinoil qt/test/test_bitcoinoil-qt
+      - name: Full unit and Qt tests
+        run: |
+          python3 contrib/auxpow/fetch_test_assets.py "$RUNNER_TEMP/assets"
+          DIR_UNIT_TEST_DATA="$RUNNER_TEMP/assets" src/test/test_bitcoinoil --log_level=warning
+          QT_QPA_PLATFORM=offscreen src/qt/test/test_bitcoinoil-qt
+      - name: Build the previous official daemon with both wallet backends
+        run: |
+          mkdir "$RUNNER_TEMP/old"
+          git archive 9e491b31013bb379302d28e57803916147537a2c | tar -x -C "$RUNNER_TEMP/old"
+          cd "$RUNNER_TEMP/old"
+          ./autogen.sh
+          BDB_LIBS="-L$RUNNER_TEMP/bdb/lib -ldb_cxx-4.8" BDB_CFLAGS="-I$RUNNER_TEMP/bdb/include" CXXFLAGS="-O2 -g0" ./configure --without-gui --disable-bench --disable-fuzz-binary
+          make -C src -j3 bitcoinoild
+      - name: Upgrade encrypted SQLite and Berkeley DB wallets into Qt
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          python3 contrib/auxpow/wallet_upgrade_regtest.py --old-binary="$RUNNER_TEMP/old/src/bitcoinoild" --binary=src/qt/bitcoinoil-qt --tmpdir="$RUNNER_TEMP/wallet-sqlite"
+          python3 contrib/auxpow/wallet_upgrade_regtest.py --legacy --old-binary="$RUNNER_TEMP/old/src/bitcoinoild" --binary=src/qt/bitcoinoil-qt --tmpdir="$RUNNER_TEMP/wallet-bdb"
+          python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120
+      - name: Bundle and verify the macOS test application
+        run: QT_BINS="$(brew --prefix qt@5)/bin" bash contrib/auxpow/package_macos.sh "$RUNNER_TEMP/bitcoinoil-macos-test.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-test-app
+          path: ${{ runner.temp }}/bitcoinoil-macos-test.zip
+  windows-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install cross compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config python3 curl bsdextrautils cmake g++-mingw-w64-x86-64-posix bison patch xz-utils zip
+      - name: Build pinned dependencies and Windows binaries
+        run: |
+          make -C depends HOST=x86_64-w64-mingw32 -j3
+          ./autogen.sh
+          CONFIG_SITE="$PWD/depends/x86_64-w64-mingw32/share/config.site" ./configure --prefix="$PWD/depends/x86_64-w64-mingw32" --disable-bench --disable-fuzz-binary
+          make -C src -j3 bitcoinoild.exe bitcoinoil-cli.exe qt/bitcoinoil-qt.exe test/test_bitcoinoil.exe qt/test/test_bitcoinoil-qt.exe
+          mkdir windows-bin
+          cp src/bitcoinoild.exe src/bitcoinoil-cli.exe src/qt/bitcoinoil-qt.exe src/test/test_bitcoinoil.exe src/qt/test/test_bitcoinoil-qt.exe windows-bin/
+          export BTCO_DEPENDS="$PWD/depends/x86_64-w64-mingw32"
+          export BTCO_ARTIFACTS="$PWD/windows-bin"
+          mkdir /tmp/btco-old-windows
+          git archive 9e491b31013bb379302d28e57803916147537a2c | tar -x -C /tmp/btco-old-windows
+          (
+            cd /tmp/btco-old-windows
+            ./autogen.sh
+            CONFIG_SITE="$BTCO_DEPENDS/share/config.site" ./configure --prefix="$BTCO_DEPENDS" --without-gui --disable-bench --disable-fuzz-binary
+            make -C src -j3 bitcoinoild.exe
+            cp src/bitcoinoild.exe "$BTCO_ARTIFACTS/bitcoinoild-25.1.1.exe"
+          )
+          cd windows-bin
+          sha256sum *.exe > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-bin
+          path: windows-bin/
+  windows-test:
+    needs: windows-build
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-bin
+          path: windows-bin
+      - name: Native Windows full unit and activation tests
+        shell: pwsh
+        run: |
+          python contrib/auxpow/fetch_test_assets.py "$env:RUNNER_TEMP/assets"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:DIR_UNIT_TEST_DATA = "$env:RUNNER_TEMP/assets"
+          & ./windows-bin/test_bitcoinoil.exe --log_level=warning
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./windows-bin/test_bitcoinoil-qt.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python contrib/auxpow/activation_regtest.py --binary=windows-bin/bitcoinoild.exe --height=120
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python contrib/auxpow/wallet_upgrade_regtest.py --old-binary=windows-bin/bitcoinoild-25.1.1.exe --binary=windows-bin/bitcoinoil-qt.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python contrib/auxpow/wallet_upgrade_regtest.py --legacy --old-binary=windows-bin/bitcoinoild-25.1.1.exe --binary=windows-bin/bitcoinoil-qt.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

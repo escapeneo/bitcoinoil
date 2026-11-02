@@ -12,6 +12,23 @@ std::string CBlockFileInfo::ToString() const
     return strprintf("CBlockFileInfo(blocks=%u, size=%u, heights=%u...%u, time=%s...%s)", nBlocks, nSize, nHeightFirst, nHeightLast, FormatISO8601Date(nTimeFirst), FormatISO8601Date(nTimeLast));
 }
 
+
+CBlockHeader CBlockIndex::GetBlockHeader(const Consensus::Params& /*consensusParams*/) const
+{
+    CBlockHeader block;
+    block.nVersion = nVersion;
+
+    block.auxpow = auxpow;
+
+    if (pprev)
+        block.hashPrevBlock = pprev->GetBlockHash();
+    block.hashMerkleRoot = hashMerkleRoot;
+    block.nTime = nTime;
+    block.nBits = nBits;
+    block.nNonce = nNonce;
+    return block;
+}
+
 std::string CBlockIndex::ToString() const
 {
     return strprintf("CBlockIndex(pprev=%p, nHeight=%d, merkle=%s, hashBlock=%s)",

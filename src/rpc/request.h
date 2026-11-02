@@ -37,6 +37,7 @@ public:
     std::string authUser;
     std::string peerAddr;
     std::any context;
+    std::any context2;
 
     void parse(const UniValue& valRequest);
 };
