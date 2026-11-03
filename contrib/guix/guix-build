@@ -427,8 +427,13 @@ EOF
         #    Please read the README.md in the same directory as this file for
         #    more information.
         #
+        case "$HOST" in
+            *darwin*) manifest=manifest-darwin.scm; commit="$GUIX_COMMIT_DARWIN" ;;
+            *)        manifest=manifest.scm;        commit="$GUIX_COMMIT" ;;
+        esac
         # shellcheck disable=SC2086,SC2031
-        time-machine environment --manifest="${PWD}/contrib/guix/manifest.scm" \
+        TIME_MACHINE_COMMIT="$commit" \
+        time-machine environment --manifest="${PWD}/contrib/guix/${manifest}" \
                                  --container \
                                  --pure \
                                  --no-cwd \

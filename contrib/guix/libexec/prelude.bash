@@ -48,10 +48,14 @@ fi
 ################
 # Execute "$@" in a pinned, possibly older version of Guix, for reproducibility
 # across time.
+GUIX_COMMIT=998eda3067c7d21e0d9bb3310d2f5a14b8f1c681
+# macOS depends need clang 17 (contrib/guix/manifest-darwin.scm).
+GUIX_COMMIT_DARWIN=d5ca4d4fd713a9f7e17e074a1e37dda99bbb09fc
+
 time-machine() {
     # shellcheck disable=SC2086
     guix time-machine --url=https://codeberg.org/guix/guix.git \
-                      --commit=998eda3067c7d21e0d9bb3310d2f5a14b8f1c681 \
+                      --commit="${TIME_MACHINE_COMMIT:-$GUIX_COMMIT}" \
                       --cores="$JOBS" \
                       --keep-failed \
                       --fallback \
