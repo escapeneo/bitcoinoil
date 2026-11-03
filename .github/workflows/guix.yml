@@ -1,0 +1,72 @@
+name: Guix reproducible build
+# About two hours per job; run on release tags or by hand.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [x86_64-linux-gnu, x86_64-w64-mingw32]
+        attempt: [1, 2]
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/local/.ghcup
+          df -h /
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          guix --version | head -1
+          systemctl is-active guix-daemon || sudo systemctl start guix-daemon
+      - name: Guix build
+        env:
+          HOSTS: ${{ matrix.host }}
+          JOBS: 4
+          SUBSTITUTE_URLS: https://bordeaux.guix.gnu.org https://ci.guix.gnu.org
+        run: |
+          git status --porcelain --ignored=no
+          # The Ubuntu guix substitute client drops long TLS sessions
+          # ("Error in the push function"). Downloaded store items are kept,
+          # so a retry resumes where it stopped.
+          for try in 1 2 3 4 5; do
+            set +e
+            ./contrib/guix/guix-build 2>&1 | tee build.log
+            rc=${PIPESTATUS[0]}
+            set -e
+            [ "$rc" -eq 0 ] && exit 0
+            grep -q "guix substitute' died unexpectedly" build.log || exit "$rc"
+            echo "::warning::Substitute download failed (try $try), retrying"
+            rm -rf guix-build-*/distsrc-* guix-build-*/output
+          done
+          exit 1
+      - name: Guix build logs on failure
+        if: failure()
+        run: |
+          for f in $(sudo find /var/log/guix/drvs -name '*.gz' -mmin -360 2>/dev/null | head -50); do
+            if sudo zcat "$f" | tail -5 | grep -qiE 'error|fail'; then echo "===== $f"; sudo zcat "$f" | tail -60; fi
+          done
+      - name: Hashes
+        if: always()
+        run: |
+          find guix-build-*/output -type f 2>/dev/null | sort | xargs -r sha256sum | tee SHA256SUMS.part
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: guix-${{ matrix.host }}-${{ matrix.attempt }}
+          path: |
+            SHA256SUMS.part
+            guix-build-*/output/${{ matrix.host }}/*
+          if-no-files-found: warn

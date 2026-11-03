@@ -258,7 +258,9 @@ and abstract ELF, PE and MachO formats.")
     (inputs
      `(("openssl", openssl)))
     (arguments
-     '(#:configure-flags
+     ;; The test suite uses certificates that have since expired.
+     '(#:tests? #f
+       #:configure-flags
         (list "-DCMAKE_DISABLE_FIND_PACKAGE_CURL=TRUE")))
     (home-page "https://github.com/mtrojnar/osslsigncode")
     (synopsis "Authenticode signing and timestamping tool")
