@@ -4,6 +4,10 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or commit to build (default the selected branch)
+        required: false
 permissions:
   contents: read
 jobs:
@@ -13,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        host: [x86_64-linux-gnu, x86_64-w64-mingw32]
+        host: [x86_64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
         attempt: [1, 2]
     steps:
       - name: Free disk space
@@ -22,6 +26,7 @@ jobs:
           df -h /
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
           fetch-depth: 0
       - name: Install Guix
@@ -31,9 +36,20 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           guix --version | head -1
           systemctl is-active guix-daemon || sudo systemctl start guix-daemon
+      - name: macOS SDK
+        run: |
+          # Same extracted Xcode 15.0 SDK as Bitcoin Core's CI and Guix builds.
+          mkdir -p "$RUNNER_TEMP/SDKs"
+          case "${{ matrix.host }}" in *darwin*) ;; *) exit 0 ;; esac
+          sdk=Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers
+          curl -fsSL -o sdk.tar.gz "https://bitcoincore.org/depends-sources/sdks/$sdk.tar.gz"
+          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  sdk.tar.gz" | sha256sum -c
+          tar -C "$RUNNER_TEMP/SDKs" -xzf sdk.tar.gz
+          rm sdk.tar.gz
       - name: Guix build
         env:
           HOSTS: ${{ matrix.host }}
+          SDK_PATH: ${{ runner.temp }}/SDKs
           JOBS: 4
           SUBSTITUTE_URLS: https://bordeaux.guix.gnu.org https://ci.guix.gnu.org
         run: |
