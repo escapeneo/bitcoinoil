@@ -108,9 +108,10 @@ $(OSX_APP)/Contents/Resources/bitcoinoil.icns: $(OSX_INSTALLER_ICONS)
 	$(MKDIR_P) $(@D)
 	$(INSTALL_DATA) $< $@
 
+# Not stripped: strip drops the ad-hoc signature that arm64 macOS requires.
 $(OSX_APP)/Contents/MacOS/BitcoinOil-Qt: all-recursive
 	$(MKDIR_P) $(@D)
-	STRIPPROG="$(STRIP)" $(INSTALL_STRIP_PROGRAM)  $(BITCOINOIL_QT_BIN) $@
+	$(INSTALL_PROGRAM) $(BITCOINOIL_QT_BIN) $@
 
 $(OSX_APP)/Contents/Resources/Base.lproj/InfoPlist.strings:
 	$(MKDIR_P) $(@D)
