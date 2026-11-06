@@ -160,6 +160,8 @@ AuxpowMiner::createAuxBlock (const JSONRPCRequest& request,
   result.pushKV ("bits", strprintf ("%08x", pblock->nBits));
   result.pushKV ("height", static_cast<int64_t> (pindexPrev->nHeight + 1));
   result.pushKV ("_target", HexStr (target));
+  /* Stratum servers such as YIIMP read this name.  */
+  result.pushKV ("target", HexStr (target));
 
   return result;
 }

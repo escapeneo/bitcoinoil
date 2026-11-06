@@ -23,6 +23,7 @@ class CBlockUndo;
 class CFeeRate;
 class CRPCCommand;
 class CScheduler;
+class UniValue;
 class Coin;
 class uint256;
 enum class MemPoolRemovalReason;
@@ -321,6 +322,13 @@ public:
 
     //! Return true if an assumed-valid chain is in use.
     virtual bool hasAssumedValidChain() = 0;
+
+    //! Create a merge-mining job that pays the given script.
+    virtual UniValue createAuxBlock(const CScript& script_pub_key) = 0;
+
+    //! Submit a proof for a job created earlier. Returns whether the block was
+    //! accepted.
+    virtual bool submitAuxBlock(const std::string& hash, const std::string& auxpow) = 0;
 
     //! Get internal node context. Useful for testing, but not
     //! accessible across processes.

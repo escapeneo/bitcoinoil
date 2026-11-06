@@ -34,6 +34,7 @@
 #include <policy/settings.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <rpc/auxpow_miner.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <shutdown.h>
@@ -786,6 +787,18 @@ public:
         return chainman().IsSnapshotActive();
     }
 
+    UniValue createAuxBlock(const CScript& script_pub_key) override
+    {
+        JSONRPCRequest request;
+        request.context = &m_node;
+        return AuxpowMiner::get().createAuxBlock(request, script_pub_key);
+    }
+    bool submitAuxBlock(const std::string& hash, const std::string& auxpow) override
+    {
+        JSONRPCRequest request;
+        request.context = &m_node;
+        return AuxpowMiner::get().submitAuxBlock(request, hash, auxpow);
+    }
     NodeContext* context() override { return &m_node; }
     ArgsManager& args() { return *Assert(m_node.args); }
     ChainstateManager& chainman() { return *Assert(m_node.chainman); }

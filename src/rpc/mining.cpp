@@ -1078,6 +1078,7 @@ static RPCHelpMan createauxblock()
                 {RPCResult::Type::STR_HEX, "bits", "compressed target of the block"},
                 {RPCResult::Type::NUM, "height", "height of the block"},
                 {RPCResult::Type::STR_HEX, "_target", "target in reversed byte order, deprecated"},
+                {RPCResult::Type::STR_HEX, "target", "same value as _target, for stratum servers that read this name"},
             },
         },
         RPCExamples{

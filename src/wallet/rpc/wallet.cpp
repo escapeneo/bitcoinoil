@@ -5,8 +5,10 @@
 
 #include <core_io.h>
 #include <key_io.h>
+#include <interfaces/chain.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
+#include <sync.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
@@ -15,6 +17,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
+#include <map>
 #include <optional>
 
 #include <univalue.h>
@@ -881,9 +884,82 @@ RPCHelpMan abandontransaction();
 RPCHelpMan rescanblockchain();
 RPCHelpMan abortrescan();
 
+/** The coinbase destination each wallet uses for getauxblock.  It is kept
+ *  until a block is accepted, so that repeated work requests do not use up
+ *  the keypool.  */
+static GlobalMutex g_getauxblock_mutex;
+static std::map<std::string, CTxDestination> g_getauxblock_destinations GUARDED_BY(g_getauxblock_mutex);
+
+static RPCHelpMan getauxblock()
+{
+    return RPCHelpMan{"getauxblock",
+        "\nCreates or submits a merge-mined block, paying the reward to this wallet.\n"
+        "\nWithout arguments, returns the data needed to merge-mine a block.\n"
+        "With hash and auxpow, submits the proof for a block returned earlier.\n"
+        "Stratum servers that need a fixed payout address should use createauxblock.\n",
+        {
+            {"hash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "Hash of the block to submit"},
+            {"auxpow", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "Serialised auxpow found"},
+        },
+        {
+            RPCResult{"without arguments",
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "hash", "hash of the created block"},
+                    {RPCResult::Type::NUM, "chainid", "chain ID for this block"},
+                    {RPCResult::Type::STR_HEX, "previousblockhash", "hash of the previous block"},
+                    {RPCResult::Type::NUM, "coinbasevalue", "value of the block's coinbase"},
+                    {RPCResult::Type::STR_HEX, "bits", "compressed target of the block"},
+                    {RPCResult::Type::NUM, "height", "height of the block"},
+                    {RPCResult::Type::STR_HEX, "_target", "target in reversed byte order, deprecated"},
+                    {RPCResult::Type::STR_HEX, "target", "same value as _target, for stratum servers that read this name"},
+                },
+            },
+            RPCResult{"with hash and auxpow",
+                RPCResult::Type::BOOL, "", "whether the submitted block was correct"
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("getauxblock", "")
+            + HelpExampleCli("getauxblock", "\"hash\" \"serialised auxpow\"")
+            + HelpExampleRpc("getauxblock", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (request.params.size() == 1) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "hash and auxpow must be given together");
+    }
+
+    const std::shared_ptr<CWallet> pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    interfaces::Chain& chain = pwallet->chain();
+
+    LOCK(g_getauxblock_mutex);
+    if (request.params.empty()) {
+        auto it = g_getauxblock_destinations.find(pwallet->GetName());
+        if (it == g_getauxblock_destinations.end()) {
+            LOCK(pwallet->cs_wallet);
+            auto dest = pwallet->GetNewDestination(pwallet->m_default_address_type, "");
+            if (!dest) {
+                throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, util::ErrorString(dest).original);
+            }
+            it = g_getauxblock_destinations.emplace(pwallet->GetName(), *dest).first;
+        }
+        return chain.createAuxBlock(GetScriptForDestination(it->second));
+    }
+
+    const bool accepted = chain.submitAuxBlock(request.params[0].get_str(), request.params[1].get_str());
+    if (accepted) g_getauxblock_destinations.erase(pwallet->GetName());
+    return accepted;
+},
+    };
+}
+
 Span<const CRPCCommand> GetWalletRPCCommands()
 {
     static const CRPCCommand commands[]{
+        {"mining", &getauxblock},
         {"rawtransactions", &fundrawtransaction},
         {"wallet", &abandontransaction},
         {"wallet", &abortrescan},
