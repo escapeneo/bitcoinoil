@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <consensus/params.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
@@ -33,7 +34,7 @@ FUZZ_TARGET(chain)
         (void)disk_block_index->IsValid();
     }
 
-    const CBlockHeader block_header = disk_block_index->GetBlockHeader();
+    const CBlockHeader block_header = disk_block_index->GetBlockHeader(Consensus::Params{});
     (void)CDiskBlockIndex{*disk_block_index};
     (void)disk_block_index->BuildSkip();
 

@@ -92,6 +92,12 @@ Use `createauxblock <BTCO-address>` and submit the resulting job with
 chain ID and BTCO block contents; it is inserted in the parent's merge-mining
 coinbase commitment. Only `submitauxblock` receives the completed proof.
 
+Stratum servers that call `getauxblock` can use it unchanged: `getauxblock` with
+no arguments returns the same job, paying a new address in the loaded wallet, and
+`getauxblock <child-hash> <serialized-auxpow>` submits the proof. Jobs also carry
+`target` beside `_target`, because YIIMP reads that name. It needs a wallet, so
+pools with a fixed payout address should keep using `createauxblock`.
+
 `createauxblock` rejects requests before the next candidate reaches 155000.
 It also rejects disconnected or initial-download mainnet nodes. Normal
 `getblocktemplate` mining remains available. Pools must refresh jobs when the
