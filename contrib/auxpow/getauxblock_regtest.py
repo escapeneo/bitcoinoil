@@ -92,6 +92,34 @@ def main():
         fail(cli("getauxblock", ok=False), "wallet")
         assert cli("getauxblock", wallet="second")["height"] == FORK + 2
         print("[7] a second wallet needs -rpcwallet, as for any wallet call")
+
+        # Cross submission: a job from "second" sent through "w" pays "second"
+        # and must not renew the address "w" is using.
+        cli("unloadwallet", "second")
+        w_job = cli("getauxblock")
+        w_keys = cli("getwalletinfo")["keypoolsize"]
+        cli("loadwallet", "second")
+        other = cli("getauxblock", wallet="second")
+        assert cli("getauxblock", other["hash"], solve(other), wallet="w") is True
+        paid = cli("getblock", cli("getbestblockhash"), 2)["tx"][0]["vout"][0]["scriptPubKey"]["address"]
+        assert cli("getaddressinfo", paid, wallet="second")["ismine"] is True
+        assert cli("getaddressinfo", paid, wallet="w")["ismine"] is False
+        renewed = cli("getauxblock", wallet="w")
+        assert renewed["height"] == w_job["height"] + 1
+        assert cli("getwalletinfo", wallet="w")["keypoolsize"] == w_keys
+        print("[8] a proof sent through another wallet renews only the paying wallet")
+
+        # Replace "w" by a different wallet with the same name: the old
+        # address must not be reused for the new wallet.
+        cli("unloadwallet", "w")
+        wdir = os.path.join(D, "regtest", "wallets")
+        os.rename(os.path.join(wdir, "w"), os.path.join(wdir, "w-old"))
+        cli("createwallet", "w")
+        fresh = cli("getauxblock", wallet="w")
+        assert cli("getauxblock", fresh["hash"], solve(fresh), wallet="w") is True
+        paid = cli("getblock", cli("getbestblockhash"), 2)["tx"][0]["vout"][0]["scriptPubKey"]["address"]
+        assert cli("getaddressinfo", paid, wallet="w")["ismine"] is True
+        print("[9] a replaced wallet with the same name gets its own address")
     finally:
         subprocess.run([f"{BIN}/bitcoinoil-cli"] + BASE + ["stop"], capture_output=True)
         time.sleep(3)

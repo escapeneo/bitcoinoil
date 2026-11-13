@@ -9,6 +9,7 @@
 #include <rpc/server.h>
 #include <rpc/util.h>
 #include <sync.h>
+#include <uint256.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
@@ -17,7 +18,9 @@
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
+#include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 
 #include <univalue.h>
@@ -884,11 +887,21 @@ RPCHelpMan abandontransaction();
 RPCHelpMan rescanblockchain();
 RPCHelpMan abortrescan();
 
-/** The coinbase destination each wallet uses for getauxblock.  It is kept
- *  until a block is accepted, so that repeated work requests do not use up
- *  the keypool.  */
+/** The coinbase destination a loaded wallet uses for getauxblock.  It is
+ *  kept until a block it paid is accepted, so that repeated work requests do
+ *  not use up the keypool.  The weak pointer detects a wallet that was
+ *  unloaded, possibly replaced by another one at the same address.  */
+struct AuxblockDestination {
+    std::weak_ptr<CWallet> wallet;
+    CTxDestination dest;
+};
 static GlobalMutex g_getauxblock_mutex;
-static std::map<std::string, CTxDestination> g_getauxblock_destinations GUARDED_BY(g_getauxblock_mutex);
+static std::map<const CWallet*, AuxblockDestination> g_getauxblock_destinations GUARDED_BY(g_getauxblock_mutex);
+/** The wallet that requested each job, so that an accepted proof renews the
+ *  destination of the wallet it paid, whichever wallet submitted it.  */
+static std::map<uint256, std::weak_ptr<CWallet>> g_getauxblock_jobs GUARDED_BY(g_getauxblock_mutex);
+/** Bound on remembered jobs; old ones only matter for address renewal.  */
+static constexpr size_t MAX_GETAUXBLOCK_JOBS{10000};
 
 static RPCHelpMan getauxblock()
 {
@@ -937,20 +950,42 @@ static RPCHelpMan getauxblock()
 
     LOCK(g_getauxblock_mutex);
     if (request.params.empty()) {
-        auto it = g_getauxblock_destinations.find(pwallet->GetName());
-        if (it == g_getauxblock_destinations.end()) {
-            LOCK(pwallet->cs_wallet);
-            auto dest = pwallet->GetNewDestination(pwallet->m_default_address_type, "");
-            if (!dest) {
-                throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, util::ErrorString(dest).original);
-            }
-            it = g_getauxblock_destinations.emplace(pwallet->GetName(), *dest).first;
+        for (auto it = g_getauxblock_destinations.begin(); it != g_getauxblock_destinations.end();) {
+            it = it->second.wallet.expired() ? g_getauxblock_destinations.erase(it) : std::next(it);
         }
-        return chain.createAuxBlock(GetScriptForDestination(it->second));
+        CScript script_pub_key;
+        {
+            LOCK(pwallet->cs_wallet);
+            auto it = g_getauxblock_destinations.find(pwallet.get());
+            if (it != g_getauxblock_destinations.end()
+                && (it->second.wallet.lock() != pwallet || pwallet->IsMine(it->second.dest) == ISMINE_NO)) {
+                g_getauxblock_destinations.erase(it);
+                it = g_getauxblock_destinations.end();
+            }
+            if (it == g_getauxblock_destinations.end()) {
+                auto dest = pwallet->GetNewDestination(pwallet->m_default_address_type, "");
+                if (!dest) {
+                    throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, util::ErrorString(dest).original);
+                }
+                it = g_getauxblock_destinations.emplace(pwallet.get(), AuxblockDestination{pwallet, *dest}).first;
+            }
+            script_pub_key = GetScriptForDestination(it->second.dest);
+        }
+        UniValue job = chain.createAuxBlock(script_pub_key);
+        if (g_getauxblock_jobs.size() >= MAX_GETAUXBLOCK_JOBS) g_getauxblock_jobs.clear();
+        g_getauxblock_jobs[uint256S(job["hash"].get_str())] = pwallet;
+        return job;
     }
 
-    const bool accepted = chain.submitAuxBlock(request.params[0].get_str(), request.params[1].get_str());
-    if (accepted) g_getauxblock_destinations.erase(pwallet->GetName());
+    const std::string& hash = request.params[0].get_str();
+    const bool accepted = chain.submitAuxBlock(hash, request.params[1].get_str());
+    if (accepted) {
+        const auto job = g_getauxblock_jobs.find(uint256S(hash));
+        if (job != g_getauxblock_jobs.end()) {
+            if (const auto creator = job->second.lock()) g_getauxblock_destinations.erase(creator.get());
+            g_getauxblock_jobs.erase(job);
+        }
+    }
     return accepted;
 },
     };
