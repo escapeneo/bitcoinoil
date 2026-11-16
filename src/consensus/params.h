@@ -20,8 +20,10 @@ static constexpr int MAINNET_AUXPOW_START_HEIGHT{155000};
 static constexpr int32_t AUXPOW_CHAIN_ID{0x0B0C};
 /** ASERT has no activation height on this network. */
 static constexpr int ASERT_DISABLED{std::numeric_limits<int>::max()};
-/** Provisional half-life for tests. The mainnet value is not chosen yet. */
-static constexpr int64_t ASERT_PROVISIONAL_HALF_LIFE{2 * 60 * 60};
+/** Two hours. Chosen from simulation on mainnet data of November 2026:
+ *  shorter values overshoot when a large miner leaves, longer ones recover
+ *  slowly and hand out cheap blocks. */
+static constexpr int64_t ASERT_HALF_LIFE{2 * 60 * 60};
 
 /**
  * A buried deployment is one where the height of the activation has been hardcoded into

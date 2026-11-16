@@ -13,7 +13,9 @@
 #include <cstdint>
 #include <vector>
 
-static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 70 * 60;
+// Peers may move this node's clock by five minutes at most. It was 70
+// minutes, which is more than the 15-minute future limit for ASERT blocks.
+static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 5 * 60;
 
 class CNetAddr;
 

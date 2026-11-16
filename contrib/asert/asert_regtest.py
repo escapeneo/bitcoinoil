@@ -193,6 +193,24 @@ def main():
         check_chain(b, ASERT_HEIGHT, tip)
         print("[8] a second ASERT node synced the chain over P2P")
 
+        # Future-time limit: 15 minutes under ASERT. Node b's clock stays behind.
+        b_clock = now
+        now += 1000
+        a.cli("setmocktime", now)
+        ahead = a.cli("generatetoaddress", 1, address)[0]
+        raw = a.cli("getblock", ahead, 0)
+        assert b.cli("submitblock", raw) == "time-too-new"
+        b.cli("setmocktime", b_clock + 200)
+        result = b.cli("submitblock", raw)
+        assert result in ("", None, "duplicate", "inconclusive"), result
+        for _ in range(60):
+            if b.cli("getbestblockhash") == ahead:
+                break
+            time.sleep(0.5)
+        assert b.cli("getbestblockhash") == ahead
+        tip, tip_hash = tip + 1, ahead
+        print("[8b] a block 1000 s ahead is refused, and accepted once it is 800 s ahead")
+
         old.start([f"-mocktime={now}"])
         old.cli("addnode", f"127.0.0.1:{a.port}", "onetry")
         time.sleep(8)

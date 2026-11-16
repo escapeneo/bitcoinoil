@@ -25,6 +25,13 @@
 static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60;
 
 /**
+ * The same limit for blocks under ASERT. A timestamp this far ahead eases
+ * the next target by 2^(900/7200), about 9%, with the two-hour half-life.
+ * Under the two-hour limit it would halve the difficulty.
+ */
+static constexpr int64_t ASERT_MAX_FUTURE_BLOCK_TIME = 15 * 60;
+
+/**
  * Timestamp window used as a grace period by code that compares external
  * timestamps (such as timestamps passed to RPCs, or wallet key creation times)
  * to block timestamps. This should be set at least as high as
