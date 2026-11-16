@@ -357,14 +357,8 @@ struct CMutableTransaction;
  */
 template<typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType& tx, Stream& s) {
-<<<<<<< btco
     const bool fAllowWitness = !(GetVersionOrProtocol(s) & SERIALIZE_TRANSACTION_NO_WITNESS);
-||||||| core24
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
-=======
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
-    const bool fAllowMWEB = !(s.GetVersion() & SERIALIZE_NO_MWEB);
->>>>>>> litecoin24x
+    const bool fAllowMWEB = !(GetVersionOrProtocol(s) & SERIALIZE_NO_MWEB);
 
     s >> tx.nVersion;
     unsigned char flags = 0;
@@ -421,14 +415,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
 
 template<typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType& tx, Stream& s) {
-<<<<<<< btco
     const bool fAllowWitness = !(GetVersionOrProtocol(s) & SERIALIZE_TRANSACTION_NO_WITNESS);
-||||||| core24
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
-=======
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
-    const bool fAllowMWEB = !(s.GetVersion() & SERIALIZE_NO_MWEB);
->>>>>>> litecoin24x
+    const bool fAllowMWEB = !(GetVersionOrProtocol(s) & SERIALIZE_NO_MWEB);
 
     s << tx.nVersion;
     unsigned char flags = 0;

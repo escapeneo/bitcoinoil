@@ -258,15 +258,12 @@ extern const char* CFCHECKPT;
  * @since protocol version 70016 as described by BIP 339.
  */
 extern const char* WTXIDRELAY;
-<<<<<<< btco
 /**
  * Contains a 4-byte version number and an 8-byte salt.
  * The salt is used to compute short txids needed for efficient
  * txreconciliation, as described by BIP 330.
  */
 extern const char* SENDTXRCNCL;
-||||||| core24
-=======
 /**
  * Contains a CMerkleBlockWithMWEB.
  * Sent in response to a getdata message which requested a
@@ -293,7 +290,6 @@ extern const char* GETMWEBUTXOS;
  * @since protocol version 70017 as described by LIP-0006
  */
 extern const char* MWEBUTXOS;
->>>>>>> litecoin24x
 }; // namespace NetMsgType
 
 /* Get a vector of all valid message types (see above) */

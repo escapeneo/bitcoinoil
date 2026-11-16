@@ -44,15 +44,11 @@ const char *CFHEADERS="cfheaders";
 const char *GETCFCHECKPT="getcfcheckpt";
 const char *CFCHECKPT="cfcheckpt";
 const char *WTXIDRELAY="wtxidrelay";
-<<<<<<< btco
 const char *SENDTXRCNCL="sendtxrcncl";
-||||||| core24
-=======
 const char *MWEBHEADER="mwebheader";
 const char *MWEBLEAFSET="mwebleafset";
 const char *GETMWEBUTXOS="getmwebutxos";
 const char *MWEBUTXOS="mwebutxos";
->>>>>>> litecoin24x
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -93,15 +89,11 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETCFCHECKPT,
     NetMsgType::CFCHECKPT,
     NetMsgType::WTXIDRELAY,
-<<<<<<< btco
     NetMsgType::SENDTXRCNCL,
-||||||| core24
-=======
     NetMsgType::MWEBHEADER,
     NetMsgType::MWEBLEAFSET,
     NetMsgType::GETMWEBUTXOS,
     NetMsgType::MWEBUTXOS,
->>>>>>> litecoin24x
 };
 const static std::vector<std::string> allNetMessageTypesVec(std::begin(allNetMessageTypes), std::end(allNetMessageTypes));
 

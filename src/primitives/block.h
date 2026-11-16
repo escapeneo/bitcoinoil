@@ -72,30 +72,6 @@ public:
      */
     void SetAuxpow (std::unique_ptr<CAuxPow> apow);
 
-<<<<<<< btco
-||||||| core24
-    NodeSeconds Time() const
-    {
-        return NodeSeconds{std::chrono::seconds{nTime}};
-    }
-
-    int64_t GetBlockTime() const
-    {
-        return (int64_t)nTime;
-    }
-=======
-    PoWHash GetPoWHash() const;
-
-    NodeSeconds Time() const
-    {
-        return NodeSeconds{std::chrono::seconds{nTime}};
-    }
-
-    int64_t GetBlockTime() const
-    {
-        return (int64_t)nTime;
-    }
->>>>>>> litecoin24x
 };
 
 
@@ -141,13 +117,9 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         fChecked = false;
-<<<<<<< btco
         m_checked_witness_commitment = false;
         m_checked_merkle_root = false;
-||||||| core24
-=======
         mweb_block.SetNull();
->>>>>>> litecoin24x
     }
 
     CBlockHeader GetBlockHeader() const

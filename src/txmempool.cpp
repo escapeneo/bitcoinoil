@@ -47,85 +47,6 @@ bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
     return true;
 }
 
-<<<<<<< btco
-||||||| core24
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
-                                 int64_t time, unsigned int entry_height,
-                                 bool spends_coinbase, int64_t sigops_cost, LockPoints lp)
-    : tx{tx},
-      nFee{fee},
-      nTxWeight(GetTransactionWeight(*tx)),
-      nUsageSize{RecursiveDynamicUsage(tx)},
-      nTime{time},
-      entryHeight{entry_height},
-      spendsCoinbase{spends_coinbase},
-      sigOpCost{sigops_cost},
-      m_modified_fee{nFee},
-      lockPoints{lp},
-      nSizeWithDescendants{GetTxSize()},
-      nModFeesWithDescendants{nFee},
-      nSizeWithAncestors{GetTxSize()},
-      nModFeesWithAncestors{nFee},
-      nSigOpCostWithAncestors{sigOpCost} {}
-
-void CTxMemPoolEntry::UpdateModifiedFee(CAmount fee_diff)
-{
-    nModFeesWithDescendants = SaturatingAdd(nModFeesWithDescendants, fee_diff);
-    nModFeesWithAncestors = SaturatingAdd(nModFeesWithAncestors, fee_diff);
-    m_modified_fee = SaturatingAdd(m_modified_fee, fee_diff);
-}
-
-void CTxMemPoolEntry::UpdateLockPoints(const LockPoints& lp)
-{
-    lockPoints = lp;
-}
-
-size_t CTxMemPoolEntry::GetTxSize() const
-{
-    return GetVirtualTransactionSize(nTxWeight, sigOpCost, ::nBytesPerSigOp);
-}
-
-=======
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
-                                 int64_t time, unsigned int entry_height,
-                                 bool spends_coinbase_or_pegout, int64_t sigops_cost, LockPoints lp)
-    : tx{tx},
-      nFee{fee},
-      nTxWeight(GetTransactionWeight(*tx)),
-      mweb_weight(tx->mweb_tx.GetMWEBWeight()),
-      nUsageSize{RecursiveDynamicUsage(tx)},
-      nTime{time},
-      entryHeight{entry_height},
-      spendsCoinbaseOrPegout{spends_coinbase_or_pegout},
-      sigOpCost{sigops_cost},
-      m_modified_fee{nFee},
-      lockPoints{lp},
-      nSizeWithDescendants{GetTxSize()},
-      nModFeesWithDescendants{nFee},
-      nMWEBWeightWithDescendants{mweb_weight},
-      nSizeWithAncestors{GetTxSize()},
-      nModFeesWithAncestors{nFee},
-      nSigOpCostWithAncestors{sigOpCost},
-      nMWEBWeightWithAncestors{mweb_weight} {}
-
-void CTxMemPoolEntry::UpdateModifiedFee(CAmount fee_diff)
-{
-    nModFeesWithDescendants = SaturatingAdd(nModFeesWithDescendants, fee_diff);
-    nModFeesWithAncestors = SaturatingAdd(nModFeesWithAncestors, fee_diff);
-    m_modified_fee = SaturatingAdd(m_modified_fee, fee_diff);
-}
-
-void CTxMemPoolEntry::UpdateLockPoints(const LockPoints& lp)
-{
-    lockPoints = lp;
-}
-
-size_t CTxMemPoolEntry::GetTxSize() const
-{
-    return GetVirtualTransactionSize(nTxWeight, sigOpCost, ::nBytesPerSigOp);
-}
-
->>>>>>> litecoin24x
 void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap& cachedDescendants,
                                       const std::set<uint256>& setExclude, std::set<uint256>& descendants_to_remove)
 {
@@ -204,16 +125,7 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256>& vHashes
         if (it == mapTx.end()) {
             continue;
         }
-<<<<<<< btco
-        auto iter = mapNextTx.lower_bound(COutPoint(hash, 0));
         // First calculate the children, and update CTxMemPoolEntry::m_children to
-||||||| core24
-        auto iter = mapNextTx.lower_bound(COutPoint(hash, 0));
-        // First calculate the children, and update CTxMemPool::m_children to
-=======
-
-        // First calculate the children, and update CTxMemPool::m_children to
->>>>>>> litecoin24x
         // include them, and update their CTxMemPoolEntry::m_parents to include this tx.
         // we cache the in-mempool children to avoid duplicate updates
         {
@@ -950,51 +862,6 @@ void CTxMemPool::removeForBlock(const CBlock& block, unsigned int nBlockHeight, 
     }
 }
 
-<<<<<<< btco
-||||||| core24
-void CTxMemPool::_clear()
-{
-    vTxHashes.clear();
-    mapTx.clear();
-    mapNextTx.clear();
-    totalTxSize = 0;
-    m_total_fee = 0;
-    cachedInnerUsage = 0;
-    lastRollingFeeUpdate = GetTime();
-    blockSinceLastRollingFeeBump = false;
-    rollingMinimumFeeRate = 0;
-    ++nTransactionsUpdated;
-}
-
-void CTxMemPool::clear()
-{
-    LOCK(cs);
-    _clear();
-}
-
-=======
-void CTxMemPool::_clear()
-{
-    vTxHashes.clear();
-    mapTx.clear();
-    mapNextTx.clear();
-    mapTxOutputs_MWEB.clear();
-    totalTxSize = 0;
-    m_total_fee = 0;
-    cachedInnerUsage = 0;
-    lastRollingFeeUpdate = GetTime();
-    blockSinceLastRollingFeeBump = false;
-    rollingMinimumFeeRate = 0;
-    ++nTransactionsUpdated;
-}
-
-void CTxMemPool::clear()
-{
-    LOCK(cs);
-    _clear();
-}
-
->>>>>>> litecoin24x
 void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendheight) const
 {
     if (m_check_ratio == 0) return;
@@ -1248,25 +1115,9 @@ void CTxMemPool::PrioritiseTransaction(const uint256& hash, const CAmount& nFeeD
         if (it != mapTx.end()) {
             mapTx.modify(it, [&nFeeDelta](CTxMemPoolEntry& e) { e.UpdateModifiedFee(nFeeDelta); });
             // Now update all ancestors' modified fees with descendants
-<<<<<<< btco
             auto ancestors{AssumeCalculateMemPoolAncestors(__func__, *it, Limits::NoLimits(), /*fSearchForParents=*/false)};
             for (txiter ancestorIt : ancestors) {
-                mapTx.modify(ancestorIt, [=](CTxMemPoolEntry& e){ e.UpdateDescendantState(0, nFeeDelta, 0);});
-||||||| core24
-            setEntries setAncestors;
-            uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
-            std::string dummy;
-            CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
-            for (txiter ancestorIt : setAncestors) {
-                mapTx.modify(ancestorIt, [=](CTxMemPoolEntry& e){ e.UpdateDescendantState(0, nFeeDelta, 0);});
-=======
-            setEntries setAncestors;
-            uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
-            std::string dummy;
-            CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
-            for (txiter ancestorIt : setAncestors) {
                 mapTx.modify(ancestorIt, [=](CTxMemPoolEntry& e){ e.UpdateDescendantState(0, nFeeDelta, 0, 0);});
->>>>>>> litecoin24x
             }
             // Now update all descendants' modified fees with ancestors
             setEntries setDescendants;

@@ -33,16 +33,8 @@ std::optional<OutputType> ParseOutputType(const std::string& type)
         return OutputType::BECH32;
     } else if (type == OUTPUT_TYPE_STRING_BECH32M) {
         return OutputType::BECH32M;
-<<<<<<< btco
-||||||| core24
-    } else if (type == OUTPUT_TYPE_STRING_UNKNOWN) {
-        return OutputType::UNKNOWN;
-=======
     } else if (type == OUTPUT_TYPE_STRING_MWEB) {
         return OutputType::MWEB;
-    } else if (type == OUTPUT_TYPE_STRING_UNKNOWN) {
-        return OutputType::UNKNOWN;
->>>>>>> litecoin24x
     }
     return std::nullopt;
 }

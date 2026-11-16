@@ -766,13 +766,7 @@ static bool ReadBlockOrHeader(T& block, const FlatFilePos& pos, const Consensus:
     }
 
     // Check the header
-<<<<<<< btco
     if (!CheckProofOfWork(block, consensusParams)) {
-||||||| core24
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
-=======
-    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
->>>>>>> litecoin24x
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
     }
 

@@ -80,11 +80,6 @@ public:
 	}
 };
 
-<<<<<<< btco
-#endif // BITCOINOIL_UNDO_H
-||||||| core24
-#endif // BITCOIN_UNDO_H
-=======
 template <typename Stream>
 inline void UnserializeBlockUndo(CBlockUndo& blockundo, Stream& s, const unsigned int num_bytes)
 {
@@ -105,5 +100,4 @@ inline void UnserializeBlockUndo(CBlockUndo& blockundo, Stream& s, const unsigne
     }
 }
 
-#endif // BITCOIN_UNDO_H
->>>>>>> litecoin24x
+#endif // BITCOINOIL_UNDO_H

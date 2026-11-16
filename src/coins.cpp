@@ -13,13 +13,7 @@
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
 uint256 CCoinsView::GetBestBlock() const { return uint256(); }
 std::vector<uint256> CCoinsView::GetHeadBlocks() const { return std::vector<uint256>(); }
-<<<<<<< btco
-bool CCoinsView::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) { return false; }
-||||||| core24
-bool CCoinsView::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) { return false; }
-=======
-bool CCoinsView::BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) { return false; }
->>>>>>> litecoin24x
+bool CCoinsView::BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase) { return false; }
 std::unique_ptr<CCoinsViewCursor> CCoinsView::Cursor() const { return nullptr; }
 
 bool CCoinsView::HaveCoin(const AnyOutputID& output_id) const
@@ -42,28 +36,17 @@ bool CCoinsViewBacked::HaveCoin(const AnyOutputID& output_id) const { return bas
 uint256 CCoinsViewBacked::GetBestBlock() const { return base->GetBestBlock(); }
 std::vector<uint256> CCoinsViewBacked::GetHeadBlocks() const { return base->GetHeadBlocks(); }
 void CCoinsViewBacked::SetBackend(CCoinsView &viewIn) { base = &viewIn; }
-<<<<<<< btco
-bool CCoinsViewBacked::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) { return base->BatchWrite(mapCoins, hashBlock, erase); }
-||||||| core24
-bool CCoinsViewBacked::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) { return base->BatchWrite(mapCoins, hashBlock); }
-=======
-bool CCoinsViewBacked::BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) { return base->BatchWrite(mapCoins, hashBlock, derivedView); }
->>>>>>> litecoin24x
+bool CCoinsViewBacked::BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase) { return base->BatchWrite(mapCoins, hashBlock, derivedView, erase); }
 std::unique_ptr<CCoinsViewCursor> CCoinsViewBacked::Cursor() const { return base->Cursor(); }
 size_t CCoinsViewBacked::EstimateSize() const { return base->EstimateSize(); }
 mw::ICoinsView::Ptr CCoinsViewBacked::GetMWEBView() const { return base->GetMWEBView(); }
 bool CCoinsViewBacked::GetMWEBCoin(const mw::Hash& output_id, mw::Coin::CPtr& coin) const { return base->GetMWEBCoin(output_id, coin); }
 
-<<<<<<< btco
 CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn, bool deterministic) :
     CCoinsViewBacked(baseIn), m_deterministic(deterministic),
-    cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic))
+    cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic)),
+    mweb_view(baseIn->GetMWEBView() ? std::make_shared<mw::CoinsViewCache>(baseIn->GetMWEBView()) : nullptr)
 {}
-||||||| core24
-CCoinsViewCache::CCoinsViewCache(CCoinsView *baseIn) : CCoinsViewBacked(baseIn), cachedCoinsUsage(0) {}
-=======
-CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn) : CCoinsViewBacked(baseIn), cachedCoinsUsage(0), mweb_view(baseIn->GetMWEBView() ? std::make_shared<mw::CoinsViewCache>(baseIn->GetMWEBView()) : nullptr) { }
->>>>>>> litecoin24x
 
 size_t CCoinsViewCache::DynamicMemoryUsage() const {
     return memusage::DynamicUsage(cacheCoins) + cachedCoinsUsage +
@@ -262,18 +245,10 @@ void CCoinsViewCache::SetBestBlock(const uint256 &hashBlockIn) {
     hashBlock = hashBlockIn;
 }
 
-<<<<<<< btco
-bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, bool erase) {
+bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, const mw::CoinsViewCache::Ptr& derivedView, bool erase) {
     for (CCoinsMap::iterator it = mapCoins.begin();
             it != mapCoins.end();
             it = erase ? mapCoins.erase(it) : std::next(it)) {
-||||||| core24
-bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn) {
-    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end(); it = mapCoins.erase(it)) {
-=======
-bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, const mw::CoinsViewCache::Ptr& derivedView) {
-    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end(); it = mapCoins.erase(it)) {
->>>>>>> litecoin24x
         // Ignore non-dirty entries (optimization).
         if (!(it->second.flags & CCoinsCacheEntry::DIRTY)) {
             continue;
@@ -349,27 +324,18 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
 }
 
 bool CCoinsViewCache::Flush() {
-<<<<<<< btco
-    bool fOk = base->BatchWrite(cacheCoins, hashBlock, /*erase=*/true);
+    bool fOk = base->BatchWrite(cacheCoins, hashBlock, mweb_view, /*erase=*/true);
     if (fOk && !cacheCoins.empty()) {
         /* BatchWrite must erase all cacheCoins elements when erase=true. */
         throw std::logic_error("Not all cached coins were erased");
     }
-||||||| core24
-    bool fOk = base->BatchWrite(cacheCoins, hashBlock);
-    cacheCoins.clear();
-=======
-    bool fOk = base->BatchWrite(cacheCoins, hashBlock, mweb_view);
-    cacheCoins.clear();
->>>>>>> litecoin24x
     cachedCoinsUsage = 0;
     return fOk;
 }
 
-<<<<<<< btco
 bool CCoinsViewCache::Sync()
 {
-    bool fOk = base->BatchWrite(cacheCoins, hashBlock, /*erase=*/false);
+    bool fOk = base->BatchWrite(cacheCoins, hashBlock, mweb_view, /*erase=*/false);
     // Instead of clearing `cacheCoins` as we would in Flush(), just clear the
     // FRESH/DIRTY flags of any coin that isn't spent.
     for (auto it = cacheCoins.begin(); it != cacheCoins.end(); ) {
@@ -384,12 +350,7 @@ bool CCoinsViewCache::Sync()
     return fOk;
 }
 
-void CCoinsViewCache::Uncache(const COutPoint& hash)
-||||||| core24
-void CCoinsViewCache::Uncache(const COutPoint& hash)
-=======
 void CCoinsViewCache::Uncache(const AnyOutputID& output_id)
->>>>>>> litecoin24x
 {
     if (output_id.IsOutPoint()) {
         const COutPoint& outpoint = output_id.ToOutPoint();

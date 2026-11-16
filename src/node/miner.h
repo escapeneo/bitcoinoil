@@ -139,22 +139,9 @@ private:
     // The constructed block template
     std::unique_ptr<CBlockTemplate> pblocktemplate;
 
-<<<<<<< btco
-||||||| core24
-    // Configuration parameters for the block size
-    unsigned int nBlockMaxWeight;
-    CFeeRate blockMinFeeRate;
-
-=======
     // MWEB Attributes
     bool fIncludeMWEB{false};
     MWEB::Miner mweb_miner;
-
-    // Configuration parameters for the block size
-    unsigned int nBlockMaxWeight;
-    CFeeRate blockMinFeeRate;
-
->>>>>>> litecoin24x
     // Information on the current status of the block
     uint64_t nBlockWeight;
     uint64_t nBlockTx;

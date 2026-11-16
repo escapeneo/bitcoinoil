@@ -327,16 +327,10 @@ public:
  */
 std::optional<std::vector<std::tuple<int, std::vector<unsigned char>, int>>> InferTaprootTree(const TaprootSpendData& spenddata, const XOnlyPubKey& output);
 
-<<<<<<< btco
-#endif // BITCOINOIL_SCRIPT_STANDARD_H
-||||||| core24
-#endif // BITCOIN_SCRIPT_STANDARD_H
-=======
-// MWEB: Returns true if the CTxOut is a peg-in output (BTC->MWEB)
+// MWEB: Returns true if the CTxOut is a peg-in output (BTCO->MWEB)
 bool IsPegInOutput(const CTxOut& output);
 
 // MWEB: Builds a segwit version 9 (MWEB) script for pegging in to an MWEB transaction with the given kernel ID.
 CScript GetScriptForPegin(const mw::Hash& kernel_id);
 
-#endif // BITCOIN_SCRIPT_STANDARD_H
->>>>>>> litecoin24x
+#endif // BITCOINOIL_SCRIPT_STANDARD_H

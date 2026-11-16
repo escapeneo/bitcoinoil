@@ -239,13 +239,7 @@ public:
 
     //! Do a bulk modification (multiple Coin changes + BestBlock change).
     //! The passed mapCoins can be modified.
-<<<<<<< btco
-    virtual bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase = true);
-||||||| core24
-    virtual bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
-=======
-    virtual bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView);
->>>>>>> litecoin24x
+    virtual bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase = true);
 
     //! Get a cursor to iterate over the whole state
     virtual std::unique_ptr<CCoinsViewCursor> Cursor() const;
@@ -274,16 +268,8 @@ public:
     bool HaveCoin(const AnyOutputID& index) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
-<<<<<<< btco
-    void SetBackend(CCoinsView &viewIn);
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase = true) override;
-||||||| core24
-    void SetBackend(CCoinsView &viewIn);
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) override;
-=======
     virtual void SetBackend(CCoinsView &viewIn);
-    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
->>>>>>> litecoin24x
+    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase = true) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
     size_t EstimateSize() const override;
     mw::ICoinsView::Ptr GetMWEBView() const override;
@@ -323,14 +309,8 @@ public:
     bool HaveCoin(const AnyOutputID& outpoint) const override;
     uint256 GetBestBlock() const override;
     void SetBestBlock(const uint256 &hashBlock);
-<<<<<<< btco
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase = true) override;
-||||||| core24
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) override;
-=======
     void SetBackend(CCoinsView& viewIn) override;
-    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
->>>>>>> litecoin24x
+    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase = true) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override {
         throw std::logic_error("CCoinsViewCache cursor iteration not supported.");
     }

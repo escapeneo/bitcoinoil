@@ -155,17 +155,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated);
     }
 
-<<<<<<< btco
-    const auto time_1{SteadyClock::now()};
-||||||| core24
-    int64_t nTime1 = GetTimeMicros();
-=======
     if (fIncludeMWEB) {
         mweb_miner.AddHogExTransaction(pindexPrev, pblock, pblocktemplate.get(), nFees);
     }
 
-    int64_t nTime1 = GetTimeMicros();
->>>>>>> litecoin24x
+    const auto time_1{SteadyClock::now()};
 
     m_last_block_num_txs = nBlockTx;
     m_last_block_weight = nBlockWeight;
@@ -328,24 +322,7 @@ static int UpdatePackagesForAdded(const CTxMemPool& mempool,
             modtxiter mit = mapModifiedTx.find(desc);
             if (mit == mapModifiedTx.end()) {
                 CTxMemPoolModifiedEntry modEntry(desc);
-<<<<<<< btco
                 mit = mapModifiedTx.insert(modEntry).first;
-||||||| core24
-                modEntry.nSizeWithAncestors -= it->GetTxSize();
-                modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
-                modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
-                mapModifiedTx.insert(modEntry);
-            } else {
-                mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
-=======
-                modEntry.nSizeWithAncestors -= it->GetTxSize();
-                modEntry.nMWEBWeightWithAncestors -= it->GetMWEBWeight();
-                modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
-                modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
-                mapModifiedTx.insert(modEntry);
-            } else {
-                mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
->>>>>>> litecoin24x
             }
             mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
         }
@@ -457,16 +434,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
         }
 
-<<<<<<< btco
-        if (packageFees < m_options.blockMinFeeRate.GetFee(packageSize)) {
-            // Everything else we might consider has a lower fee rate
-||||||| core24
-        if (packageFees < blockMinFeeRate.GetFee(packageSize)) {
-            // Everything else we might consider has a lower fee rate
-=======
-        if (packageFees < blockMinFeeRate.GetFee(packageSize, packageMWEBWeight)) {
+        if (packageFees < m_options.blockMinFeeRate.GetFee(packageSize, packageMWEBWeight)) {
             // No remaining candidate has a higher MWEB-adjusted fee rate.
->>>>>>> litecoin24x
             return;
         }
 

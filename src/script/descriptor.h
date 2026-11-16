@@ -84,15 +84,9 @@ public:
     /** Retrieve all cached derived xpubs */
     std::unordered_map<uint32_t, ExtPubKeyMap> GetCachedDerivedExtPubKeys() const;
     /** Retrieve all cached last hardened xpubs */
-<<<<<<< btco
     ExtPubKeyMap GetCachedLastHardenedExtPubKeys() const;
-||||||| core24
-    const ExtPubKeyMap GetCachedLastHardenedExtPubKeys() const;
-=======
-    const ExtPubKeyMap GetCachedLastHardenedExtPubKeys() const;
     /** Retrieve all cached MWEB addresses */
     const std::unordered_map<uint32_t, StealthAddress> GetCachedMWEBAddresses() const { return m_addresses; }
->>>>>>> litecoin24x
 
     /** Combine another DescriptorCache into this one.
      * Returns a cache containing the items from the other cache unknown to current cache

@@ -125,21 +125,13 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
     return vhashHeadBlocks;
 }
 
-<<<<<<< btco
-bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) {
-    CDBBatch batch(*m_db);
-||||||| core24
-bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
-    CDBBatch batch(*m_db);
-=======
-bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, const mw::CoinsViewCache::Ptr& derivedView) {
+bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase) {
     if (m_mweb_flush_failed) {
         LogPrintf("%s: refusing to write coin database after a failed MWEB flush\n", __func__);
         return false;
     }
 
     std::shared_ptr<CDBBatch> batch = std::make_shared<CDBBatch>(*m_db);
->>>>>>> litecoin24x
     size_t count = 0;
     size_t changed = 0;
     assert(!hashBlock.IsNull());
@@ -171,30 +163,12 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, con
             changed++;
         }
         count++;
-<<<<<<< btco
         it = erase ? mapCoins.erase(it) : std::next(it);
-        if (batch.SizeEstimate() > m_options.batch_write_bytes) {
-            LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
-            m_db->WriteBatch(batch);
-            batch.Clear();
-            if (m_options.simulate_crash_ratio) {
-||||||| core24
-        CCoinsMap::iterator itOld = it++;
-        mapCoins.erase(itOld);
-        if (batch.SizeEstimate() > batch_size) {
-            LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
-            m_db->WriteBatch(batch);
-            batch.Clear();
-            if (crash_simulate) {
-=======
-        CCoinsMap::iterator itOld = it++;
-        mapCoins.erase(itOld);
-        if (batch->SizeEstimate() > batch_size) {
+        if (batch->SizeEstimate() > m_options.batch_write_bytes) {
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch->SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(*batch);
             batch->Clear();
-            if (crash_simulate) {
->>>>>>> litecoin24x
+            if (m_options.simulate_crash_ratio) {
                 static FastRandomContext rng;
                 if (rng.randrange(m_options.simulate_crash_ratio) == 0) {
                     LogPrintf("Simulating a crash. Goodbye.\n");
@@ -383,32 +357,15 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->auxpow         = diskindex.auxpow;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
-<<<<<<< btco
+                pindexNew->mweb_header    = diskindex.mweb_header;
+                pindexNew->hogex_hash     = diskindex.hogex_hash;
+                pindexNew->mweb_amount    = diskindex.mweb_amount;
 
                 const CBlockHeader header = pindexNew->GetBlockHeader(consensusParams);
                 if (!CheckProofOfWork(header, consensusParams) ||
                     (header.IsAuxpow() && !consensusParams.IsAuxpowEnabled(pindexNew->nHeight))) {
                     return error("%s: invalid proof of work in block index", __func__);
                 }
-||||||| core24
-
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams)) {
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
-                }
-=======
-                pindexNew->mweb_header    = diskindex.mweb_header;
-                pindexNew->hogex_hash     = diskindex.hogex_hash;
-                pindexNew->mweb_amount    = diskindex.mweb_amount;
-
-                // BitcoinOil: Disable PoW Sanity check while loading block index from disk.
-                // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
-                // CheckProofOfWork() uses the scrypt hash which is discarded after a block is accepted.
-                // While it is technically feasible to verify the PoW, doing so takes several minutes as it
-                // requires recomputing every PoW hash during every BitcoinOil startup.
-                // We opt instead to simply trust the data that is on your local disk.
-                //if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams))
-                //    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
->>>>>>> litecoin24x
 
                 pcursor->Next();
             } else {

@@ -218,18 +218,14 @@ public:
     uint32_t nBits{0};
     uint32_t nNonce{0};
 
-<<<<<<< btco
     //! Keep the full proof even for headers-only and pruned blocks.
     std::shared_ptr<CAuxPow> auxpow;
 
-||||||| core24
-=======
     //! MWEB data (only populated when BLOCK_HAVE_MWEB is set)
     mw::Header::CPtr mweb_header{nullptr};
     uint256 hogex_hash{};
     CAmount mweb_amount{0};
 
->>>>>>> litecoin24x
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId{0};
 
