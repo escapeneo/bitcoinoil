@@ -24,7 +24,16 @@ check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
+<<<<<<< btco
 BITCOINOIL_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
+||||||| core24
+BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
+=======
+UNIVALUE_INCLUDES=-I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
+SECP256K1_INCLUDES=-I$(srcdir)/secp256k1/include
+LIBMW_INCLUDES=-I$(srcdir)/libmw/include -I$(srcdir)/libmw/deps/caches/include -I$(srcdir)/libmw/deps/mio/include -I$(srcdir)/libmw/deps/crypto/include $(BOOST_CPPFLAGS) $(LIBFMT_CFLAGS)
+BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) $(SECP256K1_INCLUDES) $(UNIVALUE_INCLUDES) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(LIBMW_INCLUDES)
+>>>>>>> litecoin24x
 
 LIBBITCOINOIL_NODE=libbitcoinoil_node.a
 LIBBITCOINOIL_COMMON=libbitcoinoil_common.a
@@ -194,6 +203,12 @@ BITCOINOIL_CORE_H = \
   mapport.h \
   memusage.h \
   merkleblock.h \
+  mweb/mweb_miner.h \
+  mweb/mweb_models.h \
+  mweb/mweb_node.h \
+  mweb/mweb_policy.h \
+  mweb/mweb_wallet.h \
+  mweb/mweb_wtx_info.h \
   net.h \
   net_permissions.h \
   net_processing.h \
@@ -253,9 +268,11 @@ BITCOINOIL_CORE_H = \
   rpc/server_util.h \
   rpc/util.h \
   scheduler.h \
+  script/address.h \
   script/descriptor.h \
   script/keyorigin.h \
   script/miniscript.h \
+  script/pubkeyprovider.h \
   script/sigcache.h \
   script/sign.h \
   script/signingprovider.h \
@@ -323,8 +340,10 @@ BITCOINOIL_CORE_H = \
   validationinterface.h \
   versionbits.h \
   wallet/bdb.h \
+  wallet/change.h \
   wallet/coincontrol.h \
   wallet/coinselection.h \
+  wallet/componentid.h \
   wallet/context.h \
   wallet/crypter.h \
   wallet/db.h \
@@ -333,7 +352,12 @@ BITCOINOIL_CORE_H = \
   wallet/feebumper.h \
   wallet/fees.h \
   wallet/load.h \
+  wallet/mweb_psbt.h \
+  wallet/psbt_filler.h \
+  wallet/transactiondraft.h \
   wallet/receive.h \
+  wallet/recipient.h \
+  wallet/reserve.h \
   wallet/rpc/util.h \
   wallet/rpc/wallet.h \
   wallet/salvage.h \
@@ -341,7 +365,15 @@ BITCOINOIL_CORE_H = \
   wallet/spend.h \
   wallet/sqlite.h \
   wallet/transaction.h \
+<<<<<<< btco
   wallet/types.h \
+||||||| core24
+=======
+  wallet/txbuilder.h \
+  wallet/txlist.h \
+  wallet/txrecord.h \
+  wallet/utxo.h \
+>>>>>>> litecoin24x
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/wallettool.h \
@@ -390,7 +422,16 @@ libbitcoinoil_node_a_SOURCES = \
   kernel/context.cpp \
   kernel/cs_main.cpp \
   kernel/mempool_persist.cpp \
+  libmw/src/db/CoinDB.cpp \
+  libmw/src/db/LeafDB.cpp \
+  libmw/src/db/MMRInfoDB.cpp \
+  libmw/src/mmr/PMMR.cpp \
+  libmw/src/node/BlockValidator.cpp \
+  libmw/src/node/BlockBuilder.cpp \
+  libmw/src/node/CoinsViewDB.cpp \
   mapport.cpp \
+  mweb/mweb_miner.cpp \
+  mweb/mweb_node.cpp \
   net.cpp \
   net_processing.cpp \
   netgroup.cpp \
@@ -477,6 +518,9 @@ endif
 libbitcoinoil_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS) $(BDB_CPPFLAGS) $(SQLITE_CFLAGS)
 libbitcoinoil_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoinoil_wallet_a_SOURCES = \
+  libmw/src/wallet/sign.cpp \
+  mweb/mweb_wallet.cpp \
+  wallet/change.cpp \
   wallet/coincontrol.cpp \
   wallet/context.cpp \
   wallet/crypter.cpp \
@@ -487,7 +531,11 @@ libbitcoinoil_wallet_a_SOURCES = \
   wallet/fees.cpp \
   wallet/interfaces.cpp \
   wallet/load.cpp \
+  wallet/mweb_psbt.cpp \
+  wallet/psbt_filler.cpp \
+  wallet/transactiondraft.cpp \
   wallet/receive.cpp \
+  wallet/reserve.cpp \
   wallet/rpc/addresses.cpp \
   wallet/rpc/backup.cpp \
   wallet/rpc/coins.cpp \
@@ -500,6 +548,9 @@ libbitcoinoil_wallet_a_SOURCES = \
   wallet/scriptpubkeyman.cpp \
   wallet/spend.cpp \
   wallet/transaction.cpp \
+  wallet/txbuilder.cpp \
+  wallet/txlist.cpp \
+  wallet/txrecord.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/walletutil.cpp \
@@ -522,8 +573,16 @@ libbitcoinoil_wallet_tool_a_SOURCES = \
   $(BITCOINOIL_CORE_H)
 #
 
+<<<<<<< btco
 # crypto #
 crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
+||||||| core24
+# crypto primitives library
+crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
+=======
+# crypto primitives library
+crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS) $(SSL_CFLAGS) $(BITCOIN_INCLUDES)
+>>>>>>> litecoin24x
 
 # Specify -static in both CXXFLAGS and LDFLAGS so libtool will only build a
 # static version of this library. We don't need a dynamic version, and a dynamic
@@ -552,6 +611,9 @@ crypto_libbitcoinoil_crypto_base_la_SOURCES = \
   crypto/muhash.cpp \
   crypto/ripemd160.cpp \
   crypto/ripemd160.h \
+  crypto/scrypt.cpp \
+  crypto/scrypt-sse2.cpp \
+  crypto/scrypt.h \
   crypto/sha1.cpp \
   crypto/sha1.h \
   crypto/sha256.cpp \
@@ -561,7 +623,8 @@ crypto_libbitcoinoil_crypto_base_la_SOURCES = \
   crypto/sha512.cpp \
   crypto/sha512.h \
   crypto/siphash.cpp \
-  crypto/siphash.h
+  crypto/siphash.h \
+  libmw/src/crypto/Hasher.cpp
 
 if USE_ASM
 crypto_libbitcoinoil_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
@@ -607,7 +670,7 @@ crypto_libbitcoinoil_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
 # consensus #
 libbitcoinoil_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES)
 libbitcoinoil_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoinoil_consensus_a_SOURCES = \
+LIBBITCOIN_CONSENSUS_BASE_SOURCES = \
   arith_uint256.cpp \
   arith_uint256.h \
   consensus/amount.h \
@@ -644,8 +707,36 @@ libbitcoinoil_consensus_a_SOURCES = \
   version.h
 #
 
+<<<<<<< btco
 # common #
 libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
+||||||| core24
+# common: shared between bitcoinoild, and bitcoinoil-qt and non-server tools
+libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+=======
+libbitcoinoil_consensus_a_SOURCES = \
+  $(LIBBITCOIN_CONSENSUS_BASE_SOURCES) \
+  libmw/src/crypto/Bulletproofs.cpp \
+  libmw/src/crypto/ConversionUtil.cpp \
+  libmw/src/crypto/KeyDerivation.cpp \
+  libmw/src/crypto/MuSig.cpp \
+  libmw/src/crypto/Pedersen.cpp \
+  libmw/src/crypto/PublicKeys.cpp \
+  libmw/src/crypto/Schnorr.cpp \
+  libmw/src/crypto/SecretKeys.cpp \
+  libmw/src/models/crypto/Commitment.cpp \
+  libmw/src/models/crypto/PublicKey.cpp \
+  libmw/src/models/block/Block.cpp \
+  libmw/src/models/tx/Input.cpp \
+  libmw/src/models/tx/Kernel.cpp \
+  libmw/src/models/tx/Output.cpp \
+  libmw/src/models/tx/Transaction.cpp \
+  libmw/src/models/tx/TransactionValidation.cpp \
+  libmw/src/models/tx/TxBody.cpp
+
+# common: shared between bitcoinoild, and bitcoinoil-qt and non-server tools
+libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+>>>>>>> litecoin24x
 libbitcoinoil_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoinoil_common_a_SOURCES = \
   auxpow.cpp \
@@ -666,7 +757,20 @@ libbitcoinoil_common_a_SOURCES = \
   kernel/chainparams.cpp \
   key.cpp \
   key_io.cpp \
+  libmw/src/mmr/ILeafSet.cpp \
+  libmw/src/mmr/IMMR.cpp \
+  libmw/src/mmr/Index.cpp \
+  libmw/src/mmr/LeafSet.cpp \
+  libmw/src/mmr/LeafSetCache.cpp \
+  libmw/src/mmr/MemMMR.cpp \
+  libmw/src/mmr/MMRUtil.cpp \
+  libmw/src/mmr/PMMRCache.cpp \
+  libmw/src/mmr/PruneList.cpp \
+  libmw/src/mmr/Segment.cpp \
+  libmw/src/node/CoinsViewCache.cpp \
+  libmw/src/wallet/Keychain.cpp \
   merkleblock.cpp \
+  mweb/mweb_policy.cpp \
   net_types.cpp \
   netaddress.cpp \
   netbase.cpp \
@@ -676,11 +780,19 @@ libbitcoinoil_common_a_SOURCES = \
   policy/policy.cpp \
   protocol.cpp \
   psbt.cpp \
+<<<<<<< btco
+||||||| core24
+  rpc/rawtransaction_util.cpp \
+=======
+  psbt_merge.cpp \
+  rpc/rawtransaction_util.cpp \
+>>>>>>> litecoin24x
   rpc/external_signer.cpp \
   rpc/rawtransaction_util.cpp \
   rpc/request.cpp \
   rpc/util.cpp \
   scheduler.cpp \
+  script/address.cpp \
   script/descriptor.cpp \
   script/miniscript.cpp \
   script/sign.cpp \
@@ -702,6 +814,19 @@ libbitcoinoil_util_a_SOURCES = \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
+<<<<<<< btco
+||||||| core24
+  fs.cpp \
+  interfaces/echo.cpp \
+  interfaces/handler.cpp \
+  interfaces/init.cpp \
+=======
+  fs.cpp \
+  interfaces/echo.cpp \
+  interfaces/handler.cpp \
+  interfaces/init.cpp \
+  libmw/src/file/File.cpp \
+>>>>>>> litecoin24x
   logging.cpp \
   random.cpp \
   randomenv.cpp \
@@ -773,7 +898,7 @@ bitcoinoil_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoinoil_bin_ldadd += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
+bitcoinoil_bin_ldadd += $(BDB_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
 
 bitcoinoild_SOURCES = $(bitcoinoil_daemon_sources) init/bitcoinoild.cpp
 bitcoinoild_CPPFLAGS = $(bitcoinoil_bin_cppflags)
@@ -804,7 +929,7 @@ bitcoinoil_cli_LDADD = \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBBITCOINOIL_CRYPTO)
 
-bitcoinoil_cli_LDADD += $(EVENT_LIBS)
+bitcoinoil_cli_LDADD += $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoinoil-tx binary #
@@ -819,11 +944,26 @@ endif
 
 bitcoinoil_tx_LDADD = \
   $(LIBUNIVALUE) \
+<<<<<<< btco
   $(LIBBITCOINOIL_COMMON) \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBBITCOINOIL_CONSENSUS) \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1)
+||||||| core24
+  $(LIBBITCOIN_COMMON) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBSECP256K1)
+=======
+  $(LIBBITCOIN_COMMON) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBSECP256K1) \
+  $(CRYPTO_LIBS)
+>>>>>>> litecoin24x
 #
 
 # bitcoinoil-wallet binary #
@@ -842,7 +982,8 @@ bitcoinoil_wallet_LDADD = \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1) \
   $(BDB_LIBS) \
-  $(SQLITE_LIBS)
+  $(SQLITE_LIBS) \
+  $(CRYPTO_LIBS)
 
 if TARGET_WINDOWS
 bitcoinoil_wallet_SOURCES += bitcoinoil-wallet-res.rc
@@ -863,9 +1004,20 @@ bitcoinoil_util_LDADD = \
   $(LIBBITCOINOIL_COMMON) \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBUNIVALUE) \
+<<<<<<< btco
   $(LIBBITCOINOIL_CONSENSUS) \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1)
+||||||| core24
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBSECP256K1)
+=======
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBSECP256K1) \
+  $(CRYPTO_LIBS)
+>>>>>>> litecoin24x
 #
 
 # bitcoinoil-chainstate binary #
@@ -873,12 +1025,26 @@ bitcoinoil_chainstate_SOURCES = bitcoinoil-chainstate.cpp
 bitcoinoil_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
 bitcoinoil_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
+<<<<<<< btco
 bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS) $(LIBTOOL_APP_LDFLAGS) -static
 bitcoinoil_chainstate_LDADD = $(LIBBITCOINOILKERNEL)
 
 # libtool is unable to calculate this indirect dependency, presumably because it's a subproject.
 # libsecp256k1 only needs to be linked in when libbitcoinoilkernel is static.
 bitcoinoil_chainstate_LDADD += $(LIBSECP256K1)
+||||||| core24
+# $(LIBTOOL_APP_LDFLAGS) deliberately omitted here so that we can test linking
+# bitcoinoil-chainstate against libbitcoinoilkernel as a shared or static library by
+# setting --{en,dis}able-shared.
+bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+bitcoinoil_chainstate_LDADD = $(LIBBITCOINKERNEL)
+=======
+# $(LIBTOOL_APP_LDFLAGS) deliberately omitted here so that we can test linking
+# bitcoinoil-chainstate against libbitcoinoilkernel as a shared or static library by
+# setting --{en,dis}able-shared.
+bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
+bitcoinoil_chainstate_LDADD = $(LIBBITCOINKERNEL) $(CRYPTO_LIBS)
+>>>>>>> litecoin24x
 #
 
 # bitcoinoilkernel library #
@@ -994,11 +1160,23 @@ if BUILD_BITCOINOIL_LIBS
 lib_LTLIBRARIES += $(LIBBITCOINOILCONSENSUS)
 
 include_HEADERS = script/bitcoinoilconsensus.h
-libbitcoinoilconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoinoil_crypto_base_la_SOURCES) $(libbitcoinoil_consensus_a_SOURCES)
+libbitcoinoilconsensus_la_SOURCES = \
+  support/cleanse.cpp \
+  $(crypto_libbitcoinoil_crypto_base_la_SOURCES) \
+  $(LIBBITCOIN_CONSENSUS_BASE_SOURCES) \
+  libmw/src/models/tx/Transaction.cpp
 
 libbitcoinoilconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
+<<<<<<< btco
 libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
 libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL
+||||||| core24
+libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
+libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
+=======
+libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1) $(CRYPTO_LIBS)
+libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj $(SECP256K1_INCLUDES) -DBUILD_BITCOIN_INTERNAL $(SSL_CFLAGS) $(UNIVALUE_INCLUDES) $(LIBMW_INCLUDES)
+>>>>>>> litecoin24x
 libbitcoinoilconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif

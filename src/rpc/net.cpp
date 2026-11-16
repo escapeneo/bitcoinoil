@@ -291,8 +291,16 @@ static RPCHelpMan addnode()
                 },
                 RPCResult{RPCResult::Type::NONE, "", ""},
                 RPCExamples{
+<<<<<<< btco
                     HelpExampleCli("addnode", "\"192.168.0.6:19712\" \"onetry\"")
             + HelpExampleRpc("addnode", "\"192.168.0.6:19712\", \"onetry\"")
+||||||| core24
+                    HelpExampleCli("addnode", "\"192.168.0.6:8333\" \"onetry\"")
+            + HelpExampleRpc("addnode", "\"192.168.0.6:8333\", \"onetry\"")
+=======
+                    HelpExampleCli("addnode", "\"192.168.0.6:9333\" \"onetry\"")
+            + HelpExampleRpc("addnode", "\"192.168.0.6:9333\", \"onetry\"")
+>>>>>>> litecoin24x
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -349,8 +357,16 @@ static RPCHelpMan addconnection()
                 { RPCResult::Type::STR, "connection_type", "Type of connection opened." },
             }},
         RPCExamples{
+<<<<<<< btco
             HelpExampleCli("addconnection", "\"192.168.0.6:19712\" \"outbound-full-relay\"")
             + HelpExampleRpc("addconnection", "\"192.168.0.6:19712\" \"outbound-full-relay\"")
+||||||| core24
+            HelpExampleCli("addconnection", "\"192.168.0.6:8333\" \"outbound-full-relay\"")
+            + HelpExampleRpc("addconnection", "\"192.168.0.6:8333\" \"outbound-full-relay\"")
+=======
+            HelpExampleCli("addconnection", "\"192.168.0.6:9333\" \"outbound-full-relay\"")
+            + HelpExampleRpc("addconnection", "\"192.168.0.6:9333\" \"outbound-full-relay\"")
+>>>>>>> litecoin24x
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -402,9 +418,21 @@ static RPCHelpMan disconnectnode()
                 },
                 RPCResult{RPCResult::Type::NONE, "", ""},
                 RPCExamples{
+<<<<<<< btco
                     HelpExampleCli("disconnectnode", "\"192.168.0.6:19712\"")
+||||||| core24
+                    HelpExampleCli("disconnectnode", "\"192.168.0.6:8333\"")
+=======
+                    HelpExampleCli("disconnectnode", "\"192.168.0.6:9333\"")
+>>>>>>> litecoin24x
             + HelpExampleCli("disconnectnode", "\"\" 1")
+<<<<<<< btco
             + HelpExampleRpc("disconnectnode", "\"192.168.0.6:19712\"")
+||||||| core24
+            + HelpExampleRpc("disconnectnode", "\"192.168.0.6:8333\"")
+=======
+            + HelpExampleRpc("disconnectnode", "\"192.168.0.6:9333\"")
+>>>>>>> litecoin24x
             + HelpExampleRpc("disconnectnode", "\"\", 1")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
@@ -927,8 +955,16 @@ static RPCHelpMan addpeeraddress()
             },
         },
         RPCExamples{
+<<<<<<< btco
             HelpExampleCli("addpeeraddress", "\"1.2.3.4\" 19712 true")
     + HelpExampleRpc("addpeeraddress", "\"1.2.3.4\", 19712, true")
+||||||| core24
+            HelpExampleCli("addpeeraddress", "\"1.2.3.4\" 8333 true")
+    + HelpExampleRpc("addpeeraddress", "\"1.2.3.4\", 8333, true")
+=======
+            HelpExampleCli("addpeeraddress", "\"1.2.3.4\" 9333 true")
+    + HelpExampleRpc("addpeeraddress", "\"1.2.3.4\", 9333, true")
+>>>>>>> litecoin24x
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -947,7 +983,7 @@ static RPCHelpMan addpeeraddress()
 
     if (LookupHost(addr_string, net_addr, false)) {
         CService service{net_addr, port};
-        CAddress address{MaybeFlipIPv6toCJDNS(service), ServiceFlags{NODE_NETWORK | NODE_WITNESS}};
+        CAddress address{MaybeFlipIPv6toCJDNS(service), ServiceFlags{NODE_NETWORK | NODE_WITNESS | NODE_MWEB}};
         address.nTime = Now<NodeSeconds>();
         // The source address is set equal to the address. This is equivalent to the peer
         // announcing itself.

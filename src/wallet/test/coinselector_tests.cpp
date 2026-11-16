@@ -29,20 +29,26 @@ BOOST_FIXTURE_TEST_SUITE(coinselector_tests, WalletTestingSetup)
 // we repeat those tests this many times and only complain if all iterations of the test fail
 #define RANDOM_REPEATS 5
 
+<<<<<<< btco
 typedef std::set<std::shared_ptr<COutput>> CoinSet;
+||||||| core24
+typedef std::set<COutput> CoinSet;
+=======
+typedef std::set<AnyWalletUTXO> CoinSet;
+>>>>>>> litecoin24x
 
 static const CoinEligibilityFilter filter_standard(1, 6, 0);
 static const CoinEligibilityFilter filter_confirmed(1, 1, 0);
 static const CoinEligibilityFilter filter_standard_extra(6, 6, 0);
 static int nextLockTime = 0;
 
-static void add_coin(const CAmount& nValue, int nInput, std::vector<COutput>& set)
+static void add_coin(const CAmount& nValue, int nInput, std::vector<AnyWalletUTXO>& set)
 {
     CMutableTransaction tx;
     tx.vout.resize(nInput + 1);
     tx.vout[nInput].nValue = nValue;
     tx.nLockTime = nextLockTime++;        // so all transactions get different hashes
-    set.emplace_back(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
+    set.emplace_back(CWalletUTXO{COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0});
 }
 
 static void add_coin(const CAmount& nValue, int nInput, SelectionResult& result)
@@ -51,7 +57,7 @@ static void add_coin(const CAmount& nValue, int nInput, SelectionResult& result)
     tx.vout.resize(nInput + 1);
     tx.vout[nInput].nValue = nValue;
     tx.nLockTime = nextLockTime++;        // so all transactions get different hashes
-    COutput output(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
+    CWalletUTXO output(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
     OutputGroup group;
     group.Insert(std::make_shared<COutput>(output), /*ancestors=*/ 0, /*descendants=*/ 0);
     result.AddInput(group);
@@ -63,7 +69,7 @@ static void add_coin(const CAmount& nValue, int nInput, CoinSet& set, CAmount fe
     tx.vout.resize(nInput + 1);
     tx.vout[nInput].nValue = nValue;
     tx.nLockTime = nextLockTime++;        // so all transactions get different hashes
-    COutput coin(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ 148, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, fee);
+    CWalletUTXO coin(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ 148, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, fee);
     coin.long_term_fee = long_term_fee;
     set.insert(std::make_shared<COutput>(coin));
 }
@@ -80,11 +86,17 @@ static void add_coin(CoinsResult& available_coins, CWallet& wallet, const CAmoun
     uint256 txid = tx.GetHash();
 
     LOCK(wallet.cs_wallet);
-    auto ret = wallet.mapWallet.emplace(std::piecewise_construct, std::forward_as_tuple(txid), std::forward_as_tuple(MakeTransactionRef(std::move(tx)), TxStateInactive{}));
+    auto ret = wallet.mapWallet.emplace(std::piecewise_construct, std::forward_as_tuple(txid), std::forward_as_tuple(MakeTransactionRef(std::move(tx)), TxStateInactive{}, std::nullopt));
     assert(ret.second);
     CWalletTx& wtx = (*ret.first).second;
     const auto& txout = wtx.tx->vout.at(nInput);
+<<<<<<< btco
     available_coins.Add(OutputType::BECH32, {COutPoint(wtx.GetHash(), nInput), txout, nAge, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, wtx.GetTxTime(), fIsFromMe, feerate});
+||||||| core24
+    available_coins.coins[OutputType::BECH32].emplace_back(COutPoint(wtx.GetHash(), nInput), txout, nAge, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, wtx.GetTxTime(), fIsFromMe, feerate);
+=======
+    available_coins.coins[OutputType::BECH32].emplace_back(CWalletUTXO(COutPoint(wtx.GetHash(), nInput), txout, nAge, CalculateMaximumSignedInputSize(txout, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, wtx.GetTxTime(), fIsFromMe, feerate));
+>>>>>>> litecoin24x
 }
 
 /** Check if SelectionResult a is equivalent to SelectionResult b.
@@ -94,10 +106,22 @@ static bool EquivalentResult(const SelectionResult& a, const SelectionResult& b)
     std::vector<CAmount> a_amts;
     std::vector<CAmount> b_amts;
     for (const auto& coin : a.GetInputSet()) {
+<<<<<<< btco
         a_amts.push_back(coin->txout.nValue);
+||||||| core24
+        a_amts.push_back(coin.txout.nValue);
+=======
+        a_amts.push_back(coin.GetValue());
+>>>>>>> litecoin24x
     }
     for (const auto& coin : b.GetInputSet()) {
+<<<<<<< btco
         b_amts.push_back(coin->txout.nValue);
+||||||| core24
+        b_amts.push_back(coin.txout.nValue);
+=======
+        b_amts.push_back(coin.GetValue());
+>>>>>>> litecoin24x
     }
     std::sort(a_amts.begin(), a_amts.end());
     std::sort(b_amts.begin(), b_amts.end());
@@ -110,13 +134,21 @@ static bool EquivalentResult(const SelectionResult& a, const SelectionResult& b)
 static bool EqualResult(const SelectionResult& a, const SelectionResult& b)
 {
     std::pair<CoinSet::iterator, CoinSet::iterator> ret = std::mismatch(a.GetInputSet().begin(), a.GetInputSet().end(), b.GetInputSet().begin(),
+<<<<<<< btco
         [](const std::shared_ptr<COutput>& a, const std::shared_ptr<COutput>& b) {
             return a->outpoint == b->outpoint;
+||||||| core24
+        [](const COutput& a, const COutput& b) {
+            return a.outpoint == b.outpoint;
+=======
+        [](const AnyWalletUTXO& a, const AnyWalletUTXO& b) {
+            return a.GetID() == b.GetID();
+>>>>>>> litecoin24x
         });
     return ret.first == a.GetInputSet().end() && ret.second == b.GetInputSet().end();
 }
 
-static CAmount make_hard_case(int utxos, std::vector<COutput>& utxo_pool)
+static CAmount make_hard_case(int utxos, std::vector<AnyWalletUTXO>& utxo_pool)
 {
     utxo_pool.clear();
     CAmount target = 0;
@@ -128,7 +160,7 @@ static CAmount make_hard_case(int utxos, std::vector<COutput>& utxo_pool)
     return target;
 }
 
-inline std::vector<OutputGroup>& GroupCoins(const std::vector<COutput>& available_coins)
+inline std::vector<OutputGroup>& GroupCoins(const std::vector<AnyWalletUTXO>& available_coins)
 {
     static std::vector<OutputGroup> static_groups;
     static_groups.clear();
@@ -139,19 +171,28 @@ inline std::vector<OutputGroup>& GroupCoins(const std::vector<COutput>& availabl
     return static_groups;
 }
 
+<<<<<<< btco
 inline std::vector<OutputGroup>& KnapsackGroupOutputs(const CoinsResult& available_coins, CWallet& wallet, const CoinEligibilityFilter& filter)
+||||||| core24
+inline std::vector<OutputGroup>& KnapsackGroupOutputs(const std::vector<COutput>& available_coins, CWallet& wallet, const CoinEligibilityFilter& filter)
+=======
+inline std::vector<OutputGroup>& KnapsackGroupOutputs(const std::vector<AnyWalletUTXO>& available_coins, CWallet& wallet, const CoinEligibilityFilter& filter)
+>>>>>>> litecoin24x
 {
     FastRandomContext rand{};
     CoinSelectionParams coin_selection_params{
         rand,
-        /*change_output_size=*/ 0,
-        /*change_spend_size=*/ 0,
-        /*min_change_target=*/ CENT,
+        ChangeParams{
+            /*min_change_target=*/ CENT,
+            /*min_viable_change=*/ 0,
+            /*change_fee=*/ 0,
+            /*cost_of_change=*/ 0
+        },
         /*effective_feerate=*/ CFeeRate(0),
         /*long_term_feerate=*/ CFeeRate(0),
         /*discard_feerate=*/ CFeeRate(0),
-        /*tx_noinputs_size=*/ 0,
         /*avoid_partial=*/ false,
+        /*tx_type=*/ TxType::BTC_TO_BTC
     };
     static OutputGroupTypeMap static_groups;
     static_groups = GroupOutputs(wallet, available_coins, coin_selection_params, {{filter}})[filter];
@@ -163,7 +204,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
 {
     FastRandomContext rand{};
     // Setup
-    std::vector<COutput> utxo_pool;
+    std::vector<AnyWalletUTXO> utxo_pool;
     SelectionResult expected_result(CAmount(0), SelectionAlgorithm::BNB);
 
     /////////////////////////
@@ -277,22 +318,32 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
     }
 
     // Make sure that effective value is working in AttemptSelection when BnB is used
+    uint32_t change_output_size = 31;
+    uint32_t change_spend_size = 68;
     CoinSelectionParams coin_selection_params_bnb{
         rand,
-        /*change_output_size=*/ 31,
-        /*change_spend_size=*/ 68,
-        /*min_change_target=*/ 0,
+        ChangeParams(),
         /*effective_feerate=*/ CFeeRate(3000),
         /*long_term_feerate=*/ CFeeRate(1000),
         /*discard_feerate=*/ CFeeRate(1000),
-        /*tx_noinputs_size=*/ 0,
         /*avoid_partial=*/ false,
+        /*tx_type=*/ TxType::BTC_TO_BTC
     };
+<<<<<<< btco
     coin_selection_params_bnb.m_change_fee = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_output_size);
     coin_selection_params_bnb.m_cost_of_change = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_spend_size) + coin_selection_params_bnb.m_change_fee;
     coin_selection_params_bnb.min_viable_change = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_spend_size);
     coin_selection_params_bnb.m_subtract_fee_outputs = true;
 
+||||||| core24
+    coin_selection_params_bnb.m_change_fee = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_output_size);
+    coin_selection_params_bnb.m_cost_of_change = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_spend_size) + coin_selection_params_bnb.m_change_fee;
+    coin_selection_params_bnb.min_viable_change = coin_selection_params_bnb.m_effective_feerate.GetFee(coin_selection_params_bnb.change_spend_size);
+=======
+    coin_selection_params_bnb.m_change_params.m_change_fee = coin_selection_params_bnb.m_effective_feerate.GetFee(change_output_size, 0);
+    coin_selection_params_bnb.m_change_params.m_cost_of_change = coin_selection_params_bnb.m_effective_feerate.GetFee(change_spend_size, 0) + coin_selection_params_bnb.m_change_params.m_change_fee;
+    coin_selection_params_bnb.m_change_params.min_viable_change = coin_selection_params_bnb.m_effective_feerate.GetFee(change_spend_size, 0);
+>>>>>>> litecoin24x
     {
         std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
         wallet->LoadWallet();
@@ -303,14 +354,24 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         CoinsResult available_coins;
 
         add_coin(available_coins, *wallet, 1, coin_selection_params_bnb.m_effective_feerate);
-        available_coins.All().at(0).input_bytes = 40; // Make sure that it has a negative effective value. The next check should assert if this somehow got through. Otherwise it will fail
-        BOOST_CHECK(!SelectCoinsBnB(GroupCoins(available_coins.All()), 1 * CENT, coin_selection_params_bnb.m_cost_of_change));
+        available_coins.All().at(0).GetBTC().input_bytes = 40; // Make sure that it has a negative effective value. The next check should assert if this somehow got through. Otherwise it will fail
+        BOOST_CHECK(!SelectCoinsBnB(GroupCoins(available_coins.All()), 1 * CENT, coin_selection_params_bnb.m_change_params.m_cost_of_change));
 
         // Test fees subtracted from output:
         available_coins.Clear();
         add_coin(available_coins, *wallet, 1 * CENT, coin_selection_params_bnb.m_effective_feerate);
+<<<<<<< btco
         available_coins.All().at(0).input_bytes = 40;
         const auto result9 = SelectCoinsBnB(GroupCoins(available_coins.All()), 1 * CENT, coin_selection_params_bnb.m_cost_of_change);
+||||||| core24
+        available_coins.All().at(0).input_bytes = 40;
+        coin_selection_params_bnb.m_subtract_fee_outputs = true;
+        const auto result9 = SelectCoinsBnB(GroupCoins(available_coins.All()), 1 * CENT, coin_selection_params_bnb.m_cost_of_change);
+=======
+        available_coins.All().at(0).GetBTC().input_bytes = 40;
+        coin_selection_params_bnb.m_subtract_fee_outputs = true;
+        const auto result9 = SelectCoinsBnB(GroupCoins(available_coins.All()), 1 * CENT, coin_selection_params_bnb.m_change_params.m_cost_of_change);
+>>>>>>> litecoin24x
         BOOST_CHECK(result9);
         BOOST_CHECK_EQUAL(result9->GetSelectedValue(), 1 * CENT);
     }
@@ -329,11 +390,17 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         add_coin(available_coins, *wallet, 2 * CENT, coin_selection_params_bnb.m_effective_feerate, 6 * 24, false, 0, true);
         CCoinControl coin_control;
         coin_control.m_allow_other_inputs = true;
+<<<<<<< btco
         COutput select_coin = available_coins.All().at(0);
         coin_control.Select(select_coin.outpoint);
         PreSelectedInputs selected_input;
         selected_input.Insert(select_coin, coin_selection_params_bnb.m_subtract_fee_outputs);
         available_coins.Erase({available_coins.coins[OutputType::BECH32].begin()->outpoint});
+||||||| core24
+        coin_control.Select(available_coins.All().at(0).outpoint);
+=======
+        coin_control.Select(available_coins.All().at(0).GetBTC().outpoint);
+>>>>>>> litecoin24x
         coin_selection_params_bnb.m_effective_feerate = CFeeRate(0);
         const auto result10 = SelectCoins(*wallet, available_coins, selected_input, 10 * CENT, coin_control, coin_selection_params_bnb);
         BOOST_CHECK(result10);
@@ -389,12 +456,20 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         add_coin(9 * CENT, 2, expected_result);
         add_coin(1 * CENT, 2, expected_result);
         coin_control.m_allow_other_inputs = true;
+<<<<<<< btco
         COutput select_coin = available_coins.All().at(1); // pre select 9 coin
         coin_control.Select(select_coin.outpoint);
         PreSelectedInputs selected_input;
         selected_input.Insert(select_coin, coin_selection_params_bnb.m_subtract_fee_outputs);
         available_coins.Erase({(++available_coins.coins[OutputType::BECH32].begin())->outpoint});
         const auto result13 = SelectCoins(*wallet, available_coins, selected_input, 10 * CENT, coin_control, coin_selection_params_bnb);
+||||||| core24
+        coin_control.Select(available_coins.All().at(1).outpoint); // pre select 9 coin
+        const auto result13 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+=======
+        coin_control.Select(available_coins.All().at(1).GetBTC().outpoint); // pre select 9 coin
+        const auto result13 = SelectCoins(*wallet, available_coins, 10 * CENT, coin_control, coin_selection_params_bnb);
+>>>>>>> litecoin24x
         BOOST_CHECK(EquivalentResult(expected_result, *result13));
     }
 }
@@ -770,17 +845,18 @@ BOOST_AUTO_TEST_CASE(SelectCoins_test)
         // Perform selection
         CoinSelectionParams cs_params{
             rand,
-            /*change_output_size=*/ 34,
-            /*change_spend_size=*/ 148,
-            /*min_change_target=*/ CENT,
-            /*effective_feerate=*/ CFeeRate(0),
-            /*long_term_feerate=*/ CFeeRate(0),
-            /*discard_feerate=*/ CFeeRate(0),
-            /*tx_noinputs_size=*/ 0,
+            ChangeParams{
+                /*min_change_target=*/ CENT,
+                /*min_viable_change=*/ 1,
+                /*change_fee=*/ 0,
+                /*cost_of_change=*/ 1,
+            },
+            /*effective_feerate=*/ CFeeRate(3000),
+            /*long_term_feerate=*/ CFeeRate(1000),
+            /*discard_feerate=*/ CFeeRate(1000),
             /*avoid_partial=*/ false,
+            /*tx_type=*/ TxType::BTC_TO_BTC,
         };
-        cs_params.m_cost_of_change = 1;
-        cs_params.min_viable_change = 1;
         CCoinControl cc;
         const auto result = SelectCoins(*wallet, available_coins, /*pre_set_inputs=*/{}, target, cc, cs_params);
         BOOST_CHECK(result);
@@ -898,26 +974,26 @@ BOOST_AUTO_TEST_CASE(effective_value_test)
     tx.vout[nInput].nValue = nValue;
 
     // standard case, pass feerate in constructor
-    COutput output1(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, feerate);
+    CWalletUTXO output1(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, feerate);
     const CAmount expected_ev1 = 9852; // 10000 - 148
     BOOST_CHECK_EQUAL(output1.GetEffectiveValue(), expected_ev1);
 
     // input bytes unknown (input_bytes = -1), pass feerate in constructor
-    COutput output2(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, feerate);
+    CWalletUTXO output2(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, feerate);
     BOOST_CHECK_EQUAL(output2.GetEffectiveValue(), nValue); // The effective value should be equal to the absolute value if input_bytes is -1
 
     // negative effective value, pass feerate in constructor
-    COutput output3(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, CFeeRate(100000));
+    CWalletUTXO output3(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, CFeeRate(100000));
     const CAmount expected_ev3 = -4800; // 10000 - 14800
     BOOST_CHECK_EQUAL(output3.GetEffectiveValue(), expected_ev3);
 
     // standard case, pass fees in constructor
     const CAmount fees = 148;
-    COutput output4(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, fees);
+    CWalletUTXO output4(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, input_bytes, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, fees);
     BOOST_CHECK_EQUAL(output4.GetEffectiveValue(), expected_ev1);
 
     // input bytes unknown (input_bytes = -1), pass fees in constructor
-    COutput output5(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
+    CWalletUTXO output5(COutPoint(tx.GetHash(), nInput), tx.vout.at(nInput), /*depth=*/ 1, /*input_bytes=*/ -1, /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ true, /*time=*/ 0, /*from_me=*/ false, /*fees=*/ 0);
     BOOST_CHECK_EQUAL(output5.GetEffectiveValue(), nValue); // The effective value should be equal to the absolute value if input_bytes is -1
 }
 
@@ -1067,20 +1143,23 @@ BOOST_AUTO_TEST_CASE(SelectCoins_effective_value_test)
     FastRandomContext rand;
     CoinSelectionParams cs_params{
         rand,
-        /*change_output_size=*/34,
-        /*change_spend_size=*/148,
-        /*min_change_target=*/1000,
-        /*effective_feerate=*/CFeeRate(3000),
-        /*long_term_feerate=*/CFeeRate(1000),
-        /*discard_feerate=*/CFeeRate(1000),
-        /*tx_noinputs_size=*/0,
-        /*avoid_partial=*/false,
+        ChangeParams{
+            /*min_change_target=*/ 1000,
+            /*min_viable_change=*/ 0,
+            /*change_fee=*/ 0,
+            /*cost_of_change=*/ 0,
+        },
+        /*effective_feerate=*/ CFeeRate(3000),
+        /*long_term_feerate=*/ CFeeRate(1000),
+        /*discard_feerate=*/ CFeeRate(1000),
+        /*avoid_partial=*/ false,
+        /*tx_type=*/ TxType::BTC_TO_BTC,
     };
     CCoinControl cc;
     cc.m_allow_other_inputs = false;
-    COutput output = available_coins.All().at(0);
+    CWalletUTXO output = available_coins.All().at(0).GetBTC();
     cc.SetInputWeight(output.outpoint, 148);
-    cc.SelectExternal(output.outpoint, output.txout);
+    cc.SelectExternal(output.outpoint, AnyOutput{output.outpoint, output.txout});
 
     const auto preset_inputs = *Assert(FetchSelectedInputs(*wallet, cc, cs_params));
     available_coins.Erase({available_coins.coins[OutputType::BECH32].begin()->outpoint});
@@ -1109,18 +1188,26 @@ BOOST_FIXTURE_TEST_CASE(wallet_coinsresult_test, BasicTestingSetup)
     {
         // First test case, check that 'CoinsResult::Erase' function works as expected.
         // By trying to erase two elements from the 'available_coins' object.
+<<<<<<< btco
         std::unordered_set<COutPoint, SaltedOutpointHasher> outs_to_remove;
         const auto& coins = available_coins.All();
+||||||| core24
+        std::set<COutPoint> outs_to_remove;
+        const auto& coins = available_coins.All();
+=======
+        std::set<AnyOutputID> outs_to_remove;
+        auto coins = available_coins.All();
+>>>>>>> litecoin24x
         for (int i = 0; i < 2; i++) {
-            outs_to_remove.emplace(coins[i].outpoint);
+            outs_to_remove.emplace(coins[i].GetBTC().outpoint);
         }
         available_coins.Erase(outs_to_remove);
 
         // Check that the elements were actually removed.
         const auto& updated_coins = available_coins.All();
         for (const auto& out: outs_to_remove) {
-            auto it = std::find_if(updated_coins.begin(), updated_coins.end(), [&out](const COutput &coin) {
-                return coin.outpoint == out;
+            auto it = std::find_if(updated_coins.begin(), updated_coins.end(), [&out](const AnyWalletUTXO& coin) {
+                return coin.GetID() == out;
             });
             BOOST_CHECK(it == updated_coins.end());
         }

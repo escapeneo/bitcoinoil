@@ -157,7 +157,6 @@ BITCOINOIL_QT_H = \
   qt/transactiondescdialog.h \
   qt/transactionfilterproxy.h \
   qt/transactionoverviewwidget.h \
-  qt/transactionrecord.h \
   qt/transactiontablemodel.h \
   qt/transactionview.h \
   qt/utilitydialog.h \
@@ -200,6 +199,7 @@ QT_RES_ICONS = \
   qt/res/icons/hd_disabled.png \
   qt/res/icons/hd_enabled.png \
   qt/res/icons/history.png \
+  qt/res/icons/bitcoinoil_splash.png \
   qt/res/icons/lock_closed.png \
   qt/res/icons/lock_open.png \
   qt/res/icons/network_disabled.png \
@@ -271,7 +271,6 @@ BITCOINOIL_QT_WALLET_CPP = \
   qt/transactiondescdialog.cpp \
   qt/transactionfilterproxy.cpp \
   qt/transactionoverviewwidget.cpp \
-  qt/transactionrecord.cpp \
   qt/transactiontablemodel.cpp \
   qt/transactionview.cpp \
   qt/walletcontroller.cpp \
@@ -331,8 +330,16 @@ endif
 if ENABLE_ZMQ
 bitcoinoil_qt_ldadd += $(LIBBITCOINOIL_ZMQ) $(ZMQ_LIBS)
 endif
+<<<<<<< btco
 bitcoinoil_qt_ldadd += $(LIBBITCOINOIL_CLI) $(LIBBITCOINOIL_COMMON) $(LIBBITCOINOIL_UTIL) $(LIBBITCOINOIL_CONSENSUS) $(LIBBITCOINOIL_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
   $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(LIBSECP256K1) \
+||||||| core24
+bitcoinoil_qt_ldadd += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
+  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(LIBSECP256K1) \
+=======
+bitcoinoil_qt_ldadd += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
+  $(LIBMW) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(LIBSECP256K1) $(CRYPTO_LIBS) \
+>>>>>>> litecoin24x
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(SQLITE_LIBS)
 bitcoinoil_qt_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 bitcoinoil_qt_libtoolflags = $(AM_LIBTOOLFLAGS) --tag CXX
@@ -356,9 +363,10 @@ QT_QM=$(QT_TS:.ts=.qm)
 
 SECONDARY: $(QT_QM)
 
+# Include GUI startup warnings using _() in the core translation context.
 $(srcdir)/qt/bitcoinoilstrings.cpp: FORCE
 	@test -n $(XGETTEXT) || echo "xgettext is required for updating translations"
-	$(AM_V_GEN) cd $(srcdir); XGETTEXT=$(XGETTEXT) COPYRIGHT_HOLDERS="$(COPYRIGHT_HOLDERS)" $(PYTHON) ../share/qt/extract_strings_qt.py $(libbitcoinoil_node_a_SOURCES) $(libbitcoinoil_wallet_a_SOURCES) $(libbitcoinoil_common_a_SOURCES) $(libbitcoinoil_zmq_a_SOURCES) $(libbitcoinoil_consensus_a_SOURCES) $(libbitcoinoil_util_a_SOURCES)
+	$(AM_V_GEN) cd $(srcdir); XGETTEXT=$(XGETTEXT) COPYRIGHT_HOLDERS="$(COPYRIGHT_HOLDERS)" $(PYTHON) ../share/qt/extract_strings_qt.py $(libbitcoinoil_node_a_SOURCES) $(libbitcoinoil_wallet_a_SOURCES) $(libbitcoinoil_common_a_SOURCES) $(libbitcoinoil_zmq_a_SOURCES) $(libbitcoinoil_consensus_a_SOURCES) $(libbitcoinoil_util_a_SOURCES) qt/initexecutor.cpp
 
 # The resulted bitcoinoil_en.xlf source file should follow Transifex requirements.
 # See: https://docs.transifex.com/formats/xliff#how-to-distinguish-between-a-source-file-and-a-translation-file

@@ -31,10 +31,22 @@ QList<BitcoinOilUnit> BitcoinOilUnits::availableUnits()
 QString BitcoinOilUnits::longName(Unit unit)
 {
     switch (unit) {
+<<<<<<< btco
     case Unit::BTCO: return QString("BTCO");
     case Unit::mBTCO: return QString("mBTCO");
     case Unit::uBTCO: return QString::fromUtf8("µBTCO (bits)");
     case Unit::SAT: return QString("Drop");
+||||||| core24
+    case Unit::BTC: return QString("BTC");
+    case Unit::mBTC: return QString("mBTC");
+    case Unit::uBTC: return QString::fromUtf8("µBTC (bits)");
+    case Unit::SAT: return QString("Satoshi (sat)");
+=======
+    case Unit::BTC: return QString("BTC");
+    case Unit::mBTC: return QString("lites");
+    case Unit::uBTC: return QString("photons");
+    case Unit::SAT: return QString("liteoshi");
+>>>>>>> litecoin24x
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -42,9 +54,19 @@ QString BitcoinOilUnits::longName(Unit unit)
 QString BitcoinOilUnits::shortName(Unit unit)
 {
     switch (unit) {
+<<<<<<< btco
     case Unit::BTCO: return longName(unit);
     case Unit::mBTCO: return longName(unit);
     case Unit::uBTCO: return QString("bits");
+||||||| core24
+    case Unit::BTC: return longName(unit);
+    case Unit::mBTC: return longName(unit);
+    case Unit::uBTC: return QString("bits");
+=======
+    case Unit::BTC: return longName(unit);
+    case Unit::mBTC: return longName(unit);
+    case Unit::uBTC: return QString("photons");
+>>>>>>> litecoin24x
     case Unit::SAT: return QString("sat");
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -53,10 +75,22 @@ QString BitcoinOilUnits::shortName(Unit unit)
 QString BitcoinOilUnits::description(Unit unit)
 {
     switch (unit) {
+<<<<<<< btco
     case Unit::BTCO: return QString("BitcoinOils");
     case Unit::mBTCO: return QString("Milli-BitcoinOils (1 / 1" THIN_SP_UTF8 "000)");
     case Unit::uBTCO: return QString("Micro-BitcoinOils (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     case Unit::SAT: return QString("Drop (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+||||||| core24
+    case Unit::BTC: return QString("BitcoinOils");
+    case Unit::mBTC: return QString("Milli-BitcoinOils (1 / 1" THIN_SP_UTF8 "000)");
+    case Unit::uBTC: return QString("Micro-BitcoinOils (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case Unit::SAT: return QString("Satoshi (sat) (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+=======
+    case Unit::BTC: return QString("BitcoinOils");
+    case Unit::mBTC: return QString("Lites (1 / 1" THIN_SP_UTF8 "000)");
+    case Unit::uBTC: return QString("Photons (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case Unit::SAT: return QString("Liteoshis (sat) (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+>>>>>>> litecoin24x
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }

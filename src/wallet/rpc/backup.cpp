@@ -22,6 +22,7 @@
 #include <wallet/rpc/util.h>
 #include <wallet/wallet.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <tuple>
@@ -65,7 +66,8 @@ static bool GetWalletAddressesForKey(const LegacyScriptPubKeyMan* spk_man, const
     bool fLabelFound = false;
     CKey key;
     spk_man->GetKey(keyid, key);
-    for (const auto& dest : GetAllDestinationsForKey(key.GetPubKey())) {
+    const std::optional<SecretKey> scan_secret = spk_man->GetScanSecret();
+    for (const auto& dest : GetAllDestinationsForKey(key.GetPubKey(), scan_secret.value_or(SecretKey::Null()))) {
         const auto* address_book_entry = wallet.FindAddressBookEntry(dest);
         if (address_book_entry) {
             if (!strAddr.empty()) {
@@ -77,7 +79,7 @@ static bool GetWalletAddressesForKey(const LegacyScriptPubKeyMan* spk_man, const
         }
     }
     if (!fLabelFound) {
-        strAddr = EncodeDestination(GetDestinationForKey(key.GetPubKey(), wallet.m_default_address_type));
+        strAddr = EncodeDestination(GetDestinationForKey(key.GetPubKey(), wallet.m_default_address_type, scan_secret.value_or(SecretKey::Null())));
     }
     return fLabelFound;
 }
@@ -186,7 +188,8 @@ RPCHelpMan importprivkey()
             // We don't know which corresponding address will be used;
             // label all new addresses, and label existing addresses if a
             // label was passed.
-            for (const auto& dest : GetAllDestinationsForKey(pubkey)) {
+            const std::optional<SecretKey> scan_secret = pwallet->GetLegacyScriptPubKeyMan()->GetScanSecret();
+            for (const auto& dest : GetAllDestinationsForKey(pubkey, scan_secret.value_or(SecretKey::Null()))) {
                 if (!request.params[1].isNull() || !pwallet->FindAddressBookEntry(dest)) {
                     pwallet->SetAddressBook(dest, strLabel, AddressPurpose::RECEIVE);
                 }
@@ -291,9 +294,19 @@ RPCHelpMan importaddress()
             std::vector<unsigned char> data(ParseHex(request.params[0].get_str()));
             CScript redeem_script(data.begin(), data.end());
 
+<<<<<<< btco
             std::set<CScript> scripts = {redeem_script};
             pwallet->ImportScripts(scripts, /*timestamp=*/0);
 
+||||||| core24
+            std::set<CScript> scripts = {redeem_script};
+            pwallet->ImportScripts(scripts, 0 /* timestamp */);
+
+=======
+            pwallet->ImportScripts({redeem_script}, 0 /* timestamp */);
+            
+            std::set<GenericAddress> scripts = {redeem_script};
+>>>>>>> litecoin24x
             if (fP2SH) {
                 scripts.insert(GetScriptForDestination(ScriptHash(redeem_script)));
             }
@@ -360,8 +373,8 @@ RPCHelpMan importprunedfunds()
     unsigned int txnIndex = vIndex[it - vMatch.begin()];
 
     CTransactionRef tx_ref = MakeTransactionRef(tx);
-    if (pwallet->IsMine(*tx_ref)) {
-        pwallet->AddToWallet(std::move(tx_ref), TxStateConfirmed{merkleBlock.header.GetHash(), height, static_cast<int>(txnIndex)});
+    if (pwallet->IsMine(*tx_ref, std::nullopt)) {
+        pwallet->AddToWallet(std::move(tx_ref), std::nullopt, TxStateConfirmed{merkleBlock.header.GetHash(), height, static_cast<int>(txnIndex)});
         return UniValue::VNULL;
     }
 
@@ -379,9 +392,9 @@ RPCHelpMan removeprunedfunds()
                 },
                 RPCResult{RPCResult::Type::NONE, "", ""},
                 RPCExamples{
-                    HelpExampleCli("removeprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"") +
+                    HelpExampleCli("removeprunedfunds", "\"c54357a1ff9f4e792198e75c01fc633acc6d093abd67ec1849596637c3457bf2\"") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("removeprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"")
+            + HelpExampleRpc("removeprunedfunds", "\"c54357a1ff9f4e792198e75c01fc633acc6d093abd67ec1849596637c3457bf2\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -468,9 +481,10 @@ RPCHelpMan importpubkey()
     {
         LOCK(pwallet->cs_wallet);
 
-        std::set<CScript> script_pub_keys;
-        for (const auto& dest : GetAllDestinationsForKey(pubKey)) {
-            script_pub_keys.insert(GetScriptForDestination(dest));
+        std::set<GenericAddress> script_pub_keys;
+        const std::optional<SecretKey> scan_secret = pwallet->GetLegacyScriptPubKeyMan()->GetScanSecret();
+        for (const auto& dest : GetAllDestinationsForKey(pubKey, scan_secret.value_or(SecretKey::Null()))) {
+            script_pub_keys.insert(GenericAddress(dest));
         }
 
         pwallet->MarkDirty();
@@ -542,6 +556,7 @@ RPCHelpMan importwallet()
         pwallet->chain().showProgress(strprintf("%s " + _("Importing…").translated, pwallet->GetDisplayName()), 0, false); // show progress dialog in GUI
         std::vector<std::tuple<CKey, int64_t, bool, std::string>> keys;
         std::vector<std::pair<CScript, int64_t>> scripts;
+        std::vector<CKey> hdSeeds;
         while (file.good()) {
             pwallet->chain().showProgress("", std::max(1, std::min(50, (int)(((double)file.tellg() / (double)nFilesize) * 100))), false);
             std::string line;
@@ -800,7 +815,7 @@ RPCHelpMan dumpwallet()
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (metadata.has_key_origin ? " hdkeypath="+WriteHDKeypath(metadata.key_origin.path) : ""));
+            file << strprintf(" # addr=%s%s\n", strAddr, (metadata.has_key_origin ? " hdkeypath="+WriteHDKeypath(metadata.key_origin.hdkeypath) : ""));
         }
     }
     file << "\n";
@@ -909,6 +924,8 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
     }
     case TxoutType::NULL_DATA:
         return "unspendable script";
+    case TxoutType::WITNESS_MWEB_HOGADDR:
+    case TxoutType::WITNESS_MWEB_PEGIN:
     case TxoutType::NONSTANDARD:
     case TxoutType::WITNESS_UNKNOWN:
     case TxoutType::WITNESS_V1_TAPROOT:
@@ -917,7 +934,7 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
     NONFATAL_UNREACHABLE();
 }
 
-static UniValue ProcessImportLegacy(ImportData& import_data, std::map<CKeyID, CPubKey>& pubkey_map, std::map<CKeyID, CKey>& privkey_map, std::set<CScript>& script_pub_keys, bool& have_solving_data, const UniValue& data, std::vector<CKeyID>& ordered_pubkeys)
+static UniValue ProcessImportLegacy(ImportData& import_data, std::map<CKeyID, CPubKey>& pubkey_map, std::map<CKeyID, CKey>& privkey_map, std::set<GenericAddress>& script_pub_keys, bool& have_solving_data, const UniValue& data, std::vector<CKeyID>& ordered_pubkeys)
 {
     UniValue warnings(UniValue::VARR);
 
@@ -1064,7 +1081,7 @@ static UniValue ProcessImportLegacy(ImportData& import_data, std::map<CKeyID, CP
     return warnings;
 }
 
-static UniValue ProcessImportDescriptor(ImportData& import_data, std::map<CKeyID, CPubKey>& pubkey_map, std::map<CKeyID, CKey>& privkey_map, std::set<CScript>& script_pub_keys, bool& have_solving_data, const UniValue& data, std::vector<CKeyID>& ordered_pubkeys)
+static UniValue ProcessImportDescriptor(ImportData& import_data, std::map<CKeyID, CPubKey>& pubkey_map, std::map<CKeyID, CKey>& privkey_map, std::set<GenericAddress>& script_pub_keys, bool& have_solving_data, const UniValue& data, std::vector<CKeyID>& ordered_pubkeys)
 {
     UniValue warnings(UniValue::VARR);
 
@@ -1097,7 +1114,7 @@ static UniValue ProcessImportDescriptor(ImportData& import_data, std::map<CKeyID
     // Expand all descriptors to get public keys and scripts, and private keys if available.
     for (int i = range_start; i <= range_end; ++i) {
         FlatSigningProvider out_keys;
-        std::vector<CScript> scripts_temp;
+        std::vector<GenericAddress> scripts_temp;
         parsed_desc->Expand(i, keys, scripts_temp, out_keys);
         std::copy(scripts_temp.begin(), scripts_temp.end(), std::inserter(script_pub_keys, script_pub_keys.end()));
         for (const auto& key_pair : out_keys.pubkeys) {
@@ -1175,7 +1192,7 @@ static UniValue ProcessImport(CWallet& wallet, const UniValue& data, const int64
         ImportData import_data;
         std::map<CKeyID, CPubKey> pubkey_map;
         std::map<CKeyID, CKey> privkey_map;
-        std::set<CScript> script_pub_keys;
+        std::set<GenericAddress> script_pub_keys;
         std::vector<CKeyID> ordered_pubkeys;
         bool have_solving_data;
 
@@ -1195,9 +1212,9 @@ static UniValue ProcessImport(CWallet& wallet, const UniValue& data, const int64
         }
 
         // Check whether we have any work to do
-        for (const CScript& script : script_pub_keys) {
-            if (wallet.IsMine(script) & ISMINE_SPENDABLE) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already contains the private key for this address or script (\"" + HexStr(script) + "\")");
+        for (const GenericAddress& dest_addr : script_pub_keys) {
+            if (wallet.IsMine(dest_addr) & ISMINE_SPENDABLE) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already contains the private key for this address or script (\"" + dest_addr.Encode() + "\")");
             }
         }
 
@@ -1518,7 +1535,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
 
         // Need to ExpandPrivate to check if private keys are available for all pubkeys
         FlatSigningProvider expand_keys;
-        std::vector<CScript> scripts;
+        std::vector<GenericAddress> scripts;
         if (!parsed_desc->Expand(0, keys, scripts, expand_keys)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Cannot expand descriptor. Probably because of hardened derivations without private keys provided");
         }
@@ -1756,13 +1773,19 @@ RPCHelpMan listdescriptors()
                     {RPCResult::Type::STR, "desc", "Descriptor string representation"},
                     {RPCResult::Type::NUM, "timestamp", "The creation time of the descriptor"},
                     {RPCResult::Type::BOOL, "active", "Whether this descriptor is currently used to generate new addresses"},
-                    {RPCResult::Type::BOOL, "internal", /*optional=*/true, "True if this descriptor is used to generate change addresses. False if this descriptor is used to generate receiving addresses; defined only for active descriptors"},
+                    {RPCResult::Type::BOOL, "internal", /*optional=*/true, "True if this descriptor is used to generate change addresses. False if this descriptor is used to generate receiving addresses; defined for active descriptors and all MWEB descriptors"},
                     {RPCResult::Type::ARR_FIXED, "range", /*optional=*/true, "Defined only for ranged descriptors", {
                         {RPCResult::Type::NUM, "", "Range start inclusive"},
                         {RPCResult::Type::NUM, "", "Range end inclusive"},
                     }},
+<<<<<<< btco
                     {RPCResult::Type::NUM, "next", /*optional=*/true, "Same as next_index field. Kept for compatibility reason."},
                     {RPCResult::Type::NUM, "next_index", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
+||||||| core24
+                    {RPCResult::Type::NUM, "next", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
+=======
+                    {RPCResult::Type::NUM, "next_index", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
+>>>>>>> litecoin24x
                 }},
             }}
         }},
@@ -1809,6 +1832,11 @@ RPCHelpMan listdescriptors()
         if (!desc_spk_man->GetDescriptorString(descriptor, priv)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Can't get descriptor string.");
         }
+        // Make both public and private exports safe to paste into a single-quoted
+        // importdescriptors argument, without changing the stored descriptor.
+        descriptor = descriptor.substr(0, descriptor.find('#'));
+        std::replace(descriptor.begin(), descriptor.end(), '\'', 'h');
+        descriptor += '#' + GetDescriptorChecksum(descriptor);
         const bool is_range = wallet_descriptor.descriptor->IsRange();
         wallet_descriptors.push_back({
             descriptor,
@@ -1836,10 +1864,18 @@ RPCHelpMan listdescriptors()
         if (info.range.has_value()) {
             UniValue range(UniValue::VARR);
             range.push_back(info.range->first);
-            range.push_back(info.range->second - 1);
+            // Include the next unused index when the keypool is exhausted so
+            // the exported range passes importdescriptors' next_index check.
+            range.push_back(std::max(info.range->second - 1, info.next_index));
             spk.pushKV("range", range);
+<<<<<<< btco
             spk.pushKV("next", info.next_index);
             spk.pushKV("next_index", info.next_index);
+||||||| core24
+            spk.pushKV("next", info.next_index);
+=======
+            spk.pushKV("next_index", info.next_index);
+>>>>>>> litecoin24x
         }
         descriptors.push_back(spk);
     }

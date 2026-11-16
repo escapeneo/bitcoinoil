@@ -174,6 +174,33 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
+<<<<<<< btco
+||||||| core24
+    if (blockindex->pprev)
+        result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
+=======
+    if (blockindex->mweb_header != nullptr) {
+        UniValue mweb_header(UniValue::VOBJ);
+        mweb_header.pushKV("hash", blockindex->mweb_header->GetHash().ToHex());
+        mweb_header.pushKV("height", blockindex->mweb_header->GetHeight());
+        mweb_header.pushKV("kernel_offset", blockindex->mweb_header->GetKernelOffset().ToHex());
+        mweb_header.pushKV("stealth_offset", blockindex->mweb_header->GetStealthOffset().ToHex());
+        mweb_header.pushKV("num_kernels", blockindex->mweb_header->GetNumKernels());
+        mweb_header.pushKV("num_txos", blockindex->mweb_header->GetNumTXOs());
+        mweb_header.pushKV("kernel_root", blockindex->mweb_header->GetKernelRoot().ToHex());
+        mweb_header.pushKV("output_root", blockindex->mweb_header->GetOutputRoot().ToHex());
+        mweb_header.pushKV("leaf_root", blockindex->mweb_header->GetLeafsetRoot().ToHex());
+        result.pushKV("mweb_header", mweb_header);
+
+        result.pushKV("mweb_amount", blockindex->mweb_amount);
+        if (blockindex->pprev) {
+            result.pushKV("prev_mweb_amount", blockindex->pprev->mweb_amount);
+        }
+    }
+
+    if (blockindex->pprev)
+        result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
+>>>>>>> litecoin24x
     if (pnext)
         result.pushKV("nextblockhash", pnext->GetBlockHash().GetHex());
     return result;
@@ -183,7 +210,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
 {
     UniValue result = blockheaderToJSON(tip, blockindex);
 
-    result.pushKV("strippedsize", (int)::GetSerializeSize(block, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS));
+    result.pushKV("strippedsize", (int)::GetSerializeSize(block, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS | SERIALIZE_NO_MWEB));
     result.pushKV("size", (int)::GetSerializeSize(block, PROTOCOL_VERSION));
     result.pushKV("weight", (int)::GetBlockWeight(block));
     UniValue txs(UniValue::VARR);
@@ -214,6 +241,89 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
 
     result.pushKV("tx", txs);
 
+    bool txDetails = (verbosity == TxVerbosity::SHOW_DETAILS || verbosity == TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+
+    if (!block.mweb_block.IsNull()) {
+        UniValue mweb_block(UniValue::VOBJ);
+
+        // MWEB Header
+        mweb_block.pushKV("hash", block.mweb_block.GetMWEBHeader()->GetHash().ToHex());
+        mweb_block.pushKV("height", block.mweb_block.GetMWEBHeader()->GetHeight());
+        mweb_block.pushKV("kernel_offset", block.mweb_block.GetMWEBHeader()->GetKernelOffset().ToHex());
+        mweb_block.pushKV("stealth_offset", block.mweb_block.GetMWEBHeader()->GetStealthOffset().ToHex());
+        mweb_block.pushKV("num_kernels", block.mweb_block.GetMWEBHeader()->GetNumKernels());
+        mweb_block.pushKV("num_txos", block.mweb_block.GetMWEBHeader()->GetNumTXOs());
+        mweb_block.pushKV("kernel_root", block.mweb_block.GetMWEBHeader()->GetKernelRoot().ToHex());
+        mweb_block.pushKV("output_root", block.mweb_block.GetMWEBHeader()->GetOutputRoot().ToHex());
+        mweb_block.pushKV("leaf_root", block.mweb_block.GetMWEBHeader()->GetLeafsetRoot().ToHex());
+
+        // MWEB Inputs
+        UniValue inputs(UniValue::VARR);
+        for (const auto& input : block.mweb_block.m_block->GetInputs()) {
+            if (txDetails) {
+                UniValue objInput(UniValue::VOBJ);
+                objInput.pushKV("output_id", input.GetOutputID().ToHex());
+                objInput.pushKV("commit", input.GetCommitment().ToHex());
+                objInput.pushKV("output_pubkey", input.GetOutputPubKey().ToHex());
+
+                if (!!input.GetInputPubKey()) {
+                    objInput.pushKV("input_pubkey", input.GetInputPubKey()->ToHex());
+                }
+
+                if (!input.GetExtraData().empty()) {
+                    objInput.pushKV("extra_data", HexStr(input.GetExtraData()));
+                }
+
+                objInput.pushKV("sig", input.GetSignature().ToHex());
+                inputs.push_back(objInput);
+            } else {
+                inputs.push_back(input.GetOutputID().ToHex());
+            }
+        }
+        mweb_block.pushKV("inputs", inputs);
+
+        // MWEB Outputs
+        UniValue outputs(UniValue::VARR);
+        for (const auto& output : block.mweb_block.m_block->GetOutputs()) {
+            if (txDetails) {
+                UniValue objOutput(UniValue::VOBJ);
+                objOutput.pushKV("output_id", output.GetOutputID().ToHex());
+                objOutput.pushKV("commit", output.GetCommitment().ToHex());
+                objOutput.pushKV("sender_pubkey", output.GetSenderPubKey().ToHex());
+                objOutput.pushKV("receiver_pubkey", output.GetReceiverPubKey().ToHex());
+                objOutput.pushKV("range_proof", HexStr(output.GetRangeProof()->Serialized()));
+                objOutput.pushKV("message", HexStr(output.GetOutputMessage().Serialized()));
+                outputs.push_back(objOutput);
+            } else {
+                outputs.push_back(output.GetOutputID().ToHex());
+            }
+        }
+        mweb_block.pushKV("outputs", outputs);
+
+        // MWEB Kernels
+        UniValue kernels(UniValue::VARR);
+        for (const auto& kernel : block.mweb_block.m_block->GetKernels()) {
+            if (txDetails) {
+                UniValue objKernel(UniValue::VOBJ);
+                objKernel.pushKV("kernel_id", kernel.GetKernelID().ToHex());
+                objKernel.pushKV("features", kernel.GetFeatures());
+                objKernel.pushKV("commit", kernel.GetCommitment().ToHex());
+                objKernel.pushKV("fee", kernel.GetFee());
+                objKernel.pushKV("lock_height", kernel.GetLockHeight());
+                objKernel.pushKV("excess", kernel.GetExcess().ToHex());
+                objKernel.pushKV("signature", kernel.GetSignature().ToHex());
+                if (!kernel.GetExtraData().empty()) {
+                    objKernel.pushKV("extra_data", HexStr(kernel.GetExtraData()));
+                }
+                kernels.push_back(objKernel);
+            } else {
+                kernels.push_back(kernel.GetCommitment().ToHex());
+            }
+        }
+        mweb_block.pushKV("kernels", kernels);
+
+        result.pushKV("mweb", mweb_block);
+    }
     return result;
 }
 
@@ -365,8 +475,8 @@ static RPCHelpMan waitforblock()
                         {RPCResult::Type::NUM, "height", "Block height"},
                     }},
                 RPCExamples{
-                    HelpExampleCli("waitforblock", "\"0000000000079f8ef3d2c688c244eb7a4570b24c9ed7b4a8c619eb02596f8862\" 1000")
-            + HelpExampleRpc("waitforblock", "\"0000000000079f8ef3d2c688c244eb7a4570b24c9ed7b4a8c619eb02596f8862\", 1000")
+                    HelpExampleCli("waitforblock", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\" 1000")
+            + HelpExampleRpc("waitforblock", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\", 1000")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -485,10 +595,16 @@ static RPCHelpMan getblockfrompeer()
         "getblockfrompeer",
         "Attempt to fetch block from a given peer.\n\n"
         "We must have the header for this block, e.g. using submitheader.\n"
+<<<<<<< btco
         "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n"
         "Peers generally ignore requests for a stale block that they never fully verified, or one that is more than a month old.\n"
         "When a peer does not respond with a block, we will disconnect.\n"
         "Note: The block could be re-pruned as soon as it is received.\n\n"
+||||||| core24
+        "Subsequent calls for the same block and a new peer will cause the response from the previous peer to be ignored.\n\n"
+=======
+        "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n\n"
+>>>>>>> litecoin24x
         "Returns an empty JSON object if the request was successfully scheduled.",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash to try to fetch"},
@@ -496,8 +612,8 @@ static RPCHelpMan getblockfrompeer()
         },
         RPCResult{RPCResult::Type::OBJ, "", /*optional=*/false, "", {}},
         RPCExamples{
-            HelpExampleCli("getblockfrompeer", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" 0")
-            + HelpExampleRpc("getblockfrompeer", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" 0")
+            HelpExampleCli("getblockfrompeer", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\" 0")
+            + HelpExampleRpc("getblockfrompeer", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\" 0")
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -588,6 +704,20 @@ static RPCHelpMan getblockheader()
                             {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                             {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
                             {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                            {RPCResult::Type::OBJ, "mweb_header", /*optional=*/true, "The MWEB header",
+                            {
+                                {RPCResult::Type::STR_HEX, "hash", "the MWEB block hash"},
+                                {RPCResult::Type::NUM, "height", "The block height or index"},
+                                {RPCResult::Type::STR_HEX, "kernel_offset", "Total accumulated sum of kernel offsets of all MWEB blocks up to and including this one"},
+                                {RPCResult::Type::STR_HEX, "stealth_offset", "The stealth blinding factor for only this MWEB block"},
+                                {RPCResult::Type::NUM, "num_kernels", "The number of kernels in this MWEB block"},
+                                {RPCResult::Type::NUM, "num_txos", "Total accumulated number of TXOs included in all MWEB blocks up to and including this one"},
+                                {RPCResult::Type::STR_HEX, "kernel_root", "MMR root of all kernels in this MWEB block"},
+                                {RPCResult::Type::STR_HEX, "output_root", "PMMR commitment of TXOs included in all MWEB blocks up to and including this one"},
+                                {RPCResult::Type::STR_HEX, "leaf_root", "PMMR commitment of \"spentness\" bit of the TXOs in the output PMMR"},
+                            }},
+                            {RPCResult::Type::NUM, "mweb_amount", /*optional=*/true, "The total number of coins pegged into the MWEB"},
+                            {RPCResult::Type::NUM, "prev_mweb_amount", /*optional=*/true, "The previous block's mweb_amount"},
                             {RPCResult::Type::STR_HEX, "previousblockhash", /*optional=*/true, "The hash of the previous block (if available)"},
                             {RPCResult::Type::STR_HEX, "nextblockhash", /*optional=*/true, "The hash of the next block (if available)"},
                         }},
@@ -595,8 +725,8 @@ static RPCHelpMan getblockheader()
                         RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
                 },
                 RPCExamples{
-                    HelpExampleCli("getblockheader", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-            + HelpExampleRpc("getblockheader", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                    HelpExampleCli("getblockheader", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\"")
+            + HelpExampleRpc("getblockheader", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -782,8 +912,8 @@ static RPCHelpMan getblock()
                 }},
         },
                 RPCExamples{
-                    HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-            + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                    HelpExampleCli("getblock", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\"")
+            + HelpExampleRpc("getblock", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -989,12 +1119,12 @@ static RPCHelpMan gettxoutsetinfo()
                     HelpExampleCli("gettxoutsetinfo", "") +
                     HelpExampleCli("gettxoutsetinfo", R"("none")") +
                     HelpExampleCli("gettxoutsetinfo", R"("none" 1000)") +
-                    HelpExampleCli("gettxoutsetinfo", R"("none" '"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"')") +
+                    HelpExampleCli("gettxoutsetinfo", R"("none" '"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"')") +
                     HelpExampleCli("-named gettxoutsetinfo", R"(hash_type='muhash' use_index='false')") +
                     HelpExampleRpc("gettxoutsetinfo", "") +
                     HelpExampleRpc("gettxoutsetinfo", R"("none")") +
                     HelpExampleRpc("gettxoutsetinfo", R"("none", 1000)") +
-                    HelpExampleRpc("gettxoutsetinfo", R"("none", "00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09")")
+                    HelpExampleRpc("gettxoutsetinfo", R"("none", "e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3")")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1243,7 +1373,7 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
         return "invalid";
     };
 
-    UniValue bip9(UniValue::VOBJ);
+    UniValue version_bits(UniValue::VOBJ);
 
     const ThresholdState next_state = chainman.m_versionbitscache.State(blockindex, chainman.GetConsensus(), id);
     const ThresholdState current_state = chainman.m_versionbitscache.State(blockindex->pprev, chainman.GetConsensus(), id);
@@ -1252,16 +1382,21 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
 
     // BIP9 parameters
     if (has_signal) {
-        bip9.pushKV("bit", chainman.GetConsensus().vDeployments[id].bit);
+        version_bits.pushKV("bit", chainman.GetConsensus().vDeployments[id].bit);
     }
-    bip9.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
-    bip9.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
-    bip9.pushKV("min_activation_height", chainman.GetConsensus().vDeployments[id].min_activation_height);
+    bool fHeightBased = chainman.GetConsensus().vDeployments[id].nStartTime == 0 && chainman.GetConsensus().vDeployments[id].nTimeout == 0;
+    if (fHeightBased) {
+        version_bits.pushKV("start_height", chainman.GetConsensus().vDeployments[id].nStartHeight);
+        version_bits.pushKV("timeout_height", chainman.GetConsensus().vDeployments[id].nTimeoutHeight);
+    } else {
+        version_bits.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
+        version_bits.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
+    }
 
     // BIP9 status
-    bip9.pushKV("status", get_state_name(current_state));
-    bip9.pushKV("since", chainman.m_versionbitscache.StateSinceHeight(blockindex->pprev, chainman.GetConsensus(), id));
-    bip9.pushKV("status_next", get_state_name(next_state));
+    version_bits.pushKV("status", get_state_name(current_state));
+    version_bits.pushKV("since", chainman.m_versionbitscache.StateSinceHeight(blockindex->pprev, chainman.GetConsensus(), id));
+    version_bits.pushKV("status_next", get_state_name(next_state));
 
     // BIP9 signalling status, if applicable
     if (has_signal) {
@@ -1275,23 +1410,23 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
             statsUV.pushKV("threshold", statsStruct.threshold);
             statsUV.pushKV("possible", statsStruct.possible);
         }
-        bip9.pushKV("statistics", statsUV);
+        version_bits.pushKV("statistics", statsUV);
 
         std::string sig;
         sig.reserve(signals.size());
         for (const bool s : signals) {
             sig.push_back(s ? '#' : '-');
         }
-        bip9.pushKV("signalling", sig);
+        version_bits.pushKV("signalling", sig);
     }
 
     UniValue rv(UniValue::VOBJ);
-    rv.pushKV("type", "bip9");
+    rv.pushKV("type", fHeightBased ? "bip8" : "bip9");
     if (ThresholdState::ACTIVE == next_state) {
         rv.pushKV("height", chainman.m_versionbitscache.StateSinceHeight(blockindex, chainman.GetConsensus(), id));
     }
     rv.pushKV("active", ThresholdState::ACTIVE == next_state);
-    rv.pushKV("bip9", bip9);
+    rv.pushKV(fHeightBased ? "bip8" : "bip9", version_bits);
 
     softforks.pushKV(DeploymentName(id), rv);
 }
@@ -1310,7 +1445,7 @@ RPCHelpMan getblockchaininfo()
         RPCResult{
             RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
+                {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
                 {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
                 {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
                 {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},
@@ -1388,15 +1523,32 @@ RPCHelpMan getblockchaininfo()
 
 namespace {
 const std::vector<RPCResult> RPCHelpForDeployment{
-    {RPCResult::Type::STR, "type", "one of \"buried\", \"bip9\""},
+    {RPCResult::Type::STR, "type", "one of \"buried\", \"bip8\", \"bip9\""},
     {RPCResult::Type::NUM, "height", /*optional=*/true, "height of the first block which the rules are or will be enforced (only for \"buried\" type, or \"bip9\" type with \"active\" status)"},
     {RPCResult::Type::BOOL, "active", "true if the rules are enforced for the mempool and the next block"},
+    {RPCResult::Type::OBJ, "bip8", /*optional=*/true, "status of bip8 softforks (only for \"bip8\" type)",
+    {
+        {RPCResult::Type::NUM, "bit", /*optional=*/true, "the bit (0-28) in the block version field used to signal this softfork (only for \"started\" and \"locked_in\" status)"},
+        {RPCResult::Type::NUM, "start_height", "minimum block height at which the bit gains its meaning"},
+        {RPCResult::Type::NUM, "timeout_height", "block height at which the deployment is considered failed if not yet locked in"},
+        {RPCResult::Type::STR, "status", "status of deployment at specified block (one of \"defined\", \"started\", \"locked_in\", \"active\", \"failed\")"},
+        {RPCResult::Type::NUM, "since", "height of the first block to which the status applies"},
+        {RPCResult::Type::STR, "status_next", "status of deployment at the next block"},
+        {RPCResult::Type::OBJ, "statistics", /*optional=*/true, "numeric statistics about signalling for a softfork (only for \"started\" and \"locked_in\" status)",
+        {
+            {RPCResult::Type::NUM, "period", "the length in blocks of the signalling period"},
+            {RPCResult::Type::NUM, "threshold", /*optional=*/true, "the number of blocks with the version bit set required to activate the feature (only for \"started\" status)"},
+            {RPCResult::Type::NUM, "elapsed", "the number of blocks elapsed since the beginning of the current period"},
+            {RPCResult::Type::NUM, "count", "the number of blocks with the version bit set in the current period"},
+            {RPCResult::Type::BOOL, "possible", /*optional=*/true, "returns false if there are not enough blocks left in this period to pass activation threshold (only for \"started\" status)"},
+        }},
+        {RPCResult::Type::STR, "signalling", /*optional=*/true, "indicates blocks that signalled with a # and blocks that did not with a -"},
+    }},
     {RPCResult::Type::OBJ, "bip9", /*optional=*/true, "status of bip9 softforks (only for \"bip9\" type)",
     {
         {RPCResult::Type::NUM, "bit", /*optional=*/true, "the bit (0-28) in the block version field used to signal this softfork (only for \"started\" and \"locked_in\" status)"},
         {RPCResult::Type::NUM_TIME, "start_time", "the minimum median time past of a block at which the bit gains its meaning"},
         {RPCResult::Type::NUM_TIME, "timeout", "the median time past of a block at which the deployment is considered failed if not yet locked in"},
-        {RPCResult::Type::NUM, "min_activation_height", "minimum height of blocks for which the rules may be enforced"},
         {RPCResult::Type::STR, "status", "status of deployment at specified block (one of \"defined\", \"started\", \"locked_in\", \"active\", \"failed\")"},
         {RPCResult::Type::NUM, "since", "height of the first block to which the status applies"},
         {RPCResult::Type::STR, "status_next", "status of deployment at the next block"},
@@ -1422,6 +1574,7 @@ UniValue DeploymentInfo(const CBlockIndex* blockindex, const ChainstateManager& 
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_SEGWIT);
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_TESTDUMMY);
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_TAPROOT);
+    SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_MWEB);
     return softforks;
 }
 } // anon namespace
@@ -1900,9 +2053,9 @@ static RPCHelpMan getblockstats()
                 {RPCResult::Type::NUM, "utxo_size_inc_actual", /*optional=*/true, "The increase/decrease in size for the utxo index, not counting unspendables"},
             }},
                 RPCExamples{
-                    HelpExampleCli("getblockstats", R"('"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"' '["minfeerate","avgfeerate"]')") +
+                    HelpExampleCli("getblockstats", R"('"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"' '["minfeerate","avgfeerate"]')") +
                     HelpExampleCli("getblockstats", R"(1000 '["minfeerate","avgfeerate"]')") +
-                    HelpExampleRpc("getblockstats", R"("00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09", ["minfeerate","avgfeerate"])") +
+                    HelpExampleRpc("getblockstats", R"("e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3", ["minfeerate","avgfeerate"])") +
                     HelpExampleRpc("getblockstats", R"(1000, ["minfeerate","avgfeerate"])")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
@@ -2101,7 +2254,7 @@ static RPCHelpMan getblockstats()
 
 namespace {
 //! Search for a given set of pubkey scripts
-bool FindScriptPubKey(std::atomic<int>& scan_progress, const std::atomic<bool>& should_abort, int64_t& count, CCoinsViewCursor* cursor, const std::set<CScript>& needles, std::map<COutPoint, Coin>& out_results, std::function<void()>& interruption_point)
+bool FindScriptPubKey(std::atomic<int>& scan_progress, const std::atomic<bool>& should_abort, int64_t& count, CCoinsViewCursor* cursor, const std::set<GenericAddress>& needles, std::map<COutPoint, Coin>& out_results, std::function<void()>& interruption_point)
 {
     scan_progress = 0;
     count = 0;
@@ -2283,15 +2436,15 @@ static RPCHelpMan scantxoutset()
             throw JSONRPCError(RPC_MISC_ERROR, "scanobjects argument is required for the start action");
         }
 
-        std::set<CScript> needles;
-        std::map<CScript, std::string> descriptors;
+        std::set<GenericAddress> needles;
+        std::map<GenericAddress, std::string> descriptors;
         CAmount total_in = 0;
 
         // loop through the scan objects
         for (const UniValue& scanobject : request.params[1].get_array().getValues()) {
             FlatSigningProvider provider;
             auto scripts = EvalDescriptorStringOrObject(scanobject, provider);
-            for (CScript& script : scripts) {
+            for (GenericAddress& script : scripts) {
                 std::string inferred = InferDescriptor(script, provider)->ToString();
                 needles.emplace(script);
                 descriptors.emplace(std::move(script), std::move(inferred));
@@ -2604,8 +2757,8 @@ static RPCHelpMan getblockfilter()
                         {RPCResult::Type::STR_HEX, "header", "the hex-encoded filter header"},
                     }},
                 RPCExamples{
-                    HelpExampleCli("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"") +
-                    HelpExampleRpc("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\", \"basic\"")
+                    HelpExampleCli("getblockfilter", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\" \"basic\"") +
+                    HelpExampleRpc("getblockfilter", "\"e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3\", \"basic\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {

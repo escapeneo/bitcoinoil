@@ -18,7 +18,9 @@
 
 #include <interfaces/node.h>
 #include <key_io.h>
+#include <mw/consensus/Weight.h>
 #include <policy/policy.h>
+#include <script/standard.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
 #include <wallet/wallet.h>
@@ -32,9 +34,32 @@
 #include <QSettings>
 #include <QTreeWidget>
 
+#include <variant>
+#include <vector>
+
 using wallet::CCoinControl;
 
-QList<CAmount> CoinControlDialog::payAmounts;
+namespace {
+static constexpr unsigned int P2PKH_OUTPUT_BYTES{34};
+static constexpr unsigned int TX_OVERHEAD_BYTES{10};
+
+CScript DummyP2PKHScript()
+{
+    return CScript() << std::vector<unsigned char>(24, 0);
+}
+
+unsigned int GetPeginOutputBytes()
+{
+    return ::GetSerializeSize(CTxOut{MAX_MONEY, GetScriptForPegin(mw::Hash())});
+}
+
+unsigned int GetHogExInputBytes()
+{
+    return ::GetSerializeSize(CTxIn());
+}
+} // namespace
+
+QList<CoinControlDialog::PayAmount> CoinControlDialog::payAmounts;
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
 
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
@@ -172,6 +197,20 @@ void CoinControlDialog::buttonSelectAllClicked()
     CoinControlDialog::updateLabels(m_coin_control, model, this);
 }
 
+AnyOutputID CoinControlDialog::BuildOutputID(QTreeWidgetItem* item)
+{
+    if (IsCanonical(item)) {
+        return COutPoint(
+            uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()),
+            item->data(COLUMN_ADDRESS, VOutRole).toUInt()
+        );
+    } else {
+        assert(IsMWEB(item));
+
+        return mw::Hash::FromHex(item->data(COLUMN_ADDRESS, MWEBOutRole).toString().toStdString());
+    }
+}
+
 // context menu
 void CoinControlDialog::showMenu(const QPoint &point)
 {
@@ -181,10 +220,12 @@ void CoinControlDialog::showMenu(const QPoint &point)
         contextMenuItem = item;
 
         // disable some items (like Copy Transaction ID, lock, unlock) for tree roots in context menu
-        if (item->data(COLUMN_ADDRESS, TxHashRole).toString().length() == 64) // transaction hash is 64 characters (this means it is a child node, so it is not a parent node in tree mode)
+        if (IsCanonical(item) || IsMWEB(item)) // this means it is a child node, so it is not a parent node in tree mode
         {
+            m_copy_transaction_outpoint_action->setText(IsMWEB(item)
+                ? tr("Copy MWEB output &ID") : tr("Copy transaction &ID and output index"));
             m_copy_transaction_outpoint_action->setEnabled(true);
-            if (model->wallet().isLockedCoin(COutPoint(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), item->data(COLUMN_ADDRESS, VOutRole).toUInt())))
+            if (model->wallet().isLockedCoin(BuildOutputID(item)))
             {
                 lockAction->setEnabled(false);
                 unlockAction->setEnabled(true);
@@ -231,14 +272,10 @@ void CoinControlDialog::copyAddress()
         GUIUtil::setClipboard(contextMenuItem->text(COLUMN_ADDRESS));
 }
 
-// context menu action: copy transaction id and vout index
+// context menu action: copy the transparent outpoint or MWEB output ID
 void CoinControlDialog::copyTransactionOutpoint()
 {
-    const QString address = contextMenuItem->data(COLUMN_ADDRESS, TxHashRole).toString();
-    const QString vout = contextMenuItem->data(COLUMN_ADDRESS, VOutRole).toString();
-    const QString outpoint = QString("%1:%2").arg(address).arg(vout);
-
-    GUIUtil::setClipboard(outpoint);
+    GUIUtil::setClipboard(QString::fromStdString(BuildOutputID(contextMenuItem).ToString()));
 }
 
 // context menu action: lock coin
@@ -247,8 +284,7 @@ void CoinControlDialog::lockCoin()
     if (contextMenuItem->checkState(COLUMN_CHECKBOX) == Qt::Checked)
         contextMenuItem->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
 
-    COutPoint outpt(uint256S(contextMenuItem->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), contextMenuItem->data(COLUMN_ADDRESS, VOutRole).toUInt());
-    model->wallet().lockCoin(outpt, /* write_to_db = */ true);
+    model->wallet().lockCoin(BuildOutputID(contextMenuItem), /* write_to_db = */ true);
     contextMenuItem->setDisabled(true);
     contextMenuItem->setIcon(COLUMN_CHECKBOX, platformStyle->SingleColorIcon(":/icons/lock_closed"));
     updateLabelLocked();
@@ -257,8 +293,7 @@ void CoinControlDialog::lockCoin()
 // context menu action: unlock coin
 void CoinControlDialog::unlockCoin()
 {
-    COutPoint outpt(uint256S(contextMenuItem->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), contextMenuItem->data(COLUMN_ADDRESS, VOutRole).toUInt());
-    model->wallet().unlockCoin(outpt);
+    model->wallet().unlockCoin(BuildOutputID(contextMenuItem));
     contextMenuItem->setDisabled(false);
     contextMenuItem->setIcon(COLUMN_CHECKBOX, QIcon());
     updateLabelLocked();
@@ -353,16 +388,16 @@ void CoinControlDialog::radioListMode(bool checked)
 // checkbox clicked by user
 void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 {
-    if (column == COLUMN_CHECKBOX && item->data(COLUMN_ADDRESS, TxHashRole).toString().length() == 64) // transaction hash is 64 characters (this means it is a child node, so it is not a parent node in tree mode)
+    if (column == COLUMN_CHECKBOX && (IsCanonical(item) || IsMWEB(item)))
     {
-        COutPoint outpt(uint256S(item->data(COLUMN_ADDRESS, TxHashRole).toString().toStdString()), item->data(COLUMN_ADDRESS, VOutRole).toUInt());
+        AnyOutputID output_id = BuildOutputID(item);
 
         if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
-            m_coin_control.UnSelect(outpt);
+            m_coin_control.UnSelect(output_id);
         else if (item->isDisabled()) // locked (this happens if "check all" through parent node)
             item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
         else
-            m_coin_control.Select(outpt);
+            m_coin_control.Select(output_id);
 
         // selection changed -> update labels
         if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
@@ -373,7 +408,7 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 // shows count of locked unspent outputs
 void CoinControlDialog::updateLabelLocked()
 {
-    std::vector<COutPoint> vOutpts;
+    std::vector<AnyOutputID> vOutpts;
     model->wallet().listLockedCoins(vOutpts);
     if (vOutpts.size() > 0)
     {
@@ -391,14 +426,23 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
     // nPayAmount
     CAmount nPayAmount = 0;
     bool fDust = false;
-    for (const CAmount &amount : CoinControlDialog::payAmounts)
+    unsigned int nPayBTCOutputs = 0;
+    unsigned int nPayMWEBOutputs = 0;
+    for (const PayAmount& pay_amount : CoinControlDialog::payAmounts)
     {
+        const CAmount& amount = pay_amount.amount;
         nPayAmount += amount;
 
-        if (amount > 0)
+        if (pay_amount.type == PayAmountType::BTC) {
+            ++nPayBTCOutputs;
+        } else {
+            ++nPayMWEBOutputs;
+        }
+
+        if (amount > 0 && pay_amount.type != PayAmountType::MWEB)
         {
             // Assumes a p2pkh script size
-            CTxOut txout(amount, CScript() << std::vector<unsigned char>(24, 0));
+            CTxOut txout(amount, DummyP2PKHScript());
             fDust |= IsDust(txout, model->node().getDustRelayFee());
         }
     }
@@ -410,9 +454,12 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
     unsigned int nBytes         = 0;
     unsigned int nBytesInputs   = 0;
     unsigned int nQuantity      = 0;
+    unsigned int nBTCInputs     = 0;
+    unsigned int nMWEBInputs    = 0;
     bool fWitness               = false;
+    uint64_t mweb_weight        = 0;
 
-    std::vector<COutPoint> vCoinControl;
+    std::vector<AnyOutputID> vCoinControl;
     m_coin_control.ListSelected(vCoinControl);
 
     size_t i = 0;
@@ -421,7 +468,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
 
         // unselect already spent, very unlikely scenario, this could happen
         // when selected are spent elsewhere, like rpc or another computer
-        const COutPoint& outpt = vCoinControl[i++];
+        const AnyOutputID& outpt = vCoinControl[i++];
         if (out.is_spent)
         {
             m_coin_control.UnSelect(outpt);
@@ -432,52 +479,117 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
         nQuantity++;
 
         // Amount
-        nAmount += out.txout.nValue;
+        nAmount += out.nValue;
 
         // Bytes
-        CTxDestination address;
-        int witnessversion = 0;
-        std::vector<unsigned char> witnessprogram;
-        if (out.txout.scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram))
-        {
-            nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
-            fWitness = true;
+        if (!out.address.IsMWEB()) {
+            nBTCInputs++;
+            const CScript& scriptPubKey = out.address.GetScript();
+            CTxDestination address;
+            int witnessversion = 0;
+            std::vector<unsigned char> witnessprogram;
+            if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
+                nBytesInputs += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
+                fWitness = true;
+            } else if (ExtractDestination(scriptPubKey, address)) {
+                CPubKey pubkey;
+                PKHash* pkhash = std::get_if<PKHash>(&address);
+                if (pkhash && model->wallet().getPubKey(scriptPubKey, ToKeyID(*pkhash), pubkey)) {
+                    nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
+                } else
+                    nBytesInputs += 148; // in all error cases, simply assume 148 here
+            } else
+                nBytesInputs += 148;
+        } else {
+            nMWEBInputs++;
         }
-        else if(ExtractDestination(out.txout.scriptPubKey, address))
-        {
-            CPubKey pubkey;
-            PKHash* pkhash = std::get_if<PKHash>(&address);
-            if (pkhash && model->wallet().getPubKey(out.txout.scriptPubKey, ToKeyID(*pkhash), pubkey))
-            {
-                nBytesInputs += (pubkey.IsCompressed() ? 148 : 180);
-            }
-            else
-                nBytesInputs += 148; // in all error cases, simply assume 148 here
-        }
-        else nBytesInputs += 148;
     }
 
     // calculation
     if (nQuantity > 0)
     {
+        const bool has_pay_amounts = CoinControlDialog::payAmounts.size() > 0;
+        const bool pay_ltc_outputs_become_pegouts = nMWEBInputs > 0 && nPayMWEBOutputs == 0 && nPayBTCOutputs > 0;
+        const unsigned int nPegOuts = pay_ltc_outputs_become_pegouts ? nPayBTCOutputs : 0;
+        const unsigned int nBTCOutputs = pay_ltc_outputs_become_pegouts ? 0 : nPayBTCOutputs;
+        const bool has_mweb_component = nMWEBInputs > 0 || nPayMWEBOutputs > 0 || nPegOuts > 0;
+        const bool has_pegin = nBTCInputs > 0 && (nPayMWEBOutputs > 0 || nPegOuts > 0);
+        const bool mweb_to_mweb = nMWEBInputs > 0 && nPayMWEBOutputs > 0 && !has_pegin && nPegOuts == 0;
+        const bool change_destination_is_default = std::holds_alternative<CNoDestination>(m_coin_control.destChange);
+        const bool change_destination_is_mweb = std::holds_alternative<StealthAddress>(m_coin_control.destChange);
+        const bool change_belongs_on_mweb = has_mweb_component && (mweb_to_mweb || change_destination_is_default || change_destination_is_mweb);
+        bool change_output_is_mweb = false;
+        bool change_output_included = false;
+
+        auto remove_estimated_change_output = [&] {
+            if (!change_output_included) return;
+
+            if (change_output_is_mweb) {
+                mweb_weight -= Weight::CalcOutputWeight(/*standard_fields=*/true);
+            } else {
+                nBytes -= P2PKH_OUTPUT_BYTES;
+            }
+
+            change_output_included = false;
+        };
+
         // Bytes
-        nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+        nBytes = nBytesInputs;
+        if (has_pay_amounts) {
+            nBytes += (nBTCOutputs + nPegOuts) * P2PKH_OUTPUT_BYTES;
+            if (has_pegin) {
+                nBytes += GetHogExInputBytes();
+                nBytes += GetPeginOutputBytes();
+            }
+            if (nBytes > 0 && (nBTCInputs > 0 || nBTCOutputs > 0 || has_pegin)) {
+                nBytes += TX_OVERHEAD_BYTES;
+            }
+        } else if (has_mweb_component) {
+            mweb_weight += 2 * Weight::CalcOutputWeight(/*standard_fields=*/true);
+        } else {
+            nBytes += (2 * P2PKH_OUTPUT_BYTES) + TX_OVERHEAD_BYTES;
+        }
+
         if (fWitness)
         {
             // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
             // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
             // also, the witness stack size value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
             nBytes += 2; // account for the serialized marker and flag bytes
-            nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
+            nBytes += nBTCInputs; // account for the witness byte that holds the number of stack items for each input.
         }
 
-        // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
-        if (CoinControlDialog::fSubtractFeeFromAmount)
-            if (nAmount - nPayAmount == 0)
-                nBytes -= 34;
+        // MWEB Weight
+        if (has_mweb_component) {
+            if (nPegOuts > 0) {
+                std::vector<PegOutCoin> pegouts(nPegOuts, PegOutCoin(0, DummyP2PKHScript()));
+                mweb_weight += Weight::CalcKernelWeight(/*has_stealth_excess=*/true, pegouts);
+            } else {
+                mweb_weight += Weight::CalcKernelWeight(/*has_stealth_excess=*/true, std::vector<PegOutCoin>{});
+            }
+
+            mweb_weight += nPayMWEBOutputs * Weight::CalcOutputWeight(/*standard_fields=*/true);
+        }
+
+        // Always assume +1 output for change here, unless we can tell in advance that there is no change.
+        if (has_pay_amounts && (!CoinControlDialog::fSubtractFeeFromAmount || nAmount - nPayAmount != 0)) {
+            change_output_included = true;
+            change_output_is_mweb = change_belongs_on_mweb;
+            if (change_output_is_mweb) {
+                mweb_weight += Weight::CalcOutputWeight(/*standard_fields=*/true);
+            } else {
+                nBytes += P2PKH_OUTPUT_BYTES;
+            }
+        }
 
         // Fee
+<<<<<<< btco
         nPayFee = model->wallet().getMinimumFee(nBytes, m_coin_control, /*returned_target=*/nullptr, /*reason=*/nullptr);
+||||||| core24
+        nPayFee = model->wallet().getMinimumFee(nBytes, m_coin_control, nullptr /* returned_target */, nullptr /* reason */);
+=======
+        nPayFee = model->wallet().getMinimumFee(nBytes, mweb_weight, m_coin_control, nullptr /* returned_target */, nullptr /* reason */);
+>>>>>>> litecoin24x
 
         if (nPayAmount > 0)
         {
@@ -486,20 +598,22 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
                 nChange -= nPayFee;
 
             if (nChange > 0) {
-                // Assumes a p2pkh script size
-                CTxOut txout(nChange, CScript() << std::vector<unsigned char>(24, 0));
-                // Never create dust outputs; if we would, just add the dust to the fee.
-                if (IsDust(txout, model->node().getDustRelayFee()))
-                {
-                    nPayFee += nChange;
-                    nChange = 0;
-                    if (CoinControlDialog::fSubtractFeeFromAmount)
-                        nBytes -= 34; // we didn't detect lack of change above
+                if (!change_output_is_mweb) {
+                    // Assumes a p2pkh script size
+                    CTxOut txout(nChange, DummyP2PKHScript());
+                    // Never create dust outputs; if we would, just add the dust to the fee.
+                    if (IsDust(txout, model->node().getDustRelayFee()))
+                    {
+                        nPayFee += nChange;
+                        nChange = 0;
+                        if (CoinControlDialog::fSubtractFeeFromAmount)
+                            remove_estimated_change_output(); // we didn't detect lack of change above
+                    }
                 }
             }
 
             if (nChange == 0 && !CoinControlDialog::fSubtractFeeFromAmount)
-                nBytes -= 34;
+                remove_estimated_change_output();
         }
 
         // after fee
@@ -516,6 +630,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
     QLabel *l3 = dialog->findChild<QLabel *>("labelCoinControlFee");
     QLabel *l4 = dialog->findChild<QLabel *>("labelCoinControlAfterFee");
     QLabel *l5 = dialog->findChild<QLabel *>("labelCoinControlBytes");
+    QLabel *l5Text = dialog->findChild<QLabel *>("labelCoinControlBytesText");
     QLabel *l7 = dialog->findChild<QLabel *>("labelCoinControlLowOutput");
     QLabel *l8 = dialog->findChild<QLabel *>("labelCoinControlChange");
 
@@ -530,7 +645,13 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
     l2->setText(BitcoinOilUnits::formatWithUnit(nDisplayUnit, nAmount));        // Amount
     l3->setText(BitcoinOilUnits::formatWithUnit(nDisplayUnit, nPayFee));        // Fee
     l4->setText(BitcoinOilUnits::formatWithUnit(nDisplayUnit, nAfterFee));      // After Fee
-    l5->setText(((nBytes > 0) ? ASYMP_UTF8 : "") + QString::number(nBytes));        // Bytes
+    if (mweb_weight > 0) {
+        l5Text->setText(tr("Bytes / MWEB weight:"));
+        l5->setText(ASYMP_UTF8 + QString("%1 / %2").arg(nBytes).arg(mweb_weight));
+    } else {
+        l5Text->setText(tr("Bytes:"));
+        l5->setText(((nBytes > 0) ? ASYMP_UTF8 : "") + QString::number(nBytes));
+    }
     l7->setText(fDust ? tr("yes") : tr("no"));                               // Dust
     l8->setText(BitcoinOilUnits::formatWithUnit(nDisplayUnit, nChange));        // Change
     if (nPayFee > 0)
@@ -546,6 +667,9 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
 
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");
+    QString toolTipBytes = (mweb_weight > 0)
+        ? tr("Estimated virtual transaction size and MWEB weight used for fee calculation.")
+        : QString();
 
     // how many satoshis the estimated fee can vary per byte we guess wrong
     double dFeeVary = (nBytes != 0) ? (double)nPayFee / nBytes : 0;
@@ -554,11 +678,12 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
 
     l3->setToolTip(toolTip4);
     l4->setToolTip(toolTip4);
+    l5->setToolTip(toolTipBytes);
     l7->setToolTip(toolTipDust);
     l8->setToolTip(toolTip4);
     dialog->findChild<QLabel *>("labelCoinControlFeeText")      ->setToolTip(l3->toolTip());
     dialog->findChild<QLabel *>("labelCoinControlAfterFeeText") ->setToolTip(l4->toolTip());
-    dialog->findChild<QLabel *>("labelCoinControlBytesText")    ->setToolTip(l5->toolTip());
+    l5Text                                                       ->setToolTip(l5->toolTip());
     dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setToolTip(l7->toolTip());
     dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setToolTip(l8->toolTip());
 
@@ -595,7 +720,7 @@ void CoinControlDialog::updateView()
     for (const auto& coins : model->wallet().listCoins()) {
         CCoinControlWidgetItem* itemWalletAddress{nullptr};
         QString sWalletAddress = QString::fromStdString(EncodeDestination(coins.first));
-        QString sWalletLabel = model->getAddressTableModel()->labelForAddress(sWalletAddress);
+        QString sWalletLabel = model->getAddressTableModel()->labelForAddress(sWalletAddress); // MWEB: We need to check if peg-in, change, etc.
         if (sWalletLabel.isEmpty())
             sWalletLabel = tr("(no label)");
 
@@ -617,9 +742,8 @@ void CoinControlDialog::updateView()
         CAmount nSum = 0;
         int nChildren = 0;
         for (const auto& outpair : coins.second) {
-            const COutPoint& output = std::get<0>(outpair);
             const interfaces::WalletTxOut& out = std::get<1>(outpair);
-            nSum += out.txout.nValue;
+            nSum += out.nValue;
             nChildren++;
 
             CCoinControlWidgetItem *itemOutput;
@@ -629,16 +753,15 @@ void CoinControlDialog::updateView()
             itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Unchecked);
 
             // address
-            CTxDestination outputAddress;
+            CTxDestination dest;
             QString sAddress = "";
-            if(ExtractDestination(out.txout.scriptPubKey, outputAddress))
-            {
-                sAddress = QString::fromStdString(EncodeDestination(outputAddress));
-
-                // if listMode or change => show bitcoinoil address. In tree mode, address is not shown again for direct wallet address outputs
-                if (!treeMode || (!(sAddress == sWalletAddress)))
-                    itemOutput->setText(COLUMN_ADDRESS, sAddress);
+            if (out.address.ExtractDestination(dest)) {
+                sAddress = QString::fromStdString(EncodeDestination(dest));
             }
+
+            // if listMode or change => show bitcoinoil address. In tree mode, address is not shown again for direct wallet address outputs
+            if (!treeMode || (!(sAddress == sWalletAddress)))
+                itemOutput->setText(COLUMN_ADDRESS, sAddress);
 
             // label
             if (!(sAddress == sWalletAddress)) // change
@@ -656,8 +779,8 @@ void CoinControlDialog::updateView()
             }
 
             // amount
-            itemOutput->setText(COLUMN_AMOUNT, BitcoinOilUnits::format(nDisplayUnit, out.txout.nValue));
-            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.txout.nValue)); // padding so that sorting works correctly
+            itemOutput->setText(COLUMN_AMOUNT, BitcoinOilUnits::format(nDisplayUnit, out.nValue));
+            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.nValue)); // padding so that sorting works correctly
 
             // date
             itemOutput->setText(COLUMN_DATE, GUIUtil::dateTimeStr(out.time));
@@ -667,22 +790,29 @@ void CoinControlDialog::updateView()
             itemOutput->setText(COLUMN_CONFIRMATIONS, QString::number(out.depth_in_main_chain));
             itemOutput->setData(COLUMN_CONFIRMATIONS, Qt::UserRole, QVariant((qlonglong)out.depth_in_main_chain));
 
-            // transaction hash
-            itemOutput->setData(COLUMN_ADDRESS, TxHashRole, QString::fromStdString(output.hash.GetHex()));
+            if (out.output_id.IsOutPoint()) {
+                const COutPoint& outpoint = out.output_id.ToOutPoint();
 
-            // vout index
-            itemOutput->setData(COLUMN_ADDRESS, VOutRole, output.n);
+                // transaction hash
+                itemOutput->setData(COLUMN_ADDRESS, TxHashRole, QString::fromStdString(outpoint.hash.GetHex()));
+
+                // vout index
+                itemOutput->setData(COLUMN_ADDRESS, VOutRole, outpoint.n);
+            } else {
+                const mw::Hash& output_id = out.output_id.ToMWEB();
+                itemOutput->setData(COLUMN_ADDRESS, MWEBOutRole, QString::fromStdString(output_id.ToHex()));
+            }
 
              // disable locked coins
-            if (model->wallet().isLockedCoin(output))
+            if (model->wallet().isLockedCoin(out.output_id))
             {
-                m_coin_control.UnSelect(output); // just to be sure
+                m_coin_control.UnSelect(out.output_id); // just to be sure
                 itemOutput->setDisabled(true);
                 itemOutput->setIcon(COLUMN_CHECKBOX, platformStyle->SingleColorIcon(":/icons/lock_closed"));
             }
 
             // set checkbox
-            if (m_coin_control.IsSelected(output))
+            if (m_coin_control.IsSelected(out.output_id))
                 itemOutput->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
         }
 
@@ -706,4 +836,14 @@ void CoinControlDialog::updateView()
     // sort view
     sortView(sortColumn, sortOrder);
     ui->treeWidget->setEnabled(true);
+}
+
+bool CoinControlDialog::IsMWEB(QTreeWidgetItem* item)
+{
+    return item->data(COLUMN_ADDRESS, MWEBOutRole).toString().length() == 64;
+}
+
+bool CoinControlDialog::IsCanonical(QTreeWidgetItem* item)
+{
+    return item->data(COLUMN_ADDRESS, TxHashRole).toString().length() == 64;
 }

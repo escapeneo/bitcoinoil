@@ -12,6 +12,17 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <util/time.h>
+#include <mweb/mweb_models.h>
+
+/** A 256-byte blob to use instead of uint256 for representing PoW (scrypt) hashes.
+ * This provides type safety for calls to CheckProofOfWork, ensuring consumers
+ * always provide the scrypt hash, not the sha256d hash.
+ */
+class PoWHash : public uint256 {
+public:
+    constexpr PoWHash() {}
+    explicit PoWHash(const uint256& u256) : uint256(u256) {}
+};
 
 #include <memory>
 
@@ -61,6 +72,30 @@ public:
      */
     void SetAuxpow (std::unique_ptr<CAuxPow> apow);
 
+<<<<<<< btco
+||||||| core24
+    NodeSeconds Time() const
+    {
+        return NodeSeconds{std::chrono::seconds{nTime}};
+    }
+
+    int64_t GetBlockTime() const
+    {
+        return (int64_t)nTime;
+    }
+=======
+    PoWHash GetPoWHash() const;
+
+    NodeSeconds Time() const
+    {
+        return NodeSeconds{std::chrono::seconds{nTime}};
+    }
+
+    int64_t GetBlockTime() const
+    {
+        return (int64_t)nTime;
+    }
+>>>>>>> litecoin24x
 };
 
 
@@ -75,6 +110,8 @@ public:
     mutable bool m_checked_witness_commitment{false}; // CheckWitnessCommitment()
     mutable bool m_checked_merkle_root{false};        // CheckMerkleRoot()
 
+    MWEB::Block mweb_block;
+
     CBlock()
     {
         SetNull();
@@ -88,8 +125,15 @@ public:
 
     SERIALIZE_METHODS(CBlock, obj)
     {
+        SER_READ(obj, obj.fChecked = false);
+        SER_READ(obj, obj.mweb_block.SetNull());
         READWRITEAS(CBlockHeader, obj);
         READWRITE(obj.vtx);
+        if (!(s.GetVersion() & SERIALIZE_NO_MWEB)) {
+            if (obj.vtx.size() >= 2 && obj.vtx.back()->IsHogEx()) {
+                READWRITE(obj.mweb_block);
+            }
+        }
     }
 
     void SetNull()
@@ -97,8 +141,13 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         fChecked = false;
+<<<<<<< btco
         m_checked_witness_commitment = false;
         m_checked_merkle_root = false;
+||||||| core24
+=======
+        mweb_block.SetNull();
+>>>>>>> litecoin24x
     }
 
     CBlockHeader GetBlockHeader() const
@@ -115,6 +164,9 @@ public:
     }
 
     std::string ToString() const;
+
+    // Returns the hogex (integrating) transaction, if it exists.
+    CTransactionRef GetHogEx() const noexcept;
 };
 
 /** Describes a place in the block chain to another node such that if the

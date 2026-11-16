@@ -113,6 +113,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
             "-debug",
             "-debugexclude=libevent",
             "-debugexclude=leveldb",
+            "-keypool=4", // Avoid generating unused wallet keys; tests can override this.
         },
         extra_args);
     if (G_TEST_COMMAND_LINE_ARGUMENTS) {
@@ -285,7 +286,13 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
+<<<<<<< btco
             "6b6086700b60b86a845d95828bdb49c6ec1e345030345fcf8e9d54ffc5086c66");
+||||||| core24
+            "571d80a9967ae599cec0448b0b0ba1cfb606f584d8069bd7166b86854ba7a191");
+=======
+            "7b93a7f3ce050f63a2bfed01c4147249935f89346f8ab896786b1370210d66b2");
+>>>>>>> litecoin24x
     }
 }
 
@@ -305,15 +312,15 @@ CBlock TestChain100Setup::CreateBlock(
     const CScript& scriptPubKey,
     Chainstate& chainstate)
 {
-    CBlock block = BlockAssembler{chainstate, nullptr}.CreateNewBlock(scriptPubKey)->block;
+    CBlock block = BlockAssembler{chainstate, m_build_block_with_mempool ? chainstate.GetMempool() : nullptr}.CreateNewBlock(scriptPubKey)->block;
 
-    Assert(block.vtx.size() == 1);
+    if (!m_build_block_with_mempool) Assert(block.vtx.size() == 1);
     for (const CMutableTransaction& tx : txns) {
         block.vtx.push_back(MakeTransactionRef(tx));
     }
     RegenerateCommitments(block, *Assert(m_node.chainman));
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetPoWHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
 
     return block;
 }
@@ -367,8 +374,8 @@ CMutableTransaction TestChain100Setup::CreateValidMempoolTransaction(CTransactio
     Coin utxo_to_spend;
     assert(coins_cache.GetCoin(outpoint_to_spend, utxo_to_spend));
     // - Then add it to a map to pass in to SignTransaction
-    std::map<COutPoint, Coin> input_coins;
-    input_coins.insert({outpoint_to_spend, utxo_to_spend});
+    std::map<AnyOutputID, AnyCoin> input_coins;
+    input_coins.insert({outpoint_to_spend, AnyCoin(outpoint_to_spend, utxo_to_spend)});
     // - Default signature hashing type
     int nHashType = SIGHASH_ALL;
     std::map<int, bilingual_str> input_errors;

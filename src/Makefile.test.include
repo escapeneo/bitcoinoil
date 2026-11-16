@@ -21,6 +21,7 @@ JSON_TEST_FILES = \
   test/data/blockfilters.json \
   test/data/key_io_valid.json \
   test/data/key_io_invalid.json \
+  test/data/rpc_psbt.json \
   test/data/script_tests.json \
   test/data/sighash.json \
   test/data/tx_invalid.json \
@@ -51,7 +52,9 @@ FUZZ_SUITE_LD_COMMON = \
  $(LIBSECP256K1) \
  $(MINISKETCH_LIBS) \
  $(EVENT_LIBS) \
- $(EVENT_PTHREADS_LIBS)
+ $(CRYPTO_LIBS) \
+ $(EVENT_PTHREADS_LIBS) \
+ $(LIBMW)
 
 if USE_UPNP
 FUZZ_SUITE_LD_COMMON += $(MINIUPNPC_LIBS)
@@ -103,6 +106,12 @@ BITCOINOIL_TESTS =\
   test/key_io_tests.cpp \
   test/key_tests.cpp \
   test/logging_tests.cpp \
+  test/mweb_admission_tests.cpp \
+  test/mweb_chainstate_tests.cpp \
+  test/mweb_mempool_tests.cpp \
+  test/mweb_miner_tests.cpp \
+  test/mweb_node_tests.cpp \
+  test/mweb_serialization_tests.cpp \
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \
   test/merkleblock_tests.cpp \
@@ -120,6 +129,10 @@ BITCOINOIL_TESTS =\
   test/asert_vectors.h \
   test/pow_tests.cpp \
   test/prevector_tests.cpp \
+  test/psbt_analysis_tests.cpp \
+  test/psbt_finalize_tests.cpp \
+  test/psbt_merge_tests.cpp \
+  test/psbt_tests.cpp \
   test/raii_event_tests.cpp \
   test/random_tests.cpp \
   test/rbf_tests.cpp \
@@ -136,6 +149,7 @@ BITCOINOIL_TESTS =\
   test/script_tests.cpp \
   test/scriptnum10.h \
   test/scriptnum_tests.cpp \
+  test/scrypt_tests.cpp \
   test/serfloat_tests.cpp \
   test/serialize_tests.cpp \
   test/settings_tests.cpp \
@@ -171,6 +185,16 @@ BITCOINOIL_TESTS =\
 if ENABLE_WALLET
 BITCOINOIL_TESTS += \
   wallet/test/feebumper_tests.cpp \
+  wallet/test/mweb_accounting_tests.cpp \
+  wallet/test/mweb_coinselection_tests.cpp \
+  wallet/test/mweb_conflict_tests.cpp \
+  wallet/test/mweb_keychain_tests.cpp \
+  wallet/test/mweb_lifecycle_tests.cpp \
+  wallet/test/mweb_psbt_tests.cpp \
+  wallet/test/mweb_raw_tests.cpp \
+  wallet/test/mweb_rewind_tests.cpp \
+  wallet/test/psbt_filler_tests.cpp \
+  wallet/test/psbt_vector_gen.cpp \
   wallet/test/psbt_wallet_tests.cpp \
   wallet/test/spend_tests.cpp \
   wallet/test/wallet_tests.cpp \
@@ -182,8 +206,15 @@ BITCOINOIL_TESTS += \
   wallet/test/ismine_tests.cpp \
   wallet/test/rpc_util_tests.cpp \
   wallet/test/scriptpubkeyman_tests.cpp \
+<<<<<<< btco
   wallet/test/walletload_tests.cpp \
   wallet/test/group_outputs_tests.cpp
+||||||| core24
+  wallet/test/walletload_tests.cpp
+=======
+  wallet/test/walletload_tests.cpp \
+  wallet/test/txbuilder_tests.cpp
+>>>>>>> litecoin24x
 
 FUZZ_SUITE_LD_COMMON +=\
  $(SQLITE_LIBS) \
@@ -202,26 +233,97 @@ FUZZ_WALLET_SRC += \
  wallet/test/fuzz/notifications.cpp
 endif # USE_SQLITE
 
+<<<<<<< btco
 BITCOINOIL_TEST_SUITE += \
+||||||| core24
+BITCOIN_TEST_SUITE += \
+  wallet/test/util.cpp \
+  wallet/test/util.h \
+=======
+BITCOIN_TEST_SUITE += \
+  wallet/test/psbt_test_utils.h \
+  wallet/test/util.cpp \
+  wallet/test/util.h \
+>>>>>>> litecoin24x
   wallet/test/wallet_test_fixture.cpp \
   wallet/test/wallet_test_fixture.h \
   wallet/test/init_test_fixture.cpp \
   wallet/test/init_test_fixture.h
 endif # ENABLE_WALLET
 
+<<<<<<< btco
 test_test_bitcoinoil_SOURCES = $(BITCOINOIL_TEST_SUITE) $(BITCOINOIL_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoinoil_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
+||||||| core24
+test_test_bitcoinoil_SOURCES = $(BITCOIN_TEST_SUITE) $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
+test_test_bitcoinoil_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
+=======
+BITCOIN_TEST_SUITE += \
+  libmw/test/framework/src/TxBuilder.cpp \
+  libmw/test/framework/src/models/Tx.cpp
+
+BITCOIN_TESTS += \
+  libmw/test/tests/consensus/Test_Aggregation.cpp \
+  libmw/test/tests/consensus/Test_KernelSumValidator.cpp \
+  libmw/test/tests/consensus/Test_StealthSumValidator.cpp \
+  libmw/test/tests/consensus/Test_Weight.cpp \
+  libmw/test/tests/crypto/Test_AddCommitments.cpp \
+  libmw/test/tests/crypto/Test_AggSig.cpp \
+  libmw/test/tests/crypto/Test_Keys.cpp \
+  libmw/test/tests/crypto/Test_PublicKeys.cpp \
+  libmw/test/tests/crypto/Test_RangeProofs.cpp \
+  libmw/test/tests/db/Test_CoinDB.cpp \
+  libmw/test/tests/db/Test_LeafDB.cpp \
+  libmw/test/tests/mmr/Test_Index.cpp \
+  libmw/test/tests/mmr/Test_LeafIndex.cpp \
+  libmw/test/tests/mmr/Test_LeafSetCache.cpp \
+  libmw/test/tests/mmr/Test_LeafSet.cpp \
+  libmw/test/tests/mmr/Test_MMR.cpp \
+  libmw/test/tests/mmr/Test_MMRUtil.cpp \
+  libmw/test/tests/mmr/Test_PruneList.cpp \
+  libmw/test/tests/mmr/Test_Segment.cpp \
+  libmw/test/tests/models/block/Test_Block.cpp \
+  libmw/test/tests/models/block/Test_Header.cpp \
+  libmw/test/tests/models/crypto/Test_BigInteger.cpp \
+  libmw/test/tests/models/crypto/Test_Commitment.cpp \
+  libmw/test/tests/models/tx/Test_Input.cpp \
+  libmw/test/tests/models/tx/Test_Kernel.cpp \
+  libmw/test/tests/models/tx/Test_Output.cpp \
+  libmw/test/tests/models/tx/Test_PegInCoin.cpp \
+  libmw/test/tests/models/tx/Test_PegOutCoin.cpp \
+  libmw/test/tests/models/tx/Test_Transaction.cpp \
+  libmw/test/tests/models/tx/Test_TxBody.cpp \
+  libmw/test/tests/models/tx/Test_Coin.cpp \
+  libmw/test/tests/node/Test_BlockBuilder.cpp \
+  libmw/test/tests/node/Test_BlockValidator.cpp \
+  libmw/test/tests/node/Test_CoinsView.cpp \
+  libmw/test/tests/node/Test_MineChain.cpp \
+  libmw/test/tests/node/Test_Reorg.cpp \
+  libmw/test/tests/wallet/Test_Keychain.cpp \
+  libmw/test/tests/wallet/Test_Sign.cpp
+
+test_test_bitcoinoil_SOURCES = $(BITCOIN_TEST_SUITE) $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
+test_test_bitcoinoil_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS) $(LIBMW_CPPFLAGS) -Ilibmw/test/framework/include
+>>>>>>> litecoin24x
 test_test_bitcoinoil_LDADD = $(LIBTEST_UTIL)
 if ENABLE_WALLET
 test_test_bitcoinoil_LDADD += $(LIBBITCOINOIL_WALLET)
 test_test_bitcoinoil_CPPFLAGS += $(BDB_CPPFLAGS)
 endif
 
+<<<<<<< btco
 test_test_bitcoinoil_LDADD += $(LIBBITCOINOIL_NODE) $(LIBBITCOINOIL_CLI) $(LIBBITCOINOIL_COMMON) $(LIBBITCOINOIL_UTIL) $(LIBBITCOINOIL_CONSENSUS) $(LIBBITCOINOIL_CRYPTO) $(LIBUNIVALUE) \
   $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
+||||||| core24
+test_test_bitcoinoil_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
+  $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
+=======
+test_test_bitcoinoil_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
+  $(LIBLEVELDB) $(LIBMEMENV) $(LIBMW) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
+>>>>>>> litecoin24x
 test_test_bitcoinoil_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
-test_test_bitcoinoil_LDADD += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS)
+test_test_bitcoinoil_LDADD += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(CRYPTO_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS)
 test_test_bitcoinoil_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
 
 if ENABLE_ZMQ
@@ -328,7 +430,6 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/secp256k1_ec_seckey_import_export_der.cpp \
  test/fuzz/secp256k1_ecdsa_signature_parse_der_lax.cpp \
  test/fuzz/signature_checker.cpp \
- test/fuzz/signet.cpp \
  test/fuzz/socks5.cpp \
  test/fuzz/span.cpp \
  test/fuzz/spanparsing.cpp \
@@ -404,6 +505,7 @@ univalue_test_object_CPPFLAGS = -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
 univalue_test_object_LDFLAGS = -static $(LIBTOOL_APP_LDFLAGS)
 endif
 
+# Boost.Test needs comma-separated suite names when a source registers multiple suites.
 %.cpp.test: %.cpp
 	@echo Running tests: $$(\
 	  cat $< | \
@@ -411,12 +513,12 @@ endif
 	  cut -d '(' -f 2 | cut -d ',' -f 1 | cut -d ')' -f 1\
 	) from $<
 	$(AM_V_at)export TEST_LOGFILE=$(abs_builddir)/$$(\
-	  echo $< | grep -E -o "(wallet/test/.*\.cpp|test/.*\.cpp)" | $(SED) -e s/\.cpp/.log/ \
+	  echo $< | grep -E -o "(wallet/test/.*\.cpp|test/.*\.cpp|libmw/test/tests/.*\.cpp)" | $(SED) -e s/\.cpp/.log/ \
 	) && \
 	$(TEST_BINARY) --catch_system_errors=no -l test_suite -t "$$(\
 	  cat $< | \
 	  grep -E "(BOOST_FIXTURE_TEST_SUITE\\(|BOOST_AUTO_TEST_SUITE\\()" | \
-	  cut -d '(' -f 2 | cut -d ',' -f 1 | cut -d ')' -f 1\
+	  cut -d '(' -f 2 | cut -d ',' -f 1 | cut -d ')' -f 1 | paste -sd ',' -\
 	)" -- DEBUG_LOG_OUT > "$$TEST_LOGFILE" 2>&1 || (cat "$$TEST_LOGFILE" && false)
 
 %.json.h: %.json

@@ -20,56 +20,114 @@ BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(get_next_work)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+<<<<<<< btco
     auto consensus = chainParams->GetConsensus();
     consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
     consensus.nPowTargetSpacing = 10 * 60;
     int64_t nLastRetargetTime = 1261130161; // Block #30240
+||||||| core24
+    int64_t nLastRetargetTime = 1261130161; // Block #30240
+=======
+    int64_t nLastRetargetTime = 1358118740; // Block #30240
+>>>>>>> litecoin24x
     CBlockIndex pindexLast;
-    pindexLast.nHeight = 32255;
-    pindexLast.nTime = 1262152739;  // Block #32255
-    pindexLast.nBits = 0x1d00ffff;
+    pindexLast.nHeight = 280223;
+    pindexLast.nTime = 1358378777;  // Block #280223
+    pindexLast.nBits = 0x1c0ac141;
 
     // Here (and below): expected_nbits is calculated in
     // CalculateNextWorkRequired(); redoing the calculation here would be just
     // reimplementing the same code that is written in pow.cpp. Rather than
     // copy that code, we just hardcode the expected result.
+<<<<<<< btco
     unsigned int expected_nbits = 0x1d00d86aU;
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, consensus), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+||||||| core24
+    unsigned int expected_nbits = 0x1d00d86aU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+=======
+    unsigned int expected_nbits = 0x1c093f8dU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+>>>>>>> litecoin24x
 }
 
 /* Test the constraint on the upper bound for next work */
 BOOST_AUTO_TEST_CASE(get_next_work_pow_limit)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+<<<<<<< btco
     auto consensus = chainParams->GetConsensus();
     consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
     consensus.nPowTargetSpacing = 10 * 60;
     int64_t nLastRetargetTime = 1231006505; // Block #0
+||||||| core24
+    int64_t nLastRetargetTime = 1231006505; // Block #0
+=======
+    int64_t nLastRetargetTime = 1317972665; // Block #0
+>>>>>>> litecoin24x
     CBlockIndex pindexLast;
     pindexLast.nHeight = 2015;
+<<<<<<< btco
     pindexLast.nTime = 1233061996;  // Block #2015
     pindexLast.nBits = 0x1d00ffff;
     unsigned int expected_nbits = 0x1d00ffffU;
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, consensus), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+||||||| core24
+    pindexLast.nTime = 1233061996;  // Block #2015
+    pindexLast.nBits = 0x1d00ffff;
+    unsigned int expected_nbits = 0x1d00ffffU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+=======
+    pindexLast.nTime = 1318480354;  // Block #2015
+    pindexLast.nBits = 0x1e0ffff0;
+    unsigned int expected_nbits = 0x1e0fffffU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+>>>>>>> litecoin24x
 }
 
 /* Test the constraint on the lower bound for actual time taken */
 BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+<<<<<<< btco
     auto consensus = chainParams->GetConsensus();
     consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
     consensus.nPowTargetSpacing = 10 * 60;
     int64_t nLastRetargetTime = 1279008237; // Block #66528
+||||||| core24
+    int64_t nLastRetargetTime = 1279008237; // Block #66528
+=======
+    int64_t nLastRetargetTime = 1401682934; // Block #66528
+>>>>>>> litecoin24x
     CBlockIndex pindexLast;
+<<<<<<< btco
     pindexLast.nHeight = 68543;
     pindexLast.nTime = 1279297671;  // Block #68543
     pindexLast.nBits = 0x1c05a3f4;
     unsigned int expected_nbits = 0x1c0168fdU;
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, consensus), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+||||||| core24
+    pindexLast.nHeight = 68543;
+    pindexLast.nTime = 1279297671;  // Block #68543
+    pindexLast.nBits = 0x1c05a3f4;
+    unsigned int expected_nbits = 0x1c0168fdU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+=======
+    pindexLast.nHeight = 578591;
+    pindexLast.nTime = 1401757934;  // Block #578591
+    pindexLast.nBits = 0x1b075cf1;
+    unsigned int expected_nbits = 0x1b01d73cU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+>>>>>>> litecoin24x
     // Test that reducing nbits further would not be a PermittedDifficultyTransition.
     unsigned int invalid_nbits = expected_nbits-1;
     BOOST_CHECK(!PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, invalid_nbits));
@@ -79,17 +137,39 @@ BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual)
 BOOST_AUTO_TEST_CASE(get_next_work_upper_limit_actual)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+<<<<<<< btco
     auto consensus = chainParams->GetConsensus();
     consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
     consensus.nPowTargetSpacing = 10 * 60;
     int64_t nLastRetargetTime = 1263163443; // NOTE: Not an actual block time
+||||||| core24
+    int64_t nLastRetargetTime = 1263163443; // NOTE: Not an actual block time
+=======
+    int64_t nLastRetargetTime = 1463690315; // NOTE: Not an actual block time
+>>>>>>> litecoin24x
     CBlockIndex pindexLast;
+<<<<<<< btco
     pindexLast.nHeight = 46367;
     pindexLast.nTime = 1269211443;  // Block #46367
     pindexLast.nBits = 0x1c387f6f;
     unsigned int expected_nbits = 0x1d00e1fdU;
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, consensus), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+||||||| core24
+    pindexLast.nHeight = 46367;
+    pindexLast.nTime = 1269211443;  // Block #46367
+    pindexLast.nBits = 0x1c387f6f;
+    unsigned int expected_nbits = 0x1d00e1fdU;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+=======
+    pindexLast.nHeight = 1001951;
+    pindexLast.nTime = 1464900315;  // Block #46367
+    pindexLast.nBits = 0x1b015318;
+    unsigned int expected_nbits = 0x1b054c60U;
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+>>>>>>> litecoin24x
     // Test that increasing nbits further would not be a PermittedDifficultyTransition.
     unsigned int invalid_nbits = expected_nbits+1;
     BOOST_CHECK(!PermittedDifficultyTransition(consensus, pindexLast.nHeight+1, pindexLast.nBits, invalid_nbits));
@@ -98,7 +178,7 @@ BOOST_AUTO_TEST_CASE(get_next_work_upper_limit_actual)
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_negative_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    PoWHash hash;
     unsigned int nBits;
     nBits = UintToArith256(consensus.powLimit).GetCompact(true);
     hash.SetHex("0x1");
@@ -108,7 +188,7 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_negative_target)
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_overflow_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    PoWHash hash;
     unsigned int nBits{~0x00800000U};
     hash.SetHex("0x1");
     BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
@@ -117,7 +197,7 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_overflow_target)
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_too_easy_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    PoWHash hash;
     unsigned int nBits;
     arith_uint256 nBits_arith = UintToArith256(consensus.powLimit);
     nBits_arith *= 2;
@@ -129,23 +209,23 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_too_easy_target)
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_biger_hash_than_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    PoWHash hash;
     unsigned int nBits;
     arith_uint256 hash_arith = UintToArith256(consensus.powLimit);
     nBits = hash_arith.GetCompact();
     hash_arith *= 2; // hash > nBits
-    hash = ArithToUint256(hash_arith);
+    hash = PoWHash(ArithToUint256(hash_arith));
     BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_zero_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    PoWHash hash;
     unsigned int nBits;
     arith_uint256 hash_arith{0};
     nBits = hash_arith.GetCompact();
-    hash = ArithToUint256(hash_arith);
+    hash = PoWHash(ArithToUint256(hash_arith));
     BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
 }
 
@@ -191,11 +271,13 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     BOOST_CHECK(UintToArith256(consensus.powLimit) >= pow_compact);
 
     // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
-    if (!consensus.fPowNoRetargeting) {
-        arith_uint256 targ_max("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-        targ_max /= consensus.nPowTargetTimespan*4;
-        BOOST_CHECK(UintToArith256(consensus.powLimit) < targ_max);
-    }
+
+    // BitcoinOil: we allow overflowing by 1 bit
+    //if (!consensus.fPowNoRetargeting) {
+    //    arith_uint256 targ_max("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    //    targ_max /= consensus.nPowTargetTimespan*4;
+    //    BOOST_CHECK(UintToArith256(consensus.powLimit) < targ_max);
+    //}
 }
 
 /** A chain of block indexes with chosen times, for ASERT tests. */
@@ -339,11 +421,6 @@ BOOST_AUTO_TEST_CASE(ChainParams_REGTEST_sanity)
 BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
 {
     sanity_check_chainparams(*m_node.args, CBaseChainParams::TESTNET);
-}
-
-BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
-{
-    sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

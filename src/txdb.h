@@ -10,7 +10,12 @@
 #include <dbwrapper.h>
 #include <kernel/cs_main.h>
 #include <sync.h>
+<<<<<<< btco
 #include <util/fs.h>
+||||||| core24
+=======
+#include <mw/node/CoinsView.h>
+>>>>>>> litecoin24x
 
 #include <memory>
 #include <optional>
@@ -61,15 +66,39 @@ protected:
     DBParams m_db_params;
     CoinsViewOptions m_options;
     std::unique_ptr<CDBWrapper> m_db;
+<<<<<<< btco
+||||||| core24
+    fs::path m_ldb_path;
+    bool m_is_memory;
+=======
+    mw::ICoinsView::Ptr mweb_view;
+    fs::path m_ldb_path;
+    bool m_is_memory;
+    //! Set when an MWEB flush fails mid-write. Once set, all further batch
+    //! writes are refused so nothing can mark the database consistent while
+    //! the failed batch's coin updates are missing; the node must shut down
+    //! and recover on restart (via ReplayBlocks if a partial batch committed).
+    bool m_mweb_flush_failed{false};
+>>>>>>> litecoin24x
 public:
     explicit CCoinsViewDB(DBParams db_params, CoinsViewOptions options);
 
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
-    bool HaveCoin(const COutPoint &outpoint) const override;
+    bool HaveCoin(const AnyOutputID& index) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
+<<<<<<< btco
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase = true) override;
+||||||| core24
+    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) override;
+=======
+    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView) override;
+>>>>>>> litecoin24x
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
+    CDBWrapper* GetDB() noexcept { return m_db.get(); }
+    void SetMWEBView(const mw::ICoinsView::Ptr& view) { mweb_view = view; }
+    mw::ICoinsView::Ptr GetMWEBView() const final { return mweb_view; }
+    bool GetMWEBCoin(const mw::Hash& output_id, mw::Coin::CPtr& coin) const final;
 
     //! Whether an unsupported database format is used.
     bool NeedsUpgrade();

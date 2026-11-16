@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     connman.Handshake(
         /*node=*/dummyNode1,
         /*successfully_connected=*/true,
-        /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
-        /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
+        /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB),
+        /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB),
         /*version=*/PROTOCOL_VERSION,
         /*relay_txs=*/true);
     TestOnlyResetTimeData();
@@ -91,16 +91,48 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     }
 
     int64_t nStartTime = GetTime();
+<<<<<<< btco
     // Wait 21 minutes
     SetMockTime(nStartTime+21*60);
     BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
+||||||| core24
+    // Wait 21 minutes
+    SetMockTime(nStartTime+21*60);
+    {
+        LOCK(dummyNode1.cs_sendProcessing);
+        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
+    }
+=======
+    // Wait 62 minutes
+    SetMockTime(nStartTime+62*60);
+    {
+        LOCK(dummyNode1.cs_sendProcessing);
+        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
+    }
+>>>>>>> litecoin24x
     {
         LOCK(dummyNode1.cs_vSend);
         BOOST_CHECK(dummyNode1.vSendMsg.size() > 0);
     }
+<<<<<<< btco
     // Wait 3 more minutes
     SetMockTime(nStartTime+24*60);
     BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
+||||||| core24
+    // Wait 3 more minutes
+    SetMockTime(nStartTime+24*60);
+    {
+        LOCK(dummyNode1.cs_sendProcessing);
+        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
+    }
+=======
+    // Wait 3 more minutes (2 minutes HEADERS_RESPONSE_TIME + buffer)
+    SetMockTime(nStartTime+65*60);
+    {
+        LOCK(dummyNode1.cs_sendProcessing);
+        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
+    }
+>>>>>>> litecoin24x
     BOOST_CHECK(dummyNode1.fDisconnect == true);
 
     peerman.FinalizeNode(dummyNode1);
@@ -121,7 +153,7 @@ static void AddRandomOutboundPeer(NodeId& id, std::vector<CNode*>& vNodes, PeerM
     CNode &node = *vNodes.back();
     node.SetCommonVersion(PROTOCOL_VERSION);
 
-    peerLogic.InitializeNode(node, ServiceFlags(NODE_NETWORK | NODE_WITNESS));
+    peerLogic.InitializeNode(node, ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB));
     node.fSuccessfullyConnected = true;
 
     connman.AddTestNode(node);

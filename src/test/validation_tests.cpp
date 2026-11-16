@@ -8,13 +8,14 @@
 #include <core_io.h>
 #include <hash.h>
 #include <net.h>
-#include <signet.h>
 #include <uint256.h>
 #include <validation.h>
 
 #include <string>
 
 #include <test/util/setup_common.h>
+
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -56,76 +57,56 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     CAmount nSum = 0;
+<<<<<<< btco
     const int interval = chainParams->GetConsensus().nSubsidyHalvingInterval;
     // Sum complete epochs: 185900 is not divisible by the old 1000-block step.
     for (int epoch = 0; epoch < 64; ++epoch) {
         const CAmount subsidy = GetBlockSubsidy(epoch * interval, chainParams->GetConsensus());
         BOOST_CHECK(subsidy <= 50 * COIN);
         nSum += subsidy * interval;
+||||||| core24
+    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * 1000;
+=======
+    for (int nHeight = 0; nHeight < 56000000; nHeight += 1000) {
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * 1000;
+>>>>>>> litecoin24x
         BOOST_CHECK(MoneyRange(nSum));
     }
+<<<<<<< btco
     BOOST_CHECK_EQUAL(nSum, CAmount{1858999997955100});
+||||||| core24
+    BOOST_CHECK_EQUAL(nSum, CAmount{2099999997690000});
+=======
+    BOOST_CHECK_EQUAL(nSum, CAmount{8399999990760000});
+>>>>>>> litecoin24x
 }
 
-BOOST_AUTO_TEST_CASE(signet_parse_tests)
+BOOST_AUTO_TEST_CASE(has_valid_proof_of_work)
 {
-    ArgsManager signet_argsman;
-    signet_argsman.ForceSetArg("-signetchallenge", "51"); // set challenge to OP_TRUE
-    const auto signet_params = CreateChainParams(signet_argsman, CBaseChainParams::SIGNET);
-    CBlock block;
-    BOOST_CHECK(signet_params->GetConsensus().signet_challenge == std::vector<uint8_t>{OP_TRUE});
-    CScript challenge{OP_TRUE};
+    m_node.args->ForceSetArg("-par", "2");
 
-    // empty block is invalid
-    BOOST_CHECK(!SignetTxs::Create(block, challenge));
-    BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));
+    const auto chain_params = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const CBlockHeader valid_header = chain_params->GenesisBlock().GetBlockHeader();
+    std::vector<CBlockHeader> headers(4, valid_header);
 
-    // no witness commitment
-    CMutableTransaction cb;
-    cb.vout.emplace_back(0, CScript{});
-    block.vtx.push_back(MakeTransactionRef(cb));
-    block.vtx.push_back(MakeTransactionRef(cb)); // Add dummy tx to exercise merkle root code
-    BOOST_CHECK(!SignetTxs::Create(block, challenge));
-    BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));
+    BOOST_CHECK(HasValidProofOfWork(headers, chain_params->GetConsensus()));
+    BOOST_CHECK(HasValidProofOfWork({}, chain_params->GetConsensus()));
 
-    // no header is treated valid
-    std::vector<uint8_t> witness_commitment_section_141{0xaa, 0x21, 0xa9, 0xed};
-    for (int i = 0; i < 32; ++i) {
-        witness_commitment_section_141.push_back(0xff);
-    }
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141;
-    block.vtx.at(0) = MakeTransactionRef(cb);
-    BOOST_CHECK(SignetTxs::Create(block, challenge));
-    BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
+    CBlockHeader invalid_header = valid_header;
+    invalid_header.nBits = 0;
+    headers.push_back(invalid_header);
+    BOOST_CHECK(!HasValidProofOfWork(headers, chain_params->GetConsensus()));
 
-    // no data after header, valid
-    std::vector<uint8_t> witness_commitment_section_325{0xec, 0xc7, 0xda, 0xa2};
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
-    block.vtx.at(0) = MakeTransactionRef(cb);
-    BOOST_CHECK(SignetTxs::Create(block, challenge));
-    BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
+    headers.assign(128, valid_header);
+    BOOST_CHECK(HasValidProofOfWork(headers, chain_params->GetConsensus()));
 
-    // Premature end of data, invalid
-    witness_commitment_section_325.push_back(0x01);
-    witness_commitment_section_325.push_back(0x51);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
-    block.vtx.at(0) = MakeTransactionRef(cb);
-    BOOST_CHECK(!SignetTxs::Create(block, challenge));
-    BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));
-
-    // has data, valid
-    witness_commitment_section_325.push_back(0x00);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
-    block.vtx.at(0) = MakeTransactionRef(cb);
-    BOOST_CHECK(SignetTxs::Create(block, challenge));
-    BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
-
-    // Extraneous data, invalid
-    witness_commitment_section_325.push_back(0x00);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
-    block.vtx.at(0) = MakeTransactionRef(cb);
-    BOOST_CHECK(!SignetTxs::Create(block, challenge));
-    BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));
+    headers.push_back(invalid_header);
+    BOOST_CHECK(!HasValidProofOfWork(headers, chain_params->GetConsensus()));
 }
 
 //! Test retrieval of valid assumeutxo values.
@@ -142,6 +123,7 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
         BOOST_CHECK(!out);
     }
 
+<<<<<<< btco
     const auto out110 = ExpectedAssumeutxo(110, *params);
     BOOST_REQUIRE(out110);
     BOOST_CHECK_EQUAL(out110->hash_serialized.ToString(), "ba5d4bc634522f09f690e352ee3759c493b35aad047f0e8f6ac2f463434f4266");
@@ -321,7 +303,17 @@ BOOST_AUTO_TEST_CASE(block_malleation)
         BOOST_CHECK(is_mutated(block, /*check_witness_root=*/false));
         // Block with invalid witness commitment is considered mutated.
         BOOST_CHECK(is_mutated(block, /*check_witness_root=*/true));
+||||||| core24
+    const auto out110 = *ExpectedAssumeutxo(110, *params);
+    BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "1ebbf5850204c0bdb15bf030f47c7fe91d45c44c712697e4509ba67adb01c618");
+    BOOST_CHECK_EQUAL(out110.nChainTx, 110U);
+=======
+    const auto out110 = *ExpectedAssumeutxo(110, *params);
+    BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "0355fcae3af93d51d916bfeeff81e854f24b6683ac28fd255a73a18889d8fa02");
+    BOOST_CHECK_EQUAL(out110.nChainTx, 110U);
+>>>>>>> litecoin24x
 
+<<<<<<< btco
         // Block with valid commitment is not mutated
         {
             auto commitment{BlockWitnessMerkleRoot(block)};
@@ -357,6 +349,15 @@ BOOST_AUTO_TEST_CASE(block_malleation)
         }
         BOOST_CHECK(is_mutated(block, /*check_witness_root=*/true));
     }
+||||||| core24
+    const auto out210 = *ExpectedAssumeutxo(200, *params);
+    BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "51c8d11d8b5c1de51543c579736e786aa2736206d1e11e627568029ce092cf62");
+    BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
+=======
+    //const auto out210 = *ExpectedAssumeutxo(200, *params);
+    //BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "51c8d11d8b5c1de51543c579736e786aa2736206d1e11e627568029ce092cf62");
+    //BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
+>>>>>>> litecoin24x
 }
 
 BOOST_AUTO_TEST_SUITE_END()

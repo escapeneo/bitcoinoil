@@ -6,7 +6,12 @@
 #define BITCOINOIL_WALLET_WALLETUTIL_H
 
 #include <script/descriptor.h>
+<<<<<<< btco
 #include <util/fs.h>
+||||||| core24
+=======
+#include <uint256.h>
+>>>>>>> litecoin24x
 
 #include <vector>
 
@@ -27,7 +32,16 @@ enum WalletFeature
 
     FEATURE_PRE_SPLIT_KEYPOOL = 169900, // Upgraded to HD SPLIT and can have a pre-split keypool
 
-    FEATURE_LATEST = FEATURE_PRE_SPLIT_KEYPOOL
+    FEATURE_MWEB = 210000, // Wallet with MWEB keys and coins
+
+    // v24 wallet format (MWEB wallet tx records reference coins by output ID
+    // instead of embedding them). Older releases would silently mis-read
+    // v24-format records rather than reject them, so the minversion is raised
+    // to this whenever v24-format MWEB state is written into a wallet (record
+    // migration at load, and the MWEB coin persistence sites).
+    FEATURE_V24 = 240000,
+
+    FEATURE_LATEST = FEATURE_V24
 };
 
 bool IsFeatureSupported(int wallet_version, int feature_version);
@@ -81,6 +95,7 @@ public:
     int32_t range_start = 0; // First item in range; start of range, inclusive, i.e. [range_start, range_end). This never changes.
     int32_t range_end = 0; // Item after the last; end of range, exclusive, i.e. [range_start, range_end). This will increment with each TopUp()
     int32_t next_index = 0; // Position of the next item to generate
+    bool mweb_internal{false}; // Preserve the MWEB change role even when the descriptor is inactive.
     DescriptorCache cache;
 
     void DeserializeDescriptor(const std::string& str)
@@ -99,6 +114,9 @@ public:
         SER_WRITE(obj, descriptor_str = obj.descriptor->ToString());
         READWRITE(descriptor_str, obj.creation_time, obj.next_index, obj.range_start, obj.range_end);
         SER_READ(obj, obj.DeserializeDescriptor(descriptor_str));
+        if (obj.descriptor->GetOutputType() == OutputType::MWEB) {
+            READWRITE(obj.mweb_internal);
+        }
     }
 
     WalletDescriptor() {}
@@ -112,6 +130,7 @@ class DescriptorScriptPubKeyMan;
 struct MigrationData
 {
     CExtKey master_key;
+    uint256 active_mweb_spkm_id;
     std::vector<std::pair<std::string, int64_t>> watch_descs;
     std::vector<std::pair<std::string, int64_t>> solvable_descs;
     std::vector<std::unique_ptr<DescriptorScriptPubKeyMan>> desc_spkms;

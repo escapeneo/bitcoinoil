@@ -19,7 +19,7 @@
 #include <tuple>
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
-const std::string EXAMPLE_ADDRESS[2] = {"bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl", "bc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3"};
+const std::string EXAMPLE_ADDRESS[2] = {"ltc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl", "ltc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3"};
 
 std::string GetAllOutputTypes()
 {
@@ -254,6 +254,7 @@ public:
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", false);
         obj.pushKV("iswitness", false);
+        obj.pushKV("ismweb", false);
         return obj;
     }
 
@@ -262,6 +263,7 @@ public:
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", true);
         obj.pushKV("iswitness", false);
+        obj.pushKV("ismweb", false);
         return obj;
     }
 
@@ -272,6 +274,7 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id));
+        obj.pushKV("ismweb", false);
         return obj;
     }
 
@@ -282,6 +285,7 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id));
+        obj.pushKV("ismweb", false);
         return obj;
     }
 
@@ -292,6 +296,16 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 1);
         obj.pushKV("witness_program", HexStr(tap));
+        obj.pushKV("ismweb", false);
+        return obj;
+    }
+
+    UniValue operator()(const StealthAddress& id) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("isscript", false);
+        obj.pushKV("iswitness", false);
+        obj.pushKV("ismweb", true);
         return obj;
     }
 
@@ -301,6 +315,7 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", (int)id.version);
         obj.pushKV("witness_program", HexStr({id.program, id.length}));
+        obj.pushKV("ismweb", false);
         return obj;
     }
 };
@@ -569,6 +584,7 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
     }
     UniValue ret = m_fun(*this, request);
     if (gArgs.GetBoolArg("-rpcdoccheck", DEFAULT_RPC_DOC_CHECK)) {
+<<<<<<< btco
         UniValue mismatch{UniValue::VARR};
         for (const auto& res : m_results.m_results) {
             UniValue match{res.MatchesType(ret)};
@@ -589,6 +605,14 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
                           PACKAGE_NAME, FormatFullVersion(),
                           PACKAGE_BUGREPORT)};
         }
+||||||| core24
+        CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); }));
+=======
+        if (!std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); })) {
+            LogPrintf(ret.write(1, 2).c_str());
+        }
+        CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); }));
+>>>>>>> litecoin24x
     }
     return ret;
 }
@@ -1126,7 +1150,7 @@ std::pair<int64_t, int64_t> ParseDescriptorRange(const UniValue& value)
     return {low, high};
 }
 
-std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider)
+std::vector<GenericAddress> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider)
 {
     std::string desc_str;
     std::pair<int64_t, int64_t> range = {0, 1000};
@@ -1153,9 +1177,9 @@ std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, Fl
         range.first = 0;
         range.second = 0;
     }
-    std::vector<CScript> ret;
+    std::vector<GenericAddress> ret;
     for (int i = range.first; i <= range.second; ++i) {
-        std::vector<CScript> scripts;
+        std::vector<GenericAddress> scripts;
         if (!desc->Expand(i, provider, scripts, provider)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Cannot derive script without private keys: '%s'", desc_str));
         }

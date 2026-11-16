@@ -78,11 +78,19 @@ BOOST_AUTO_TEST_CASE(bloom_create_insert_serialize_with_tweak)
 
 BOOST_AUTO_TEST_CASE(bloom_create_insert_key)
 {
+<<<<<<< btco
     // Use the original scalar directly: this Bloom vector is network-independent.
     const auto secret = ParseHex("f49addfd726a59abde172c86452f5f73038a02f4415878dc14934175e8418aff");
     CKey key;
     key.Set(secret.begin(), secret.end(), false);
     BOOST_REQUIRE(key.IsValid());
+||||||| core24
+    std::string strSecret = std::string("5Kg1gnAjaLfKiwhhPpGS3QfRg2m6awQvaj98JCZBZQ5SuS2F15C");
+    CKey key = DecodeSecret(strSecret);
+=======
+    std::string strSecret = std::string("6vyk9uiGUm8CCKbYue4PpoSbdWKZnjrxMQYJ1PaDGrQ4bLHTxQJ");
+    CKey key = DecodeSecret(strSecret);
+>>>>>>> litecoin24x
     CPubKey pubkey = key.GetPubKey();
     std::vector<unsigned char> vchPubKey(pubkey.begin(), pubkey.end());
 

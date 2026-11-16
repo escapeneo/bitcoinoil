@@ -102,6 +102,7 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
         {RPCResult::Type::NUM, "size", "The serialized transaction size"},
         {RPCResult::Type::NUM, "vsize", "The virtual transaction size (differs from size for witness transactions)"},
         {RPCResult::Type::NUM, "weight", "The transaction's weight (between vsize*4-3 and vsize*4)"},
+        {RPCResult::Type::NUM, "mweb_weight", /*optional=*/true, "The MWEB weight of the transaction"},
         {RPCResult::Type::NUM, "version", "The version"},
         {RPCResult::Type::NUM_TIME, "locktime", "The lock time"},
         {RPCResult::Type::ARR, "vin", "",
@@ -120,31 +121,66 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
                 {
                     {RPCResult::Type::STR_HEX, "hex", "hex-encoded witness data (if any)"},
                 }},
-                {RPCResult::Type::NUM, "sequence", "The script sequence number"},
+                {RPCResult::Type::NUM, "sequence", /*optional=*/true, "The script sequence number"},
+                {RPCResult::Type::BOOL, "ismweb", /*optional=*/true, "If this is an MWEB input"},
             }},
         }},
         {RPCResult::Type::ARR, "vout", "",
         {
             {RPCResult::Type::OBJ, "", "",
             {
+<<<<<<< btco
                 {RPCResult::Type::STR_AMOUNT, "value", "The value in " + CURRENCY_UNIT},
                 {RPCResult::Type::NUM, "n", "index"},
                 {RPCResult::Type::OBJ, "scriptPubKey", "", ScriptPubKeyDoc()},
+||||||| core24
+                {RPCResult::Type::STR_AMOUNT, "value", "The value in " + CURRENCY_UNIT},
+                {RPCResult::Type::NUM, "n", "index"},
+                {RPCResult::Type::OBJ, "scriptPubKey", "",
+                {
+                    {RPCResult::Type::STR, "asm", "Disassembly of the public key script"},
+                    {RPCResult::Type::STR, "desc", "Inferred descriptor for the output"},
+                    {RPCResult::Type::STR_HEX, "hex", "The raw public key script bytes, hex-encoded"},
+                    {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                    {RPCResult::Type::STR, "address", /*optional=*/true, "The BitcoinOil address (only if a well-defined address exists)"},
+                }},
+=======
+                {RPCResult::Type::STR_AMOUNT, "value", /*optional=*/true, "The value in " + CURRENCY_UNIT},
+                {RPCResult::Type::NUM, "n", /*optional=*/true, "index"},
+                {RPCResult::Type::OBJ, "scriptPubKey", /*optional=*/true, "",
+                {
+                    {RPCResult::Type::STR, "asm", "Disassembly of the public key script"},
+                    {RPCResult::Type::STR, "desc", "Inferred descriptor for the output"},
+                    {RPCResult::Type::STR_HEX, "hex", "The raw public key script bytes, hex-encoded"},
+                    {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                    {RPCResult::Type::STR, "address", /*optional=*/true, "The BitcoinOil address (only if a well-defined address exists)"},
+                }},
+                {RPCResult::Type::STR_HEX, "output_id", /*optional=*/true, "The MWEB output identifier"},
+                {RPCResult::Type::BOOL, "ismweb", /*optional=*/true, "If this is an MWEB output"},
+            }},
+        }},
+        {RPCResult::Type::ARR, "vkern", /*optional=*/true, "",
+        {
+            {RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ELISION, "", "The MWEB kernel"},
+>>>>>>> litecoin24x
             }},
         }},
     };
 }
 
-static std::vector<RPCArg> CreateTxDoc()
+static std::vector<RPCArg> CreateTxDoc(bool allow_mweb = false)
 {
     return {
-        {"inputs", RPCArg::Type::ARR, RPCArg::Optional::NO, "The inputs",
+        {"inputs", RPCArg::Type::ARR, RPCArg::Optional::NO, allow_mweb ? "The inputs. Each object must contain either txid and vout, or mweb_out." : "The inputs",
             {
                 {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                     {
-                        {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id"},
-                        {"vout", RPCArg::Type::NUM, RPCArg::Optional::NO, "The output number"},
-                        {"sequence", RPCArg::Type::NUM, RPCArg::DefaultHint{"depends on the value of the 'replaceable' and 'locktime' arguments"}, "The sequence number"},
+                        {"txid", RPCArg::Type::STR_HEX, allow_mweb ? RPCArg::Optional::OMITTED : RPCArg::Optional::NO, "The transaction id for a transparent input"},
+                        {"vout", RPCArg::Type::NUM, allow_mweb ? RPCArg::Optional::OMITTED : RPCArg::Optional::NO, "The output number for a transparent input"},
+                        {"mweb_out", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The MWEB output id", "", {}, /*hidden=*/!allow_mweb},
+                        {"sequence", RPCArg::Type::NUM, RPCArg::DefaultHint{"depends on the value of the 'replaceable' and 'locktime' arguments"}, "The sequence number for a transparent input"},
                     },
                 },
             },
@@ -167,9 +203,118 @@ static std::vector<RPCArg> CreateTxDoc()
             },
          RPCArgOptions{.skip_type_check = true}},
         {"locktime", RPCArg::Type::NUM, RPCArg::Default{0}, "Raw locktime. Non-0 value also locktime-activates inputs"},
-        {"replaceable", RPCArg::Type::BOOL, RPCArg::Default{true}, "Marks this transaction as BIP125-replaceable.\n"
+        {"replaceable", RPCArg::Type::BOOL, RPCArg::Default{false}, "Marks this transaction as BIP125-replaceable.\n"
                 "Allows this transaction to be replaced by a transaction with higher fees. If provided, it is an error if explicit sequence numbers are incompatible."},
     };
+}
+
+static void UpdatePSBTMWEBInput(const AnyCoin& coin, PSBTInput& input)
+{
+    if (!input.IsMWEB() || coin.IsNull() || !coin.IsMWEB()) {
+        return;
+    }
+
+    const mw::Output& output = coin.ToMWEB()->GetOutput();
+    if (!input.mweb_output_commit.has_value()) {
+        input.mweb_output_commit = output.GetCommitment();
+    }
+    if (!input.mweb_output_pubkey.has_value()) {
+        input.mweb_output_pubkey = output.GetReceiverPubKey();
+    }
+    if (!input.mweb_key_exchange_pubkey.has_value() && output.HasStandardFields()) {
+        input.mweb_key_exchange_pubkey = output.GetKeyExchangePubKey();
+    }
+}
+
+// Update PSBT with information from the mempool, the UTXO set, the txindex, and the provided descriptors.
+// Optionally, sign the inputs that we can using information from the descriptors.
+PartiallySignedTransaction ProcessPSBT(const std::string& psbt_string, const std::any& context, const HidingSigningProvider& provider, int sighash_type, bool finalize)
+{
+    // Unserialize the transactions
+    PartiallySignedTransaction psbtx;
+    std::string error;
+    if (!DecodeBase64PSBT(psbtx, psbt_string, error)) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
+    }
+
+    if (g_txindex) g_txindex->BlockUntilSyncedToCurrentChain();
+    const NodeContext& node = EnsureAnyNodeContext(context);
+
+    // If we can't find the corresponding full transaction for all of our inputs,
+    // this will be used to find just the utxos for the segwit inputs for which
+    // the full transaction isn't found
+    std::map<AnyOutputID, AnyCoin> coins;
+
+    // Fetch previous transactions:
+    // First, look in the txindex and the mempool
+    for (PSBTInput& psbt_input : psbtx.inputs) {
+        // The `non_witness_utxo` is the whole previous transaction
+        if (psbt_input.non_witness_utxo) continue;
+
+        if (psbt_input.IsMWEB()) {
+            coins[psbt_input.GetID()]; // Create empty map entry keyed by MWEB output id.
+            continue;
+        }
+
+        CTransactionRef tx;
+
+        // Look in the txindex
+        if (g_txindex) {
+            uint256 block_hash;
+            g_txindex->FindTx(psbt_input.prev_txid, block_hash, tx);
+        }
+        // If we still don't have it look in the mempool
+        if (!tx) {
+            tx = node.mempool->get(psbt_input.prev_txid);
+        }
+        if (tx) {
+            psbt_input.non_witness_utxo = tx;
+        } else {
+            coins[psbt_input.GetOutPoint()]; // Create empty map entry keyed by prevout
+        }
+    }
+
+    // If we still haven't found all of the inputs, look for the missing ones in the utxo set
+    if (!coins.empty()) {
+        FindCoins(node, coins);
+        for (PSBTInput& input : psbtx.inputs) {
+            if (input.IsMWEB()) {
+                UpdatePSBTMWEBInput(coins.at(input.GetID()), input);
+                continue;
+            }
+
+            // If there are still missing utxos, add them if they were found in the utxo set
+            if (!input.non_witness_utxo) {
+                const AnyCoin& coin = coins.at(input.GetOutPoint());
+                if (!coin.IsNull() && IsSegWitOutput(provider, coin.ToBTC().out.scriptPubKey)) {
+                    input.witness_utxo = coin.ToBTC().out;
+                }
+            }
+        }
+    }
+
+    const PrecomputedTransactionData& txdata = PrecomputePSBTData(psbtx);
+
+    for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
+        if (PSBTInputSigned(psbtx.inputs.at(i))) {
+            continue;
+        }
+
+        // Update script/keypath information using descriptor data.
+        // Note that SignPSBTInput does a lot more than just constructing ECDSA signatures.
+        // We only actually care about those if our signing provider doesn't hide private
+        // information, as is the case with `descriptorprocesspsbt`
+        SignPSBTInput(provider, psbtx, /*index=*/i, &txdata, sighash_type, /*out_sigdata=*/nullptr, finalize);
+    }
+
+    // Update script/keypath information using descriptor data.
+    for (unsigned int i = 0; i < psbtx.outputs.size(); ++i) {
+        UpdatePSBTOutput(provider, psbtx, i);
+    }
+
+    RemoveUnnecessaryTransactions(psbtx, /*sighash_type=*/1);
+
+    return psbtx;
 }
 
 static RPCHelpMan getrawtransaction()
@@ -361,7 +506,7 @@ static RPCHelpMan createrawtransaction()
     if (!request.params[3].isNull()) {
         rbf = request.params[3].get_bool();
     }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, /*allow_mweb=*/false);
 
     return EncodeHexTx(CTransaction(rawTx));
 },
@@ -471,6 +616,8 @@ static RPCHelpMan decodescript()
         case TxoutType::SCRIPTHASH:
         case TxoutType::WITNESS_UNKNOWN:
         case TxoutType::WITNESS_V1_TAPROOT:
+        case TxoutType::WITNESS_MWEB_PEGIN:
+        case TxoutType::WITNESS_MWEB_HOGADDR:
             // Should not be wrapped
             return false;
         } // no default case, so the compiler can warn about missing cases
@@ -513,6 +660,8 @@ static RPCHelpMan decodescript()
             case TxoutType::WITNESS_V0_KEYHASH:
             case TxoutType::WITNESS_V0_SCRIPTHASH:
             case TxoutType::WITNESS_V1_TAPROOT:
+            case TxoutType::WITNESS_MWEB_PEGIN:
+            case TxoutType::WITNESS_MWEB_HOGADDR:
                 // Should not be wrapped
                 return false;
             } // no default case, so the compiler can warn about missing cases
@@ -712,9 +861,9 @@ static RPCHelpMan signrawtransactionwithkey()
     }
 
     // Fetch previous transactions (inputs):
-    std::map<COutPoint, Coin> coins;
-    for (const CTxIn& txin : mtx.vin) {
-        coins[txin.prevout]; // Create empty map entry keyed by prevout.
+    std::map<AnyOutputID, AnyCoin> coins;
+    for (const AnyInput& tx_input : mtx.GetInputs()) {
+        coins[tx_input.GetID()]; // Create empty map entry keyed by prevout.
     }
     NodeContext& node = EnsureAnyNodeContext(request.context);
     FindCoins(node, coins);
@@ -722,8 +871,15 @@ static RPCHelpMan signrawtransactionwithkey()
     // Parse the prevtxs array
     ParsePrevouts(request.params[2], &keystore, coins);
 
+    // Parse the sighash type
+    const int nHashType = ParseSighashString(request.params[3]);
+
+    // Script verification errors
+    std::map<int, bilingual_str> input_errors;
+    const bool complete = SignTransaction(mtx, &keystore, coins, nHashType, input_errors);
+
     UniValue result(UniValue::VOBJ);
-    SignTransaction(mtx, &keystore, coins, request.params[3], result);
+    SignTransactionResultToJSON(mtx, complete, coins, input_errors, result);
     return result;
 },
     };
@@ -801,6 +957,11 @@ const RPCResult decodepsbt_inputs{
             {
                 {RPCResult::Type::STR, "hash", "The hash and preimage that corresponds to it."},
             }},
+            {RPCResult::Type::STR_HEX, "previous_txid", /*optional=*/ true, "TXID of the transaction containing the output being spent by this input."},
+            {RPCResult::Type::NUM, "previous_vout", /* optional=*/ true, "Index of the output being spent"},
+            {RPCResult::Type::NUM, "sequence", /* optional=*/ true, "Sequence number for this inputs"},
+            {RPCResult::Type::NUM, "time_locktime", /* optional=*/ true, "Required time-based locktime for this input"},
+            {RPCResult::Type::NUM, "height_locktime", /* optional=*/ true, "Required height-based locktime for this input"},
             {RPCResult::Type::STR_HEX, "taproot_key_path_sig", /*optional=*/ true, "hex-encoded signature for the Taproot key path spend"},
             {RPCResult::Type::ARR, "taproot_script_path_sigs", /*optional=*/ true, "",
             {
@@ -838,6 +999,20 @@ const RPCResult decodepsbt_inputs{
             }},
             {RPCResult::Type::STR_HEX, "taproot_internal_key", /*optional=*/ true, "The hex-encoded Taproot x-only internal key"},
             {RPCResult::Type::STR_HEX, "taproot_merkle_root", /*optional=*/ true, "The hex-encoded Taproot merkle root"},
+            {RPCResult::Type::OBJ, "mweb", /*optional=*/true, "MWEB input info",
+            {
+                {RPCResult::Type::STR_HEX, "output_id", /*optional=*/true, "The hex-encoded output identifier"},
+                {RPCResult::Type::STR_HEX, "output_commit", /*optional=*/true, "The hex-encoded output commitment"},
+                {RPCResult::Type::STR_HEX, "output_pubkey", /*optional=*/true, "The hex-encoded output pubkey"},
+                {RPCResult::Type::STR_HEX, "input_pubkey", /*optional=*/true, "The hex-encoded input pubkey"},
+                {RPCResult::Type::NUM, "features", /*optional=*/true, "The MWEB input feature mask"},
+                {RPCResult::Type::STR_HEX, "extra_data", /*optional=*/true, "The hex-encoded MWEB input extra data"},
+                {RPCResult::Type::STR_HEX, "signature", /*optional=*/true, "The hex-encoded MWEB input signature"},
+                {RPCResult::Type::STR, "address_descriptor", /*optional=*/true, "A single-address MWEB descriptor for the subaddress the UTXO was sent to"},
+                {RPCResult::Type::NUM, "amount", /*optional=*/true, "The UTXO amount"},
+                {RPCResult::Type::STR_HEX, "shared_secret", /*optional=*/true, "The hex-encoded shared secret"},
+                {RPCResult::Type::STR_HEX, "key_exchange_pk", /*optional=*/true, "The hex-encoded MWEB key exchange public key"},
+            }},
             {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/ true, "The unknown input fields",
             {
                 {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
@@ -882,6 +1057,10 @@ const RPCResult decodepsbt_outputs{
                     {RPCResult::Type::STR, "path", "The path"},
                 }},
             }},
+            {RPCResult::Type::NUM, "amount", /* optional=*/ true, "The amount (nValue) for this output"},
+            {RPCResult::Type::OBJ, "script", /* optional=*/ true, "The output script (scriptPubKey) for this output",
+                {{RPCResult::Type::ELISION, "", "The layout is the same as the output of scriptPubKeys in decoderawtransaction."}},
+            },
             {RPCResult::Type::STR_HEX, "taproot_internal_key", /*optional=*/ true, "The hex-encoded Taproot x-only internal key"},
             {RPCResult::Type::ARR, "taproot_tree", /*optional=*/ true, "The tuples that make up the Taproot tree, in depth first search order",
             {
@@ -904,6 +1083,21 @@ const RPCResult decodepsbt_outputs{
                         {RPCResult::Type::STR_HEX, "hash", "The hash of a leaf this pubkey appears in"},
                     }},
                 }},
+            }},
+            {RPCResult::Type::OBJ, "mweb", /*optional=*/true, "The MWEB output",
+            {
+                {RPCResult::Type::STR, "address", /*optional=*/true, "The MWEB stealth address"},
+                {RPCResult::Type::STR_HEX, "output_commit", /*optional=*/true, "The hex-encoded output commitment"},
+                {RPCResult::Type::NUM, "features", /*optional=*/true, "The MWEB output feature mask"},
+                {RPCResult::Type::STR_HEX, "sender_pubkey", /*optional=*/true, "The hex-encoded MWEB sender public key"},
+                {RPCResult::Type::STR_HEX, "output_pubkey", /*optional=*/true, "The hex-encoded MWEB output public key"},
+                {RPCResult::Type::STR_HEX, "extra_data", /*optional=*/true, "The hex-encoded MWEB output extra data"},
+                {RPCResult::Type::STR_HEX, "key_exchange_pubkey", /*optional=*/true, "The hex-encoded MWEB key exchange public key"},
+                {RPCResult::Type::NUM, "view_tag", /*optional=*/true, "The MWEB output view tag"},
+                {RPCResult::Type::STR_HEX, "encrypted_value", /*optional=*/true, "The encrypted output value"},
+                {RPCResult::Type::STR_HEX, "encrypted_nonce", /*optional=*/true, "The encrypted output nonce"},
+                {RPCResult::Type::STR_HEX, "rangeproof", /*optional=*/true, "The hex-encoded MWEB output rangeproof"},
+                {RPCResult::Type::STR_HEX, "sig", /*optional=*/true, "The hex-encoded MWEB output signature"},
             }},
             {RPCResult::Type::OBJ_DYN, "unknown", /*optional=*/true, "The unknown output fields",
             {
@@ -934,7 +1128,7 @@ static RPCHelpMan decodepsbt()
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
                     {
-                        {RPCResult::Type::OBJ, "tx", "The decoded network-serialized unsigned transaction.",
+                        {RPCResult::Type::OBJ, "tx", /*optional=*/true, "The decoded network-serialized unsigned transaction.",
                         {
                             {RPCResult::Type::ELISION, "", "The layout is the same as the output of decoderawtransaction."},
                         }},
@@ -947,7 +1141,17 @@ static RPCHelpMan decodepsbt()
                                 {RPCResult::Type::STR, "path", "The path"},
                             }},
                         }},
-                        {RPCResult::Type::NUM, "psbt_version", "The PSBT version number. Not to be confused with the unsigned transaction version"},
+                        {RPCResult::Type::NUM, "tx_version", /* optional */ true, "The version number of the unsigned transaction. Not to be confused with PSBT version"},
+                        {RPCResult::Type::NUM, "fallback_locktime", /* optional */ true, "The locktime to fallback to if no inputs specify a required locktime."},
+                        {RPCResult::Type::NUM, "input_count", /* optional */ true, "The number of inputs in this psbt"},
+                        {RPCResult::Type::NUM, "output_count", /* optional */ true, "The number of outputs in this psbt."},
+                        {RPCResult::Type::NUM, "kernel_count", /* optional */ true, "The number of MWEB kernels in this psbt."},
+                        {RPCResult::Type::BOOL, "inputs_modifiable", /* optional */ true, "Whether inputs can be modified"},
+                        {RPCResult::Type::BOOL, "outputs_modifiable", /* optional */ true, "Whether outputs can be modified"},
+                        {RPCResult::Type::BOOL, "has_sighash_single", /* optional */ true, "Whether this PSBT has SIGHASH_SINGLE inputs"},
+                        {RPCResult::Type::STR_HEX, "mweb_tx_offset", /* optional */ true, "MWEB transaction offset"},
+                        {RPCResult::Type::STR_HEX, "mweb_stealth_offset", /* optional */ true, "MWEB stealth offset"},
+                        {RPCResult::Type::NUM, "psbt_version", /* optional */ true, "The PSBT version number. Not to be confused with the unsigned transaction version"},
                         {RPCResult::Type::ARR, "proprietary", "The global proprietary map",
                         {
                             {RPCResult::Type::OBJ, "", "",
@@ -964,14 +1168,51 @@ static RPCHelpMan decodepsbt()
                         }},
                         decodepsbt_inputs,
                         decodepsbt_outputs,
+                        {RPCResult::Type::ARR, "kernels", "The MWEB kernels",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::NUM, "features", /*optional=*/true, "The MWEB kernel feature mask"},
+                                {RPCResult::Type::STR_HEX, "commit", /*optional=*/true, "The hex-encoded MWEB kernel excess commitment"},
+                                {RPCResult::Type::STR_HEX, "stealth_commit", /*optional=*/true, "The hex-encoded MWEB kernel stealth excess commitment"},
+                                {RPCResult::Type::NUM, "fee", /*optional=*/true, "The MWEB kernel fee in satoshis"},
+                                {RPCResult::Type::NUM, "pegin_amount", /*optional=*/true, "The MWEB pegin amount in satoshis"},
+                                {RPCResult::Type::ARR, "pegouts", /*optional=*/true, "The MWEB pegouts",
+                                {
+                                    {RPCResult::Type::OBJ, "", "",
+                                    {
+                                        {RPCResult::Type::NUM, "amount", "The pegout amount in satoshis"},
+                                        {RPCResult::Type::OBJ, "scriptPubKey", "The pegout script",
+                                        {
+                                            {RPCResult::Type::ELISION, "", "The layout is the same as the output of scriptPubKeys in decoderawtransaction."},
+                                        }},
+                                    }},
+                                }},
+                                {RPCResult::Type::NUM, "lock_height", /*optional=*/true, "The MWEB kernel lock height"},
+                                {RPCResult::Type::STR_HEX, "extra_data", /*optional=*/true, "The hex-encoded MWEB kernel extra data"},
+                                {RPCResult::Type::STR_HEX, "signature", /*optional=*/true, "The hex-encoded MWEB kernel signature"},
+                            }},
+                        }},
                         {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "The transaction fee paid if all UTXOs slots in the PSBT have been filled."},
                     }
                 },
                 RPCExamples{
                     HelpExampleCli("decodepsbt", "\"psbt\"")
+<<<<<<< btco
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
+||||||| core24
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    RPCTypeCheck(request.params, {UniValue::VSTR});
+
+=======
+                }, [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+    RPCTypeCheck(request.params, {UniValue::VSTR});
+
+>>>>>>> litecoin24x
     // Unserialize the transactions
     PartiallySignedTransaction psbtx;
     std::string error;
@@ -981,10 +1222,12 @@ static RPCHelpMan decodepsbt()
 
     UniValue result(UniValue::VOBJ);
 
-    // Add the decoded tx
-    UniValue tx_univ(UniValue::VOBJ);
-    TxToUniv(CTransaction(*psbtx.tx), /*block_hash=*/uint256(), /*entry=*/tx_univ, /*include_hex=*/false);
-    result.pushKV("tx", tx_univ);
+    if (psbtx.tx != std::nullopt) {
+        // Add the decoded tx
+        UniValue tx_univ(UniValue::VOBJ);
+        TxToUniv(CTransaction(*psbtx.tx), /*block_hash=*/uint256(), /*entry=*/tx_univ, /*include_hex=*/false);
+        result.pushKV("tx", std::move(tx_univ));
+    }
 
     // Add the global xpubs
     UniValue global_xpubs(UniValue::VARR);
@@ -997,14 +1240,40 @@ static RPCHelpMan decodepsbt()
             UniValue keypath(UniValue::VOBJ);
             keypath.pushKV("xpub", EncodeBase58Check(ser_xpub));
             keypath.pushKV("master_fingerprint", HexStr(Span<unsigned char>(xpub_pair.first.fingerprint, xpub_pair.first.fingerprint + 4)));
-            keypath.pushKV("path", WriteHDKeypath(xpub_pair.first.path));
-            global_xpubs.push_back(keypath);
+            keypath.pushKV("path", WriteHDKeypath(xpub_pair.first.hdkeypath));
+            global_xpubs.push_back(std::move(keypath));
         }
     }
-    result.pushKV("global_xpubs", global_xpubs);
+    result.pushKV("global_xpubs", std::move(global_xpubs));
+
+    // Add PSBTv2 stuff
+    if (psbtx.GetPSBTVersion() >= 2) {
+        result.pushKV("tx_version", psbtx.tx_version);
+        if (psbtx.fallback_locktime != std::nullopt) {
+            result.pushKV("fallback_locktime", static_cast<uint64_t>(*psbtx.fallback_locktime));
+        }
+        result.pushKV("input_count", (uint64_t)psbtx.inputs.size());
+        result.pushKV("output_count", (uint64_t)psbtx.outputs.size());
+        result.pushKV("kernel_count", (uint64_t)psbtx.kernels.size());
+        if (psbtx.m_tx_modifiable != std::nullopt) {
+            result.pushKV("inputs_modifiable", psbtx.m_tx_modifiable->test(0));
+            result.pushKV("outputs_modifiable", psbtx.m_tx_modifiable->test(1));
+            result.pushKV("has_sighash_single", psbtx.m_tx_modifiable->test(2));
+        }
+
+        // MWEB transaction offset
+        if (psbtx.mweb_tx_offset.has_value()) {
+            result.pushKV("mweb_tx_offset", psbtx.mweb_tx_offset->ToHex());
+        }
+
+        // MWEB stealth offset
+        if (psbtx.mweb_stealth_offset.has_value()) {
+            result.pushKV("mweb_stealth_offset", psbtx.mweb_stealth_offset->ToHex());
+        }
+    }
 
     // PSBT version
-    result.pushKV("psbt_version", static_cast<uint64_t>(psbtx.GetVersion()));
+    result.pushKV("psbt_version", static_cast<uint64_t>(psbtx.GetPSBTVersion()));
 
     // Proprietary
     UniValue proprietary(UniValue::VARR);
@@ -1014,20 +1283,89 @@ static RPCHelpMan decodepsbt()
         this_prop.pushKV("subtype", entry.subtype);
         this_prop.pushKV("key", HexStr(entry.key));
         this_prop.pushKV("value", HexStr(entry.value));
-        proprietary.push_back(this_prop);
+        proprietary.push_back(std::move(this_prop));
     }
-    result.pushKV("proprietary", proprietary);
+    result.pushKV("proprietary", std::move(proprietary));
 
     // Unknown data
     UniValue unknowns(UniValue::VOBJ);
     for (auto entry : psbtx.unknown) {
         unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
     }
-    result.pushKV("unknown", unknowns);
+    result.pushKV("unknown", std::move(unknowns));
+
+    CAmount total_in = 0;
+    CAmount total_out = 0;
+    bool have_all_amounts = true;
+    const auto add_amount = [&](CAmount& total, CAmount amount) {
+        if (MoneyRange(amount) && MoneyRange(total + amount)) {
+            total += amount;
+        } else {
+            have_all_amounts = false;
+        }
+    };
+
+    // MWEB kernels
+    UniValue kernels(UniValue::VARR);
+    for (const PSBTKernel& kernel : psbtx.kernels) {
+        UniValue kern(UniValue::VOBJ);
+
+        if (kernel.features.has_value()) {
+            kern.pushKV("features", *kernel.features);
+        }
+
+        if (kernel.commit.has_value()) {
+            kern.pushKV("commit", kernel.commit->ToHex());
+        }
+
+        if (kernel.stealth_commit.has_value()) {
+            kern.pushKV("stealth_commit", kernel.stealth_commit->ToHex());
+        }
+
+        if (kernel.fee.has_value()) {
+            kern.pushKV("fee", kernel.fee.value());
+        }
+
+        if (kernel.pegin_amount.has_value()) {
+            kern.pushKV("pegin_amount", kernel.pegin_amount.value());
+            // The matching transparent bridge output is included in total_out.
+            // Credit its transfer into MWEB so it is not counted twice.
+            add_amount(total_in, *kernel.pegin_amount);
+        }
+
+        if (!kernel.pegouts.empty()) {
+            UniValue pegouts(UniValue::VARR);
+            for (const PegOutCoin& pegout_coin : kernel.pegouts) {
+                UniValue pegout(UniValue::VOBJ);
+                pegout.pushKV("amount", pegout_coin.GetAmount());
+                add_amount(total_out, pegout_coin.GetAmount());
+
+                UniValue scriptPubKey(UniValue::VOBJ);
+                ScriptToUniv(pegout_coin.GetScriptPubKey(), /*out=*/scriptPubKey, /*include_hex=*/true, /*include_address=*/true);
+                pegout.pushKV("scriptPubKey", scriptPubKey);
+
+                pegouts.push_back(pegout);
+            }
+            kern.pushKV("pegouts", pegouts);
+        }
+
+        if (kernel.lock_height.has_value()) {
+            kern.pushKV("lock_height", kernel.lock_height.value());
+        }
+
+        if (!kernel.extra_data.empty()) {
+            kern.pushKV("extra_data", HexStr(kernel.extra_data));
+        }
+
+        if (kernel.sig.has_value()) {
+            kern.pushKV("signature", kernel.sig->ToHex());
+        }
+
+        kernels.push_back(kern);
+    }
+    result.pushKV("kernels", kernels);
 
     // inputs
-    CAmount total_in = 0;
-    bool have_all_utxos = true;
     UniValue inputs(UniValue::VARR);
     for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
         const PSBTInput& input = psbtx.inputs[i];
@@ -1043,30 +1381,31 @@ static RPCHelpMan decodepsbt()
 
             UniValue out(UniValue::VOBJ);
             out.pushKV("amount", ValueFromAmount(txout.nValue));
-            out.pushKV("scriptPubKey", o);
+            out.pushKV("scriptPubKey", std::move(o));
 
-            in.pushKV("witness_utxo", out);
+            in.pushKV("witness_utxo", std::move(out));
 
             have_a_utxo = true;
         }
         if (input.non_witness_utxo) {
-            txout = input.non_witness_utxo->vout[psbtx.tx->vin[i].prevout.n];
+            txout = input.non_witness_utxo->vout[*input.prev_out];
 
             UniValue non_wit(UniValue::VOBJ);
             TxToUniv(*input.non_witness_utxo, /*block_hash=*/uint256(), /*entry=*/non_wit, /*include_hex=*/false);
-            in.pushKV("non_witness_utxo", non_wit);
+            in.pushKV("non_witness_utxo", std::move(non_wit));
 
             have_a_utxo = true;
         }
-        if (have_a_utxo) {
-            if (MoneyRange(txout.nValue) && MoneyRange(total_in + txout.nValue)) {
-                total_in += txout.nValue;
+        if (input.IsMWEB()) {
+            if (input.mweb_amount.has_value()) {
+                add_amount(total_in, *input.mweb_amount);
             } else {
-                // Hack to just not show fee later
-                have_all_utxos = false;
+                have_all_amounts = false;
             }
+        } else if (have_a_utxo) {
+            add_amount(total_in, txout.nValue);
         } else {
-            have_all_utxos = false;
+            have_all_amounts = false;
         }
 
         // Partial sigs
@@ -1075,7 +1414,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& sig : input.partial_sigs) {
                 partial_sigs.pushKV(HexStr(sig.second.first), HexStr(sig.second.second));
             }
-            in.pushKV("partial_signatures", partial_sigs);
+            in.pushKV("partial_signatures", std::move(partial_sigs));
         }
 
         // Sighash
@@ -1087,12 +1426,12 @@ static RPCHelpMan decodepsbt()
         if (!input.redeem_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(input.redeem_script, /*out=*/r);
-            in.pushKV("redeem_script", r);
+            in.pushKV("redeem_script", std::move(r));
         }
         if (!input.witness_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(input.witness_script, /*out=*/r);
-            in.pushKV("witness_script", r);
+            in.pushKV("witness_script", std::move(r));
         }
 
         // keypaths
@@ -1103,10 +1442,10 @@ static RPCHelpMan decodepsbt()
                 keypath.pushKV("pubkey", HexStr(entry.first));
 
                 keypath.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(entry.second.fingerprint)));
-                keypath.pushKV("path", WriteHDKeypath(entry.second.path));
-                keypaths.push_back(keypath);
+                keypath.pushKV("path", WriteHDKeypath(entry.second.hdkeypath));
+                keypaths.push_back(std::move(keypath));
             }
-            in.pushKV("bip32_derivs", keypaths);
+            in.pushKV("bip32_derivs", std::move(keypaths));
         }
 
         // Final scriptSig and scriptwitness
@@ -1114,14 +1453,14 @@ static RPCHelpMan decodepsbt()
             UniValue scriptsig(UniValue::VOBJ);
             scriptsig.pushKV("asm", ScriptToAsmStr(input.final_script_sig, true));
             scriptsig.pushKV("hex", HexStr(input.final_script_sig));
-            in.pushKV("final_scriptSig", scriptsig);
+            in.pushKV("final_scriptSig", std::move(scriptsig));
         }
         if (!input.final_script_witness.IsNull()) {
             UniValue txinwitness(UniValue::VARR);
             for (const auto& item : input.final_script_witness.stack) {
                 txinwitness.push_back(HexStr(item));
             }
-            in.pushKV("final_scriptwitness", txinwitness);
+            in.pushKV("final_scriptwitness", std::move(txinwitness));
         }
 
         // Ripemd160 hash preimages
@@ -1130,7 +1469,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& [hash, preimage] : input.ripemd160_preimages) {
                 ripemd160_preimages.pushKV(HexStr(hash), HexStr(preimage));
             }
-            in.pushKV("ripemd160_preimages", ripemd160_preimages);
+            in.pushKV("ripemd160_preimages", std::move(ripemd160_preimages));
         }
 
         // Sha256 hash preimages
@@ -1139,7 +1478,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& [hash, preimage] : input.sha256_preimages) {
                 sha256_preimages.pushKV(HexStr(hash), HexStr(preimage));
             }
-            in.pushKV("sha256_preimages", sha256_preimages);
+            in.pushKV("sha256_preimages", std::move(sha256_preimages));
         }
 
         // Hash160 hash preimages
@@ -1148,7 +1487,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& [hash, preimage] : input.hash160_preimages) {
                 hash160_preimages.pushKV(HexStr(hash), HexStr(preimage));
             }
-            in.pushKV("hash160_preimages", hash160_preimages);
+            in.pushKV("hash160_preimages", std::move(hash160_preimages));
         }
 
         // Hash256 hash preimages
@@ -1157,7 +1496,26 @@ static RPCHelpMan decodepsbt()
             for (const auto& [hash, preimage] : input.hash256_preimages) {
                 hash256_preimages.pushKV(HexStr(hash), HexStr(preimage));
             }
-            in.pushKV("hash256_preimages", hash256_preimages);
+            in.pushKV("hash256_preimages", std::move(hash256_preimages));
+        }
+
+        // PSBTv2
+        if (psbtx.GetPSBTVersion() >= 2) {
+            if (!input.prev_txid.IsNull()) {
+                in.pushKV("previous_txid", input.prev_txid.GetHex());
+            }
+            if (input.prev_out != std::nullopt) {
+                in.pushKV("previous_vout", static_cast<uint64_t>(*input.prev_out));
+            }
+            if (input.sequence != std::nullopt) {
+                in.pushKV("sequence", static_cast<uint64_t>(*input.sequence));
+            }
+            if (input.time_locktime != std::nullopt) {
+                in.pushKV("time_locktime", static_cast<uint64_t>(*input.time_locktime));
+            }
+            if (input.height_locktime!= std::nullopt) {
+                in.pushKV("height_locktime", static_cast<uint64_t>(*input.height_locktime));
+            }
         }
 
         // Taproot key path signature
@@ -1174,9 +1532,9 @@ static RPCHelpMan decodepsbt()
                 sigobj.pushKV("pubkey", HexStr(xonly));
                 sigobj.pushKV("leaf_hash", HexStr(leaf_hash));
                 sigobj.pushKV("sig", HexStr(sig));
-                script_sigs.push_back(sigobj);
+                script_sigs.push_back(std::move(sigobj));
             }
-            in.pushKV("taproot_script_path_sigs", script_sigs);
+            in.pushKV("taproot_script_path_sigs", std::move(script_sigs));
         }
 
         // Taproot leaf scripts
@@ -1191,10 +1549,10 @@ static RPCHelpMan decodepsbt()
                 for (const auto& control_block : control_blocks) {
                     control_blocks_univ.push_back(HexStr(control_block));
                 }
-                script_info.pushKV("control_blocks", control_blocks_univ);
-                tap_scripts.push_back(script_info);
+                script_info.pushKV("control_blocks", std::move(control_blocks_univ));
+                tap_scripts.push_back(std::move(script_info));
             }
-            in.pushKV("taproot_scripts", tap_scripts);
+            in.pushKV("taproot_scripts", std::move(tap_scripts));
         }
 
         // Taproot bip32 keypaths
@@ -1205,15 +1563,15 @@ static RPCHelpMan decodepsbt()
                 UniValue path_obj(UniValue::VOBJ);
                 path_obj.pushKV("pubkey", HexStr(xonly));
                 path_obj.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(origin.fingerprint)));
-                path_obj.pushKV("path", WriteHDKeypath(origin.path));
+                path_obj.pushKV("path", WriteHDKeypath(origin.hdkeypath));
                 UniValue leaf_hashes_arr(UniValue::VARR);
                 for (const auto& leaf_hash : leaf_hashes) {
                     leaf_hashes_arr.push_back(HexStr(leaf_hash));
                 }
-                path_obj.pushKV("leaf_hashes", leaf_hashes_arr);
-                keypaths.push_back(path_obj);
+                path_obj.pushKV("leaf_hashes", std::move(leaf_hashes_arr));
+                keypaths.push_back(std::move(path_obj));
             }
-            in.pushKV("taproot_bip32_derivs", keypaths);
+            in.pushKV("taproot_bip32_derivs", std::move(keypaths));
         }
 
         // Taproot internal key
@@ -1226,6 +1584,56 @@ static RPCHelpMan decodepsbt()
             in.pushKV("taproot_merkle_root", HexStr(input.m_tap_merkle_root));
         }
 
+        // MWEB
+        if (input.IsMWEB()) {
+            UniValue mweb_obj(UniValue::VOBJ);
+            if (input.mweb_output_id.has_value()) {
+                mweb_obj.pushKV("output_id", input.mweb_output_id->ToHex());
+            }
+            
+            if (input.mweb_output_commit.has_value()) {
+                mweb_obj.pushKV("output_commit", input.mweb_output_commit->ToHex());
+            }
+
+            if (input.mweb_output_pubkey.has_value()) {
+                mweb_obj.pushKV("output_pubkey", input.mweb_output_pubkey->ToHex());
+            }
+
+            if (input.mweb_input_pubkey.has_value()) {
+                mweb_obj.pushKV("input_pubkey", input.mweb_input_pubkey->ToHex());
+            }
+
+            if (input.mweb_features.has_value()) {
+                mweb_obj.pushKV("features", *input.mweb_features);
+            }
+
+            if (!input.mweb_extra_data.empty()) {
+                mweb_obj.pushKV("extra_data", HexStr(input.mweb_extra_data));
+            }
+
+            if (input.mweb_sig.has_value()) {
+                mweb_obj.pushKV("signature", input.mweb_sig->ToHex());
+            }
+
+            if (input.mweb_address_descriptor.has_value()) {
+                mweb_obj.pushKV("address_descriptor", *input.mweb_address_descriptor);
+            }
+
+            if (input.mweb_amount.has_value()) {
+                mweb_obj.pushKV("amount", *input.mweb_amount);
+            }
+
+            if (input.mweb_shared_secret.has_value()) {
+                mweb_obj.pushKV("shared_secret", input.mweb_shared_secret->ToHex());
+            }
+
+            if (input.mweb_key_exchange_pubkey.has_value()) {
+                mweb_obj.pushKV("key_exchange_pk", input.mweb_key_exchange_pubkey->ToHex());
+            }
+
+            in.pushKV("mweb", mweb_obj);
+        }
+
         // Proprietary
         if (!input.m_proprietary.empty()) {
             UniValue proprietary(UniValue::VARR);
@@ -1235,9 +1643,9 @@ static RPCHelpMan decodepsbt()
                 this_prop.pushKV("subtype", entry.subtype);
                 this_prop.pushKV("key", HexStr(entry.key));
                 this_prop.pushKV("value", HexStr(entry.value));
-                proprietary.push_back(this_prop);
+                proprietary.push_back(std::move(this_prop));
             }
-            in.pushKV("proprietary", proprietary);
+            in.pushKV("proprietary", std::move(proprietary));
         }
 
         // Unknown data
@@ -1246,15 +1654,14 @@ static RPCHelpMan decodepsbt()
             for (auto entry : input.unknown) {
                 unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
             }
-            in.pushKV("unknown", unknowns);
+            in.pushKV("unknown", std::move(unknowns));
         }
 
-        inputs.push_back(in);
+        inputs.push_back(std::move(in));
     }
-    result.pushKV("inputs", inputs);
+    result.pushKV("inputs", std::move(inputs));
 
     // outputs
-    CAmount output_value = 0;
     UniValue outputs(UniValue::VARR);
     for (unsigned int i = 0; i < psbtx.outputs.size(); ++i) {
         const PSBTOutput& output = psbtx.outputs[i];
@@ -1263,12 +1670,12 @@ static RPCHelpMan decodepsbt()
         if (!output.redeem_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(output.redeem_script, /*out=*/r);
-            out.pushKV("redeem_script", r);
+            out.pushKV("redeem_script", std::move(r));
         }
         if (!output.witness_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(output.witness_script, /*out=*/r);
-            out.pushKV("witness_script", r);
+            out.pushKV("witness_script", std::move(r));
         }
 
         // keypaths
@@ -1278,10 +1685,22 @@ static RPCHelpMan decodepsbt()
                 UniValue keypath(UniValue::VOBJ);
                 keypath.pushKV("pubkey", HexStr(entry.first));
                 keypath.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(entry.second.fingerprint)));
-                keypath.pushKV("path", WriteHDKeypath(entry.second.path));
-                keypaths.push_back(keypath);
+                keypath.pushKV("path", WriteHDKeypath(entry.second.hdkeypath));
+                keypaths.push_back(std::move(keypath));
             }
-            out.pushKV("bip32_derivs", keypaths);
+            out.pushKV("bip32_derivs", std::move(keypaths));
+        }
+
+        // PSBTv2 stuff
+        if (psbtx.GetPSBTVersion() >= 2) {
+            if (output.amount != std::nullopt) {
+                out.pushKV("amount", ValueFromAmount(*output.amount));
+            }
+            if (output.script.has_value()) {
+                UniValue spk(UniValue::VOBJ);
+                ScriptToUniv(*output.script, spk, /*include_hex=*/true, /*include_address=*/true);
+                out.pushKV("script", spk);
+            }
         }
 
         // Taproot internal key
@@ -1297,9 +1716,9 @@ static RPCHelpMan decodepsbt()
                 elem.pushKV("depth", (int)depth);
                 elem.pushKV("leaf_ver", (int)leaf_ver);
                 elem.pushKV("script", HexStr(script));
-                tree.push_back(elem);
+                tree.push_back(std::move(elem));
             }
-            out.pushKV("taproot_tree", tree);
+            out.pushKV("taproot_tree", std::move(tree));
         }
 
         // Taproot bip32 keypaths
@@ -1310,15 +1729,60 @@ static RPCHelpMan decodepsbt()
                 UniValue path_obj(UniValue::VOBJ);
                 path_obj.pushKV("pubkey", HexStr(xonly));
                 path_obj.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(origin.fingerprint)));
-                path_obj.pushKV("path", WriteHDKeypath(origin.path));
+                path_obj.pushKV("path", WriteHDKeypath(origin.hdkeypath));
                 UniValue leaf_hashes_arr(UniValue::VARR);
                 for (const auto& leaf_hash : leaf_hashes) {
                     leaf_hashes_arr.push_back(HexStr(leaf_hash));
                 }
-                path_obj.pushKV("leaf_hashes", leaf_hashes_arr);
-                keypaths.push_back(path_obj);
+                path_obj.pushKV("leaf_hashes", std::move(leaf_hashes_arr));
+                keypaths.push_back(std::move(path_obj));
             }
-            out.pushKV("taproot_bip32_derivs", keypaths);
+            out.pushKV("taproot_bip32_derivs", std::move(keypaths));
+        }
+
+        // MWEB fields
+        if (output.IsMWEB()) {
+            UniValue mweb_obj(UniValue::VOBJ);
+            if (output.mweb_stealth_address.has_value()) {
+                mweb_obj.pushKV("address", GenericAddress(*output.mweb_stealth_address).Encode());
+            }
+
+            if (output.mweb_commit.has_value()) {
+                mweb_obj.pushKV("output_commit", output.mweb_commit->ToHex());
+            }
+
+            if (output.mweb_features.has_value()) {
+                mweb_obj.pushKV("features", *output.mweb_features);
+            }
+
+            if (output.mweb_sender_pubkey.has_value()) {
+                mweb_obj.pushKV("sender_pubkey", output.mweb_sender_pubkey->ToHex());
+            }
+
+            if (output.mweb_output_pubkey.has_value()) {
+                mweb_obj.pushKV("output_pubkey", output.mweb_output_pubkey->ToHex());
+            }
+
+            if (!output.mweb_extra_data.empty()) {
+                mweb_obj.pushKV("extra_data", HexStr(output.mweb_extra_data));
+            }
+
+            if (output.mweb_standard_fields.has_value()) {
+                mweb_obj.pushKV("key_exchange_pubkey", output.mweb_standard_fields->key_exchange_pubkey.ToHex());
+                mweb_obj.pushKV("view_tag", static_cast<uint64_t>(output.mweb_standard_fields->view_tag));
+                mweb_obj.pushKV("encrypted_value", strprintf("%016llx", output.mweb_standard_fields->masked_value));
+                mweb_obj.pushKV("encrypted_nonce", output.mweb_standard_fields->masked_nonce.ToHex());
+            }
+
+            if (output.mweb_rangeproof.has_value()) {
+                mweb_obj.pushKV("rangeproof", output.mweb_rangeproof.value()->ToHex());
+            }
+
+            if (output.mweb_sig.has_value()) {
+                mweb_obj.pushKV("sig", output.mweb_sig->ToHex());
+            }
+
+            out.pushKV("mweb", std::move(mweb_obj));
         }
 
         // Proprietary
@@ -1330,9 +1794,9 @@ static RPCHelpMan decodepsbt()
                 this_prop.pushKV("subtype", entry.subtype);
                 this_prop.pushKV("key", HexStr(entry.key));
                 this_prop.pushKV("value", HexStr(entry.value));
-                proprietary.push_back(this_prop);
+                proprietary.push_back(std::move(this_prop));
             }
-            out.pushKV("proprietary", proprietary);
+            out.pushKV("proprietary", std::move(proprietary));
         }
 
         // Unknown data
@@ -1341,22 +1805,17 @@ static RPCHelpMan decodepsbt()
             for (auto entry : output.unknown) {
                 unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
             }
-            out.pushKV("unknown", unknowns);
+            out.pushKV("unknown", std::move(unknowns));
         }
 
-        outputs.push_back(out);
+        outputs.push_back(std::move(out));
 
         // Fee calculation
-        if (MoneyRange(psbtx.tx->vout[i].nValue) && MoneyRange(output_value + psbtx.tx->vout[i].nValue)) {
-            output_value += psbtx.tx->vout[i].nValue;
-        } else {
-            // Hack to just not show fee later
-            have_all_utxos = false;
-        }
+        add_amount(total_out, *output.amount);
     }
-    result.pushKV("outputs", outputs);
-    if (have_all_utxos) {
-        result.pushKV("fee", ValueFromAmount(total_in - output_value));
+    result.pushKV("outputs", std::move(outputs));
+    if (have_all_amounts) {
+        result.pushKV("fee", ValueFromAmount(total_in - total_out));
     }
 
     return result;
@@ -1446,15 +1905,15 @@ static RPCHelpMan finalizepsbt()
 
     bool extract = request.params[1].isNull() || (!request.params[1].isNull() && request.params[1].get_bool());
 
-    CMutableTransaction mtx;
-    bool complete = FinalizeAndExtractPSBT(psbtx, mtx);
+    util::Result<CMutableTransaction> finalize_result = FinalizePSBT(psbtx);
+    bool complete = finalize_result.has_value();
 
     UniValue result(UniValue::VOBJ);
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     std::string result_str;
 
     if (complete && extract) {
-        ssTx << mtx;
+        ssTx << finalize_result.value();
         result_str = HexStr(ssTx);
         result.pushKV("hex", result_str);
     } else {
@@ -1473,8 +1932,16 @@ static RPCHelpMan createpsbt()
 {
     return RPCHelpMan{"createpsbt",
                 "\nCreates a transaction in the Partially Signed Transaction format.\n"
-                "Implements the Creator role.\n",
-                CreateTxDoc(),
+                "Implements the Creator role.\n"
+                "MWEB inputs are identified by mweb_out and require PSBT version 2. When all inputs are MWEB,\n"
+                "transparent output addresses are encoded as pegouts. Mixed transparent and MWEB inputs require\n"
+                "walletcreatefundedpsbt so the peg-in and pegout intent can be determined.\n",
+                Cat<std::vector<RPCArg>>(
+                    CreateTxDoc(/*allow_mweb=*/true),
+                    {
+                        {"psbt_version", RPCArg::Type::NUM, RPCArg::Default{2}, "The PSBT version number to use."},
+                    }
+                ),
                 RPCResult{
                     RPCResult::Type::STR, "", "The resulting raw transaction (base64-encoded string)"
                 },
@@ -1484,6 +1951,27 @@ static RPCHelpMan createpsbt()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
+<<<<<<< btco
+||||||| core24
+    RPCTypeCheck(request.params, {
+        UniValue::VARR,
+        UniValueType(), // ARR or OBJ, checked later
+        UniValue::VNUM,
+        UniValue::VBOOL,
+        }, true
+    );
+
+=======
+    RPCTypeCheck(request.params, {
+        UniValue::VARR,
+        UniValueType(), // ARR or OBJ, checked later
+        UniValue::VNUM,
+        UniValue::VBOOL,
+		UniValue::VNUM
+        }, true
+    );
+
+>>>>>>> litecoin24x
     std::optional<bool> rbf;
     if (!request.params[3].isNull()) {
         rbf = request.params[3].get_bool();
@@ -1491,14 +1979,18 @@ static RPCHelpMan createpsbt()
     CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
 
     // Make a blank psbt
-    PartiallySignedTransaction psbtx;
-    psbtx.tx = rawTx;
-    for (unsigned int i = 0; i < rawTx.vin.size(); ++i) {
-        psbtx.inputs.push_back(PSBTInput());
+    uint32_t psbt_version = 2;
+    if (!request.params[4].isNull()) {
+        psbt_version = request.params[4].getInt<int>();
     }
-    for (unsigned int i = 0; i < rawTx.vout.size(); ++i) {
-        psbtx.outputs.push_back(PSBTOutput());
+    if (psbt_version != 2 && psbt_version != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The PSBT version can only be 2 or 0");
     }
+    if (psbt_version == 0 && !rawTx.mweb_tx.IsNull()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "MWEB PSBTs require PSBT version 2");
+    }
+
+    PartiallySignedTransaction psbtx(rawTx, psbt_version);
 
     // Serialize the PSBT
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -1558,14 +2050,7 @@ static RPCHelpMan converttopsbt()
     }
 
     // Make a blank psbt
-    PartiallySignedTransaction psbtx;
-    psbtx.tx = tx;
-    for (unsigned int i = 0; i < tx.vin.size(); ++i) {
-        psbtx.inputs.push_back(PSBTInput());
-    }
-    for (unsigned int i = 0; i < tx.vout.size(); ++i) {
-        psbtx.outputs.push_back(PSBTOutput());
-    }
+    PartiallySignedTransaction psbtx(tx, /*version=*/2);
 
     // Serialize the PSBT
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -1598,6 +2083,7 @@ static RPCHelpMan utxoupdatepsbt()
             },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
+<<<<<<< btco
     // Unserialize the transactions
     PartiallySignedTransaction psbtx;
     std::string error;
@@ -1605,6 +2091,20 @@ static RPCHelpMan utxoupdatepsbt()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
     }
 
+||||||| core24
+    RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR}, true);
+
+    // Unserialize the transactions
+    PartiallySignedTransaction psbtx;
+    std::string error;
+    if (!DecodeBase64PSBT(psbtx, request.params[0].get_str(), error)) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
+    }
+
+=======
+    RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR}, true);
+
+>>>>>>> litecoin24x
     // Parse descriptors, if any.
     FlatSigningProvider provider;
     if (!request.params[1].isNull()) {
@@ -1613,53 +2113,13 @@ static RPCHelpMan utxoupdatepsbt()
             EvalDescriptorStringOrObject(descs[i], provider);
         }
     }
-    // We don't actually need private keys further on; hide them as a precaution.
-    HidingSigningProvider public_provider(&provider, /*hide_secret=*/true, /*hide_origin=*/false);
 
-    // Fetch previous transactions (inputs):
-    CCoinsView viewDummy;
-    CCoinsViewCache view(&viewDummy);
-    {
-        NodeContext& node = EnsureAnyNodeContext(request.context);
-        const CTxMemPool& mempool = EnsureMemPool(node);
-        ChainstateManager& chainman = EnsureChainman(node);
-        LOCK2(cs_main, mempool.cs);
-        CCoinsViewCache &viewChain = chainman.ActiveChainstate().CoinsTip();
-        CCoinsViewMemPool viewMempool(&viewChain, mempool);
-        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
-
-        for (const CTxIn& txin : psbtx.tx->vin) {
-            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
-        }
-
-        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
-    }
-
-    // Fill the inputs
-    const PrecomputedTransactionData txdata = PrecomputePSBTData(psbtx);
-    for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
-        PSBTInput& input = psbtx.inputs.at(i);
-
-        if (input.non_witness_utxo || !input.witness_utxo.IsNull()) {
-            continue;
-        }
-
-        const Coin& coin = view.AccessCoin(psbtx.tx->vin[i].prevout);
-
-        if (IsSegWitOutput(provider, coin.out.scriptPubKey)) {
-            input.witness_utxo = coin.out;
-        }
-
-        // Update script/keypath information using descriptor data.
-        // Note that SignPSBTInput does a lot more than just constructing ECDSA signatures
-        // we don't actually care about those here, in fact.
-        SignPSBTInput(public_provider, psbtx, i, &txdata, /*sighash=*/1);
-    }
-
-    // Update script/keypath information using descriptor data.
-    for (unsigned int i = 0; i < psbtx.tx->vout.size(); ++i) {
-        UpdatePSBTOutput(public_provider, psbtx, i);
-    }
+    const PartiallySignedTransaction psbtx = ProcessPSBT(
+        request.params[0].get_str(),
+        request.context,
+        HidingSigningProvider(&provider, /*hide_secret=*/true, /*hide_origin=*/false),
+        /*sighash_type=*/SIGHASH_ALL,
+        /*finalize=*/false);
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;
@@ -1695,7 +2155,7 @@ static RPCHelpMan joinpsbts()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "At least two PSBTs are required to join PSBTs.");
     }
 
-    uint32_t best_version = 1;
+    int32_t best_version = 1;
     uint32_t best_locktime = 0xffffffff;
     for (unsigned int i = 0; i < txs.size(); ++i) {
         PartiallySignedTransaction psbtx;
@@ -1703,10 +2163,13 @@ static RPCHelpMan joinpsbts()
         if (!DecodeBase64PSBT(psbtx, txs[i].get_str(), error)) {
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
         }
+        if (psbtx.GetPSBTVersion() != 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "joinpsbts only operates on version 0 PSBTs");
+        }
         psbtxs.push_back(psbtx);
         // Choose the highest version number
-        if (static_cast<uint32_t>(psbtx.tx->nVersion) > best_version) {
-            best_version = static_cast<uint32_t>(psbtx.tx->nVersion);
+        if (psbtx.tx_version > best_version) {
+            best_version = psbtx.tx_version;
         }
         // Choose the lowest lock time
         if (psbtx.tx->nLockTime < best_locktime) {
@@ -1716,19 +2179,22 @@ static RPCHelpMan joinpsbts()
 
     // Create a blank psbt where everything will be added
     PartiallySignedTransaction merged_psbt;
+    merged_psbt.tx_version = best_version;
+    merged_psbt.fallback_locktime = best_locktime;
+    // TODO: Remove for PSBTv2
     merged_psbt.tx = CMutableTransaction();
-    merged_psbt.tx->nVersion = static_cast<int32_t>(best_version);
+    merged_psbt.tx->nVersion = best_version;
     merged_psbt.tx->nLockTime = best_locktime;
 
     // Merge
     for (auto& psbt : psbtxs) {
-        for (unsigned int i = 0; i < psbt.tx->vin.size(); ++i) {
-            if (!merged_psbt.AddInput(psbt.tx->vin[i], psbt.inputs[i])) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input %s:%d exists in multiple PSBTs", psbt.tx->vin[i].prevout.hash.ToString(), psbt.tx->vin[i].prevout.n));
+        for (unsigned int i = 0; i < psbt.inputs.size(); ++i) {
+            if (!merged_psbt.AddInput(psbt.inputs[i])) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input %s exists in multiple PSBTs", psbt.inputs[i].GetID().ToString()));
             }
         }
-        for (unsigned int i = 0; i < psbt.tx->vout.size(); ++i) {
-            merged_psbt.AddOutput(psbt.tx->vout[i], psbt.outputs[i]);
+        for (unsigned int i = 0; i < psbt.outputs.size(); ++i) {
+            merged_psbt.AddOutput(psbt.outputs[i]);
         }
         for (auto& xpub_pair : psbt.m_xpubs) {
             if (merged_psbt.m_xpubs.count(xpub_pair.first) == 0) {
@@ -1751,14 +2217,17 @@ static RPCHelpMan joinpsbts()
     Shuffle(output_indices.begin(), output_indices.end(), FastRandomContext());
 
     PartiallySignedTransaction shuffled_psbt;
+    shuffled_psbt.tx_version = merged_psbt.tx_version;
+    shuffled_psbt.fallback_locktime = merged_psbt.fallback_locktime;
+    // TODO: Remove for PSBTv2
     shuffled_psbt.tx = CMutableTransaction();
     shuffled_psbt.tx->nVersion = merged_psbt.tx->nVersion;
     shuffled_psbt.tx->nLockTime = merged_psbt.tx->nLockTime;
     for (int i : input_indices) {
-        shuffled_psbt.AddInput(merged_psbt.tx->vin[i], merged_psbt.inputs[i]);
+        shuffled_psbt.AddInput(merged_psbt.inputs[i]);
     }
     for (int i : output_indices) {
-        shuffled_psbt.AddOutput(merged_psbt.tx->vout[i], merged_psbt.outputs[i]);
+        shuffled_psbt.AddOutput(merged_psbt.outputs[i]);
     }
     shuffled_psbt.unknown.insert(merged_psbt.unknown.begin(), merged_psbt.unknown.end());
 
@@ -1802,6 +2271,7 @@ static RPCHelpMan analyzepsbt()
                         }},
                     }},
                     {RPCResult::Type::NUM, "estimated_vsize", /*optional=*/true, "Estimated vsize of the final signed transaction"},
+                    {RPCResult::Type::NUM, "estimated_mweb_weight", /*optional=*/true, "Estimated MWEB weight of the final signed transaction"},
                     {RPCResult::Type::STR_AMOUNT, "estimated_feerate", /*optional=*/true, "Estimated feerate of the final signed transaction in " + CURRENCY_UNIT + "/kvB. Shown only if all UTXO slots in the PSBT have been filled"},
                     {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "The transaction fee paid. Shown only if all UTXO slots in the PSBT have been filled"},
                     {RPCResult::Type::STR, "next", "Role of the next person that this psbt needs to go to"},
@@ -1837,7 +2307,7 @@ static RPCHelpMan analyzepsbt()
             for (const CKeyID& pubkey : input.missing_pubkeys) {
                 missing_pubkeys_univ.push_back(HexStr(pubkey));
             }
-            missing.pushKV("pubkeys", missing_pubkeys_univ);
+            missing.pushKV("pubkeys", std::move(missing_pubkeys_univ));
         }
         if (!input.missing_redeem_script.IsNull()) {
             missing.pushKV("redeemscript", HexStr(input.missing_redeem_script));
@@ -1850,17 +2320,20 @@ static RPCHelpMan analyzepsbt()
             for (const CKeyID& pubkey : input.missing_sigs) {
                 missing_sigs_univ.push_back(HexStr(pubkey));
             }
-            missing.pushKV("signatures", missing_sigs_univ);
+            missing.pushKV("signatures", std::move(missing_sigs_univ));
         }
         if (!missing.getKeys().empty()) {
-            input_univ.pushKV("missing", missing);
+            input_univ.pushKV("missing", std::move(missing));
         }
-        inputs_result.push_back(input_univ);
+        inputs_result.push_back(std::move(input_univ));
     }
-    if (!inputs_result.empty()) result.pushKV("inputs", inputs_result);
+    if (!inputs_result.empty()) result.pushKV("inputs", std::move(inputs_result));
 
     if (psbta.estimated_vsize != std::nullopt) {
         result.pushKV("estimated_vsize", (int)*psbta.estimated_vsize);
+    }
+    if (psbta.estimated_mweb_weight != std::nullopt) {
+        result.pushKV("estimated_mweb_weight", (int)*psbta.estimated_mweb_weight);
     }
     if (psbta.estimated_feerate != std::nullopt) {
         result.pushKV("estimated_feerate", ValueFromAmount(psbta.estimated_feerate->GetFeePerK()));

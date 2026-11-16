@@ -8,6 +8,7 @@ EXTRA_LIBRARIES += \
   $(LIBTEST_UTIL)
 
 TEST_UTIL_H = \
+<<<<<<< btco
   test/util/blockfilter.h \
   test/util/chainstate.h \
   test/util/coins.h \
@@ -23,6 +24,33 @@ TEST_UTIL_H = \
   test/util/txmempool.h \
   test/util/validation.h \
   test/util/xoroshiro128plusplus.h
+||||||| core24
+    test/util/blockfilter.h \
+    test/util/chainstate.h \
+    test/util/logging.h \
+    test/util/mining.h \
+    test/util/net.h \
+    test/util/script.h \
+    test/util/setup_common.h \
+    test/util/str.h \
+    test/util/transaction_utils.h \
+    test/util/validation.h \
+    test/util/wallet.h
+=======
+    test/util/blockfilter.h \
+    test/util/chainstate.h \
+    test/util/logging.h \
+    test/util/mining.h \
+    test/util/net.h \
+    test/util/psbt.h \
+    test/util/psbt_vectors.h \
+    test/util/script.h \
+    test/util/setup_common.h \
+    test/util/str.h \
+    test/util/transaction_utils.h \
+    test/util/validation.h \
+    test/util/wallet.h
+>>>>>>> litecoin24x
 
 if ENABLE_WALLET
 TEST_UTIL_H += wallet/test/util.h

@@ -44,7 +44,15 @@ const char *CFHEADERS="cfheaders";
 const char *GETCFCHECKPT="getcfcheckpt";
 const char *CFCHECKPT="cfcheckpt";
 const char *WTXIDRELAY="wtxidrelay";
+<<<<<<< btco
 const char *SENDTXRCNCL="sendtxrcncl";
+||||||| core24
+=======
+const char *MWEBHEADER="mwebheader";
+const char *MWEBLEAFSET="mwebleafset";
+const char *GETMWEBUTXOS="getmwebutxos";
+const char *MWEBUTXOS="mwebutxos";
+>>>>>>> litecoin24x
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -85,7 +93,15 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETCFCHECKPT,
     NetMsgType::CFCHECKPT,
     NetMsgType::WTXIDRELAY,
+<<<<<<< btco
     NetMsgType::SENDTXRCNCL,
+||||||| core24
+=======
+    NetMsgType::MWEBHEADER,
+    NetMsgType::MWEBLEAFSET,
+    NetMsgType::GETMWEBUTXOS,
+    NetMsgType::MWEBUTXOS,
+>>>>>>> litecoin24x
 };
 const static std::vector<std::string> allNetMessageTypesVec(std::begin(allNetMessageTypes), std::end(allNetMessageTypes));
 
@@ -128,9 +144,9 @@ bool CMessageHeader::IsCommandValid() const
 
 ServiceFlags GetDesirableServiceFlags(ServiceFlags services) {
     if ((services & NODE_NETWORK_LIMITED) && g_initial_block_download_completed) {
-        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
+        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS | NODE_MWEB);
     }
-    return ServiceFlags(NODE_NETWORK | NODE_WITNESS);
+    return ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB);
 }
 
 void SetServiceFlagsIBDCache(bool state) {
@@ -153,6 +169,8 @@ bool operator<(const CInv& a, const CInv& b)
 std::string CInv::GetCommand() const
 {
     std::string cmd;
+    if (type & MSG_MWEB_FLAG)
+        cmd.append("mweb-");
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
     int masked = type & MSG_TYPE_MASK;
@@ -164,6 +182,8 @@ std::string CInv::GetCommand() const
     case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
     case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
     case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
+    case MSG_MWEB_HEADER:    return cmd.append(NetMsgType::MWEBHEADER);
+    case MSG_MWEB_LEAFSET:   return cmd.append(NetMsgType::MWEBLEAFSET);
     default:
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }
@@ -193,11 +213,13 @@ static std::string serviceFlagToStr(size_t bit)
     const uint64_t service_flag = 1ULL << bit;
     switch ((ServiceFlags)service_flag) {
     case NODE_NONE: abort();  // impossible
-    case NODE_NETWORK:         return "NETWORK";
-    case NODE_BLOOM:           return "BLOOM";
-    case NODE_WITNESS:         return "WITNESS";
-    case NODE_COMPACT_FILTERS: return "COMPACT_FILTERS";
-    case NODE_NETWORK_LIMITED: return "NETWORK_LIMITED";
+    case NODE_NETWORK:           return "NETWORK";
+    case NODE_BLOOM:             return "BLOOM";
+    case NODE_WITNESS:           return "WITNESS";
+    case NODE_COMPACT_FILTERS:   return "COMPACT_FILTERS";
+    case NODE_NETWORK_LIMITED:   return "NETWORK_LIMITED";
+    case NODE_MWEB:              return "MWEB";
+    case NODE_MWEB_LIGHT_CLIENT: return "MWEB_LIGHT_CLIENT";
     // Not using default, so we get warned when a case is missing
     }
 

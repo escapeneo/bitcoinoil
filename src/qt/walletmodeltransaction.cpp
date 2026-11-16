@@ -10,8 +10,20 @@
 
 #include <policy/policy.h>
 
+<<<<<<< btco
 WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient>& _recipients)
     : recipients(_recipients)
+||||||| core24
+WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
+    recipients(_recipients),
+    fee(0)
+=======
+#include <cassert>
+
+WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
+    recipients(_recipients),
+    fee(0)
+>>>>>>> litecoin24x
 {
 }
 
@@ -45,19 +57,11 @@ void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
     fee = newFee;
 }
 
-void WalletModelTransaction::reassignAmounts(int nChangePosRet)
+void WalletModelTransaction::reassignAmounts(const std::vector<CAmount>& recipient_amounts)
 {
-    const CTransaction* walletTransaction = wtx.get();
-    int i = 0;
-    for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it)
-    {
-        SendCoinsRecipient& rcp = (*it);
-        {
-            if (i == nChangePosRet)
-                i++;
-            rcp.amount = walletTransaction->vout[i].nValue;
-            i++;
-        }
+    assert(recipient_amounts.size() == static_cast<size_t>(recipients.size()));
+    for (int i = 0; i < recipients.size(); ++i) {
+        recipients[i].amount = recipient_amounts[i];
     }
 }
 

@@ -25,6 +25,7 @@
 #include <psbt.h>
 #include <util/system.h> // for GetBoolArg
 #include <util/translation.h>
+#include <wallet/change.h>
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h> // for CRecipient
 
@@ -37,6 +38,7 @@
 #include <QTimer>
 
 using wallet::CCoinControl;
+using wallet::ChangePosition;
 using wallet::CRecipient;
 using wallet::DEFAULT_DISABLE_WALLET;
 
@@ -187,8 +189,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             setAddress.insert(rcp.address);
             ++nAddresses;
 
-            CScript scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+            CRecipient recipient = {DecodeDestination(rcp.address.toStdString()), rcp.amount, rcp.fSubtractFeeFromAmount};
             vecSend.push_back(recipient);
 
             total += rcp.amount;
@@ -210,14 +211,21 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
     try {
         CAmount nFeeRequired = 0;
-        int nChangePosRet = -1;
+        ChangePosition change_pos;
+        std::vector<CAmount> recipient_amounts;
 
         auto& newTx = transaction.getWtx();
+<<<<<<< btco
         const auto& res = m_wallet->createTransaction(vecSend, coinControl, /*sign=*/!wallet().privateKeysDisabled(), nChangePosRet, nFeeRequired);
+||||||| core24
+        const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, nChangePosRet, nFeeRequired);
+=======
+        const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, change_pos, nFeeRequired, recipient_amounts);
+>>>>>>> litecoin24x
         newTx = res ? *res : nullptr;
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && newTx)
-            transaction.reassignAmounts(nChangePosRet);
+            transaction.reassignAmounts(recipient_amounts);
 
         if(!newTx)
         {
@@ -535,8 +543,14 @@ bool WalletModel::bumpFee(uint256 hash, uint256& new_hash)
 
     // Short-circuit if we are returning a bumped transaction PSBT to clipboard
     if (retval == QMessageBox::Save) {
+<<<<<<< btco
         // "Create Unsigned" clicked
         PartiallySignedTransaction psbtx(mtx);
+||||||| core24
+        PartiallySignedTransaction psbtx(mtx);
+=======
+        PartiallySignedTransaction psbtx(mtx, 0);
+>>>>>>> litecoin24x
         bool complete = false;
         const TransactionError err = wallet().fillPSBT(SIGHASH_ALL, /*sign=*/false, /*bip32derivs=*/true, nullptr, psbtx, complete);
         if (err != TransactionError::OK || complete) {
