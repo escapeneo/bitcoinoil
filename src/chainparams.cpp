@@ -40,6 +40,22 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
         }
         options.auxpow_start_height = height;
     }
+    if (args.IsArgSet("-asertheight")) {
+        const std::string value = args.GetArg("-asertheight", "");
+        int32_t height;
+        if (!ParseInt32(value, &height) || height < 1 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Invalid height value (%s) for -asertheight.", value));
+        }
+        options.asert_height = height;
+    }
+    if (args.IsArgSet("-aserthalflife")) {
+        const std::string value = args.GetArg("-aserthalflife", "");
+        int64_t half_life;
+        if (!ParseInt64(value, &half_life) || half_life < 1 || half_life > 365 * 24 * 60 * 60) {
+            throw std::runtime_error(strprintf("Invalid value (%s) for -aserthalflife.", value));
+        }
+        options.asert_half_life = half_life;
+    }
 
     for (const std::string& arg : args.GetArgs("-testactivationheight")) {
         const auto found{arg.find('@')};
@@ -108,6 +124,9 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
 {
     if (chain != CBaseChainParams::REGTEST && args.IsArgSet("-auxpowstartheight")) {
         throw std::runtime_error(strprintf("-auxpowstartheight is only available on regtest; mainnet activation is fixed at block %d.", Consensus::MAINNET_AUXPOW_START_HEIGHT));
+    }
+    if (chain != CBaseChainParams::REGTEST && (args.IsArgSet("-asertheight") || args.IsArgSet("-aserthalflife"))) {
+        throw std::runtime_error("-asertheight and -aserthalflife are only available on regtest.");
     }
     if (chain == CBaseChainParams::MAIN) {
         return CChainParams::Main();

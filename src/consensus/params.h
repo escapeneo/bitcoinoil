@@ -18,6 +18,10 @@ namespace Consensus {
 /** Fixed mainnet hard-fork height. Not configurable by mainnet operators. */
 static constexpr int MAINNET_AUXPOW_START_HEIGHT{155000};
 static constexpr int32_t AUXPOW_CHAIN_ID{0x0B0C};
+/** ASERT has no activation height on this network. */
+static constexpr int ASERT_DISABLED{std::numeric_limits<int>::max()};
+/** Provisional half-life for tests. The mainnet value is not chosen yet. */
+static constexpr int64_t ASERT_PROVISIONAL_HALF_LIFE{2 * 60 * 60};
 
 /**
  * A buried deployment is one where the height of the activation has been hardcoded into
@@ -160,6 +164,16 @@ struct Params {
 
     /** The height is that of the candidate block, not its parent. */
     bool IsAuxpowEnabled(int height) const { return height >= nAuxpowStartHeight; }
+
+    /** ASERT difficulty adjustment (aserti3). Blocks at nAsertHeight and
+     *  above take their target from the block at nAsertHeight - 1, the
+     *  anchor, instead of LWMA. ASERT_DISABLED means it is not scheduled. */
+    int nAsertHeight;
+    /** Seconds ahead of or behind schedule that double or halve the target. */
+    int64_t nAsertHalfLife;
+
+    /** The height is that of the candidate block, not its parent. */
+    bool IsAsertEnabled(int height) const { return height >= nAsertHeight; }
 
     /**
      * Check whether or not to allow legacy blocks at the given height.

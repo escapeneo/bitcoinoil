@@ -113,6 +113,8 @@ public:
         consensus.nAuxpowStartHeight = Consensus::MAINNET_AUXPOW_START_HEIGHT;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
+        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        consensus.nAsertHalfLife = Consensus::ASERT_PROVISIONAL_HALF_LIFE;
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -228,6 +230,8 @@ public:
         consensus.nAuxpowStartHeight = 0;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
+        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        consensus.nAsertHalfLife = Consensus::ASERT_PROVISIONAL_HALF_LIFE;
 
         pchMessageStart[0] = 0x27;
         pchMessageStart[1] = 0x7b;
@@ -350,6 +354,8 @@ public:
         consensus.nAuxpowStartHeight = 0;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
+        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        consensus.nAsertHalfLife = Consensus::ASERT_PROVISIONAL_HALF_LIFE;
         consensus.nSubsidyHalvingInterval = 185900;
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
@@ -481,6 +487,8 @@ public:
         consensus.nAuxpowStartHeight = opts.auxpow_start_height.value_or(0);
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
+        consensus.nAsertHeight = opts.asert_height.value_or(Consensus::ASERT_DISABLED);
+        consensus.nAsertHalfLife = opts.asert_half_life.value_or(Consensus::ASERT_PROVISIONAL_HALF_LIFE);
 
         pchMessageStart[0] = 0xfe;
         pchMessageStart[1] = 0xdc;

@@ -12,9 +12,13 @@
 #include <primitives/block.h>
 #include <uint256.h>
 
+#include <cstdlib>
+
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     assert(pindexLast != nullptr);
+    // ASERT is checked first so that regtest can opt in with -asertheight.
+    if (params.IsAsertEnabled(pindexLast->nHeight + 1)) return GetNextASERTWorkRequired(pindexLast, params);
     // Regtest must stay at its fixed target even after the LWMA fork height.
     // Mainnet and testnet do not enable this flag.
     if (params.fPowNoRetargeting) return pindexLast->nBits;
@@ -94,6 +98,90 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
     return nextTarget.GetCompact();
 }
 
+arith_uint256 CalculateASERT(const arith_uint256& refTarget, const int64_t nPowTargetSpacing, const int64_t nTimeDiff, const int64_t nHeightDiff, const arith_uint256& powLimit, const int64_t nHalfLife) noexcept
+{
+    assert(refTarget > 0 && refTarget <= powLimit);
+    assert(nHeightDiff >= 0);
+    assert(nHalfLife > 0);
+
+    // The 17-bit factor below needs headroom above the target. Real networks
+    // keep 32 leading zero bits in powLimit. Regtest does not, so its targets
+    // are scaled down for the calculation and back up afterwards.
+    const unsigned int scale{powLimit.bits() > 224 ? powLimit.bits() - 224 : 0};
+    const arith_uint256 limit{powLimit >> scale};
+    arith_uint256 target{refTarget >> scale};
+    if (target == 0) target = 1;
+
+    // Heights and header times keep this far inside int64_t.
+    assert(std::llabs(nTimeDiff - nPowTargetSpacing * nHeightDiff) < (int64_t{1} << (63 - 16)));
+    // Truncating division, as in the specification.
+    const int64_t exponent{((nTimeDiff - nPowTargetSpacing * (nHeightDiff + 1)) * 65536) / nHalfLife};
+
+    // Split into whole doublings and a 16-bit fraction, flooring explicitly
+    // instead of relying on right shifts of negative numbers.
+    int64_t shifts{exponent / 65536};
+    if (exponent < 0 && exponent % 65536 != 0) --shifts;
+    const uint64_t frac{static_cast<uint64_t>(exponent - shifts * 65536)};
+    assert(frac < 65536);
+
+    // 2^x ~= 1 + 0.695502049*x + 0.2262698*x^2 + 0.0782318*x^3 for 0 <= x < 1.
+    const uint32_t factor{65536 + static_cast<uint32_t>((
+        195766423245049ULL * frac +
+        971821376ULL * frac * frac +
+        5127ULL * frac * frac * frac +
+        (1ULL << 47)) >> 48)};
+
+    target *= factor;
+
+    // Undo the 16 fractional bits of the factor together with the doublings.
+    shifts -= 16;
+    if (shifts <= 0) {
+        if (shifts <= -256) {
+            target = 0;
+        } else {
+            target >>= static_cast<unsigned int>(-shifts);
+        }
+    } else if (shifts >= 256) {
+        target = limit;
+    } else {
+        const arith_uint256 shifted{target << static_cast<unsigned int>(shifts)};
+        // A shift that loses bits means the result is beyond the limit.
+        target = (shifted >> static_cast<unsigned int>(shifts)) != target ? limit : shifted;
+    }
+
+    if (target == 0) {
+        target = 1;
+    } else if (target > limit) {
+        target = limit;
+    }
+    target <<= scale;
+    return target > powLimit ? powLimit : target;
+}
+
+unsigned int GetNextASERTWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
+{
+    assert(pindexLast != nullptr);
+    assert(params.nAsertHeight >= 1 && pindexLast->nHeight >= params.nAsertHeight - 1);
+
+    // The anchor is the last block before ASERT. Its target came from the
+    // previous rules, and every later target follows from it.
+    const CBlockIndex* anchor{pindexLast->GetAncestor(params.nAsertHeight - 1)};
+    assert(anchor != nullptr);
+    const int64_t anchor_parent_time{anchor->pprev ? anchor->pprev->GetBlockTime() : anchor->GetBlockTime() - params.nPowTargetSpacing};
+
+    const arith_uint256 pow_limit{UintToArith256(params.powLimit)};
+    arith_uint256 ref_target;
+    ref_target.SetCompact(anchor->nBits);
+    if (ref_target > pow_limit) ref_target = pow_limit;
+
+    return CalculateASERT(ref_target,
+                          params.nPowTargetSpacing,
+                          pindexLast->GetBlockTime() - anchor_parent_time,
+                          pindexLast->nHeight - anchor->nHeight,
+                          pow_limit,
+                          params.nAsertHalfLife).GetCompact();
+}
+
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
 {
     if (params.fPowNoRetargeting)
@@ -124,6 +212,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t height, uint32_t old_nbits, uint32_t new_nbits)
 {
     if (params.fPowAllowMinDifficultyBlocks) return true;
+    if (params.IsAsertEnabled(height)) return true;
 
     if (height % params.DifficultyAdjustmentInterval() == 0) {
         int64_t smallest_timespan = params.nPowTargetTimespan/4;
