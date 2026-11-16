@@ -50,6 +50,8 @@ jobs:
         run: python3 contrib/auxpow/headers_regtest.py --tmpdir=/tmp/btco-auxpow-headers
       - name: getauxblock calls used by YIIMP stratum servers
         run: python3 contrib/auxpow/getauxblock_regtest.py
+      - name: ASERT activation on regtest against the Python model
+        run: python3 contrib/asert/asert_regtest.py
       - name: Qt wallet regression without a display
         run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
       - name: Preserve node logs on failure

@@ -6,6 +6,7 @@
 #ifndef BITCOINOIL_POW_H
 #define BITCOINOIL_POW_H
 
+#include <arith_uint256.h>
 #include <consensus/params.h>
 
 #include <stdint.h>
@@ -17,6 +18,22 @@ class uint256;
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
 unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params&);
+
+/**
+ * ASERT (aserti3) target, as specified for Bitcoin Cash in November 2020.
+ *
+ * @param refTarget          Target of the anchor block.
+ * @param nPowTargetSpacing  Ideal seconds between blocks.
+ * @param nTimeDiff          Time of the last block minus time of the anchor's parent.
+ * @param nHeightDiff        Height of the last block minus height of the anchor.
+ * @param powLimit           Easiest target allowed.
+ * @param nHalfLife          Seconds off schedule that double or halve the target.
+ */
+arith_uint256 CalculateASERT(const arith_uint256& refTarget, int64_t nPowTargetSpacing, int64_t nTimeDiff, int64_t nHeightDiff, const arith_uint256& powLimit, int64_t nHalfLife) noexcept;
+
+/** Target for the block after pindexLast under ASERT. The anchor is found on
+ *  pindexLast's own branch, so a reorganisation across it needs no cache. */
+unsigned int GetNextASERTWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params);
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);
@@ -37,6 +54,9 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
  * This function only checks that the new value is within a factor of 4 of the
  * old value for blocks at the difficulty adjustment interval, and otherwise
  * requires the values to be the same.
+ *
+ * Always returns true at ASERT heights: one block after a long gap may
+ * legitimately move the target by more than any fixed factor.
  *
  * Always returns true on networks where min difficulty blocks are allowed,
  * such as regtest/testnet.

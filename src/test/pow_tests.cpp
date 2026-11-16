@@ -5,10 +5,14 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <pow.h>
+#include <test/asert_vectors.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <memory>
+#include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
 
@@ -192,6 +196,134 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
         targ_max /= consensus.nPowTargetTimespan*4;
         BOOST_CHECK(UintToArith256(consensus.powLimit) < targ_max);
     }
+}
+
+/** A chain of block indexes with chosen times, for ASERT tests. */
+struct AsertChain {
+    std::vector<std::unique_ptr<CBlockIndex>> blocks;
+
+    CBlockIndex* Add(int64_t time, uint32_t bits, CBlockIndex* prev = nullptr)
+    {
+        if (!prev && !blocks.empty()) prev = blocks.back().get();
+        auto index = std::make_unique<CBlockIndex>();
+        index->pprev = prev;
+        index->nHeight = prev ? prev->nHeight + 1 : 0;
+        index->nTime = time;
+        index->nBits = bits;
+        index->BuildSkip();
+        blocks.push_back(std::move(index));
+        return blocks.back().get();
+    }
+};
+
+BOOST_AUTO_TEST_CASE(asert_official_vectors)
+{
+    arith_uint256 pow_limit;
+    pow_limit.SetCompact(0x1d00ffff);
+    size_t rows{0};
+    for (const AsertVector& v : ASERT_VECTORS) {
+        arith_uint256 anchor;
+        anchor.SetCompact(v.anchor_bits);
+        const uint32_t got{CalculateASERT(anchor, 600, v.time_diff, v.height_diff, pow_limit, 2 * 24 * 60 * 60).GetCompact()};
+        BOOST_REQUIRE_MESSAGE(got == v.expected_bits, strprintf("row %u: got %08x, expected %08x", rows, got, v.expected_bits));
+        ++rows;
+    }
+    BOOST_CHECK_EQUAL(rows, 14000U);
+}
+
+BOOST_AUTO_TEST_CASE(asert_schedule_and_bounds)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    // Not scheduled on mainnet.
+    BOOST_CHECK_EQUAL(consensus.nAsertHeight, Consensus::ASERT_DISABLED);
+    BOOST_CHECK(!consensus.IsAsertEnabled(1000000000));
+
+    const arith_uint256 pow_limit{UintToArith256(consensus.powLimit)};
+    const int64_t T{consensus.nPowTargetSpacing};
+    const int64_t half_life{3600};
+    arith_uint256 anchor;
+    anchor.SetCompact(0x1802aee8);
+
+    // On schedule: unchanged. One half-life late or early: double or half.
+    BOOST_CHECK(CalculateASERT(anchor, T, T, 0, pow_limit, half_life) == anchor);
+    BOOST_CHECK(CalculateASERT(anchor, T, 100 * T, 99, pow_limit, half_life) == anchor);
+    BOOST_CHECK(CalculateASERT(anchor, T, T + half_life, 0, pow_limit, half_life) == anchor * 2);
+    BOOST_CHECK(CalculateASERT(anchor, T, T - half_life, 0, pow_limit, half_life) == anchor / 2);
+
+    // Later time never gives a harder target.
+    arith_uint256 previous{CalculateASERT(anchor, T, -5000, 10, pow_limit, half_life)};
+    for (int64_t t = -4990; t < 20000; t += 37) {
+        const arith_uint256 next{CalculateASERT(anchor, T, t, 10, pow_limit, half_life)};
+        BOOST_REQUIRE(next >= previous);
+        previous = next;
+    }
+
+    // Clamped at both ends instead of overflowing.
+    BOOST_CHECK(CalculateASERT(anchor, T, int64_t{4000000000}, 0, pow_limit, half_life) == pow_limit);
+    BOOST_CHECK(CalculateASERT(anchor, T, -int64_t{4000000000}, 0, pow_limit, half_life) == arith_uint256{1});
+
+    // Regtest's limit has only one leading zero bit.
+    const auto regtest = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
+    const arith_uint256 regtest_limit{UintToArith256(regtest->GetConsensus().powLimit)};
+    BOOST_CHECK(CalculateASERT(regtest_limit, T, T, 0, regtest_limit, half_life).GetCompact() == regtest_limit.GetCompact());
+    BOOST_CHECK(CalculateASERT(regtest_limit, T, T + half_life, 0, regtest_limit, half_life).GetCompact() == regtest_limit.GetCompact());
+    BOOST_CHECK(CalculateASERT(regtest_limit, T, T - half_life, 0, regtest_limit, half_life).GetCompact() == arith_uint256{regtest_limit / 2}.GetCompact());
+}
+
+BOOST_AUTO_TEST_CASE(asert_activation_and_anchor)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    auto consensus = chainParams->GetConsensus();
+    const int64_t T{consensus.nPowTargetSpacing};
+    const uint32_t bits{0x1802aee8};
+    consensus.nAsertHeight = 200;
+    consensus.V2ForkHeight = 0; // LWMA from the start, as after block 3690 on mainnet
+    consensus.nAsertHalfLife = 3600;
+
+    AsertChain chain;
+    int64_t time{1700000000};
+    for (int h = 0; h < 199; ++h) chain.Add(time += T, bits);
+    // Height 198 is the tip; the block at 199 still follows LWMA.
+    CBlockHeader header;
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(chain.blocks.back().get(), &header, consensus),
+                      LwmaCalculateNextWorkRequired(chain.blocks.back().get(), consensus));
+
+    // Anchor at height 199, mined on schedule: block 200 keeps its target.
+    CBlockIndex* anchor{chain.Add(time += T, bits)};
+    BOOST_CHECK_EQUAL(anchor->nHeight, 199);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(anchor, &header, consensus), bits);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 200, bits, 0x1d00ffff));
+    BOOST_CHECK(!PermittedDifficultyTransition(consensus, 199, bits, 0x1d00ffff));
+
+    // Fast blocks raise the difficulty, a long gap lowers it again, and the
+    // result depends only on total time and height, not on the path.
+    CBlockIndex* fork_point{anchor};
+    arith_uint256 anchor_target, target;
+    anchor_target.SetCompact(bits);
+    for (int i = 0; i < 20; ++i) chain.Add(time += 10, bits);
+    target.SetCompact(GetNextWorkRequired(chain.blocks.back().get(), &header, consensus));
+    BOOST_CHECK(target < anchor_target / 2);
+    CBlockIndex* slow{chain.Add(time += 20 * (T - 10) + T, bits)};
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(slow, &header, consensus), bits);
+
+    // Another branch from the anchor has its own history but the same anchor.
+    CBlockIndex* branch{chain.Add(fork_point->GetBlockTime() + T + 3600, bits, fork_point)};
+    target.SetCompact(GetNextWorkRequired(branch, &header, consensus));
+    BOOST_CHECK(target == anchor_target * 2);
+    // The first branch is unaffected.
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(slow, &header, consensus), bits);
+
+    // A timestamp before the previous block is handled.
+    CBlockIndex* backwards{chain.Add(branch->GetBlockTime() - 600, bits, branch)};
+    target.SetCompact(GetNextWorkRequired(backwards, &header, consensus));
+    BOOST_CHECK(target < anchor_target * 2 && target > anchor_target);
+
+    // With no-retargeting set, as on regtest, ASERT still applies once enabled.
+    consensus.fPowNoRetargeting = true;
+    BOOST_CHECK(GetNextWorkRequired(branch, &header, consensus) != bits);
+    consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(branch, &header, consensus), bits);
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_MAIN_sanity)

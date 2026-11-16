@@ -155,6 +155,8 @@ public:
         std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
         bool fastprune{false};
         std::optional<int> auxpow_start_height{};
+        std::optional<int> asert_height{};
+        std::optional<int64_t> asert_half_life{};
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);

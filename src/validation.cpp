@@ -3736,7 +3736,8 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "time-too-old", "block's timestamp is too early");
 
     // Check timestamp
-    if (block.Time() > now + std::chrono::seconds{MAX_FUTURE_BLOCK_TIME}) {
+    const int64_t max_future_time{consensusParams.IsAsertEnabled(nHeight) ? ASERT_MAX_FUTURE_BLOCK_TIME : MAX_FUTURE_BLOCK_TIME};
+    if (block.Time() > now + std::chrono::seconds{max_future_time}) {
         return state.Invalid(BlockValidationResult::BLOCK_TIME_FUTURE, "time-too-new", "block timestamp too far in the future");
     }
 

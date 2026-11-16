@@ -422,6 +422,11 @@ static RPCHelpMan getmininginfo()
                             {RPCResult::Type::NUM, "nextblockheight", "Height of the next candidate block"},
                             {RPCResult::Type::BOOL, "enabled", "Whether AuxPoW is allowed for that candidate"},
                         }},
+                        {RPCResult::Type::OBJ, "asert", "ASERT difficulty adjustment for the next block", {
+                            {RPCResult::Type::NUM, "startheight", /*optional=*/true, "First height using ASERT, if scheduled"},
+                            {RPCResult::Type::NUM, "halflife", /*optional=*/true, "ASERT half-life in seconds, if scheduled"},
+                            {RPCResult::Type::BOOL, "enabled", "Whether ASERT sets the target of that candidate"},
+                        }},
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
                     }},
                 RPCExamples{
@@ -451,6 +456,13 @@ static RPCHelpMan getmininginfo()
     auxpow.pushKV("nextblockheight", active_chain.Height() + 1);
     auxpow.pushKV("enabled", consensus.IsAuxpowEnabled(active_chain.Height() + 1));
     obj.pushKV("auxpow", std::move(auxpow));
+    UniValue asert(UniValue::VOBJ);
+    if (consensus.nAsertHeight != Consensus::ASERT_DISABLED) {
+        asert.pushKV("startheight", consensus.nAsertHeight);
+        asert.pushKV("halflife", consensus.nAsertHalfLife);
+    }
+    asert.pushKV("enabled", consensus.IsAsertEnabled(active_chain.Height() + 1));
+    obj.pushKV("asert", std::move(asert));
     obj.pushKV("warnings",         GetWarnings(false).original);
     return obj;
 },
