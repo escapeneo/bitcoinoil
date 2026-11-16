@@ -52,6 +52,11 @@ jobs:
         run: python3 contrib/auxpow/getauxblock_regtest.py
       - name: ASERT activation on regtest against the Python model
         run: python3 contrib/asert/asert_regtest.py
+      - name: Block relay functional tests
+        run: |
+          for t in p2p_compactblocks.py p2p_compactblocks_hb.py p2p_compactblocks_blocksonly.py p2p_mutated_blocks.py p2p_invalid_block.py p2p_unrequested_blocks.py p2p_sendheaders.py p2p_segwit.py; do
+            python3 test/functional/$t
+          done
       - name: Qt wallet regression without a display
         run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
       - name: Preserve node logs on failure

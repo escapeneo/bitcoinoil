@@ -485,7 +485,7 @@ static RPCHelpMan getblockfrompeer()
         "getblockfrompeer",
         "Attempt to fetch block from a given peer.\n\n"
         "We must have the header for this block, e.g. using submitheader.\n"
-        "Subsequent calls for the same block and a new peer will cause the response from the previous peer to be ignored.\n"
+        "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n"
         "Peers generally ignore requests for a stale block that they never fully verified, or one that is more than a month old.\n"
         "When a peer does not respond with a block, we will disconnect.\n"
         "Note: The block could be re-pruned as soon as it is received.\n\n"
@@ -1325,6 +1325,7 @@ RPCHelpMan getblockchaininfo()
                 {RPCResult::Type::NUM, "pruneheight", /*optional=*/true, "height of the last block pruned, plus one (only present if pruning is enabled)"},
                 {RPCResult::Type::BOOL, "automatic_pruning", /*optional=*/true, "whether automatic pruning is enabled (only present if pruning is enabled)"},
                 {RPCResult::Type::NUM, "prune_target_size", /*optional=*/true, "the target size used by pruning (only present if automatic pruning is enabled)"},
+                {RPCResult::Type::STR, "V2ForkHeightStatus", "whether the V2 fork height has been reached"},
                 {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
             }},
         RPCExamples{
@@ -1377,6 +1378,7 @@ RPCHelpMan getblockchaininfo()
         obj.pushKV("V2ForkHeightStatus", "Reached, active");
     }
 
+    obj.pushKV("warnings", GetWarnings(false).original);
 
 
     return obj;
