@@ -219,12 +219,17 @@ bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per
         const auto& s = sock->m_socket;
         if (events.requested & RECV) {
             FD_SET(s, &recv);
+            // Only watch for exceptional conditions (such as TCP urgent data)
+            // when a read is wanted, as poll() does. Otherwise a peer whose
+            // reads are paused could still make us read from its socket.
+            FD_SET(s, &err);
         }
         if (events.requested & SEND) {
             FD_SET(s, &send);
         }
-        FD_SET(s, &err);
-        socket_max = std::max(socket_max, s);
+        if (events.requested & (RECV | SEND)) {
+            socket_max = std::max(socket_max, s);
+        }
     }
 
     timeval tv = MillisToTimeval(timeout);

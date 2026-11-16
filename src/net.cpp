@@ -861,7 +861,11 @@ size_t CConnman::SocketSendData(CNode& node) const
             if (node.nSendOffset == data.size()) {
                 node.nSendOffset = 0;
                 node.nSendSize -= data.size();
-                node.fPauseSend = node.nSendSize > nSendBufferMaxSize;
+                const bool pause_send{node.nSendSize > nSendBufferMaxSize};
+                if (pause_send && !node.fPauseSend) {
+                    node.m_pause_send_since = GetTime<std::chrono::seconds>();
+                }
+                node.fPauseSend = pause_send;
                 it++;
             } else {
                 // could not send full message; stop sending more
@@ -976,7 +980,11 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - m_max_outbound;
 
-    AddWhitelistPermissionFlags(permission_flags, addr);
+    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
+
+    // Inbound Tor connections arrive from the Tor daemon's address, not the
+    // peer's. Do not apply address-based whitelist permissions to them.
+    if (!inbound_onion) AddWhitelistPermissionFlags(permission_flags, addr);
     if (NetPermissions::HasFlag(permission_flags, NetPermissionFlags::Implicit)) {
         NetPermissions::ClearFlag(permission_flags, NetPermissionFlags::Implicit);
         if (gArgs.GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) NetPermissions::AddFlag(permission_flags, NetPermissionFlags::ForceRelay);
@@ -1043,7 +1051,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         nodeServices = static_cast<ServiceFlags>(nodeServices | NODE_BLOOM);
     }
 
-    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
                              std::move(sock),
                              addr,
@@ -1202,6 +1209,17 @@ bool CConnman::InactivityCheck(const CNode& node) const
     if (now > last_recv + TIMEOUT_INTERVAL) {
         LogPrint(BCLog::NET, "socket receive timeout: %is peer=%d\n", count_seconds(now - last_recv), node.GetId());
         return true;
+    }
+
+    // A peer that keeps its send buffer full never gets its queued
+    // announcements drained. Peers without nonced pings (pre-BIP31) are not
+    // covered by the ping timeout, so bound the time a peer may stay paused.
+    if (node.fPauseSend) {
+        const auto pause_since{node.m_pause_send_since.load()};
+        if (now > pause_since + TIMEOUT_INTERVAL) {
+            LogPrint(BCLog::NET, "send buffer full for %is peer=%d\n", count_seconds(now - pause_since), node.GetId());
+            return true;
+        }
     }
 
     if (!node.fSuccessfullyConnected) {
@@ -2882,7 +2900,10 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         pnode->AccountForSentBytes(msg.m_type, nTotalSize);
         pnode->nSendSize += nTotalSize;
 
-        if (pnode->nSendSize > nSendBufferMaxSize) pnode->fPauseSend = true;
+        if (pnode->nSendSize > nSendBufferMaxSize && !pnode->fPauseSend) {
+            pnode->m_pause_send_since = GetTime<std::chrono::seconds>();
+            pnode->fPauseSend = true;
+        }
         pnode->vSendMsg.push_back(std::move(serializedHeader));
         if (nMessageSize) pnode->vSendMsg.push_back(std::move(msg.data));
 

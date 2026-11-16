@@ -2317,9 +2317,11 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // until after `control` has run the script checks (potentially
     // in multiple threads). Preallocate the vector size so a new allocation
     // doesn't invalidate pointers into the vector, and keep txsdata in scope
-    // for as long as `control`.
-    CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &scriptcheckqueue : nullptr);
+    // for as long as `control`. `txsdata` must be declared first: locals are
+    // destroyed in reverse order, and on an early return the destructor of
+    // `control` waits for script checks that still read `txsdata`.
     std::vector<PrecomputedTransactionData> txsdata(block.vtx.size());
+    CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &scriptcheckqueue : nullptr);
 
     std::vector<int> prevheights;
     CAmount nFees = 0;
