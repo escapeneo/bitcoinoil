@@ -935,17 +935,9 @@ private:
      */
     void FindNextBlocksToDownload(const Peer& peer, unsigned int count, std::vector<const CBlockIndex*>& vBlocks, NodeId& nodeStaller) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-<<<<<<< btco
     /* Multimap used to preserve insertion order */
     typedef std::multimap<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator>> BlockDownloadMap;
     BlockDownloadMap mapBlocksInFlight GUARDED_BY(cs_main);
-||||||| core24
-    std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator> > mapBlocksInFlight GUARDED_BY(cs_main);
-=======
-    /** Multimap used to preserve insertion order for parallel compact-block requests. */
-    using BlockDownloadMap = std::multimap<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator>>;
-    BlockDownloadMap mapBlocksInFlight GUARDED_BY(cs_main);
->>>>>>> litecoin24x
 
     /** When our tip was last updated. */
     std::atomic<std::chrono::seconds> m_last_tip_update{0s};
@@ -1218,22 +1210,10 @@ bool PeerManagerImpl::IsBlockRequested(const uint256& hash)
 
 bool PeerManagerImpl::IsBlockRequestedFromOutbound(const uint256& hash)
 {
-<<<<<<< btco
     for (auto range = mapBlocksInFlight.equal_range(hash); range.first != range.second; range.first++) {
         auto [nodeid, block_it] = range.first->second;
         CNodeState& nodestate = *Assert(State(nodeid));
         if (!nodestate.m_is_inbound) return true;
-||||||| core24
-    auto it = mapBlocksInFlight.find(hash);
-    if (it == mapBlocksInFlight.end()) {
-        // Block was not requested
-        return;
-=======
-    for (auto range = mapBlocksInFlight.equal_range(hash); range.first != range.second; ++range.first) {
-        const auto [nodeid, block_it] = range.first->second;
-        CNodeState& nodestate = *Assert(State(nodeid));
-        if (!nodestate.m_is_inbound) return true;
->>>>>>> litecoin24x
     }
 
     return false;
@@ -1247,7 +1227,6 @@ void PeerManagerImpl::RemoveBlockRequest(const uint256& hash, std::optional<Node
         return;
     }
 
-<<<<<<< btco
     // We should not have requested too many of this block
     Assume(mapBlocksInFlight.count(hash) <= MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK);
 
@@ -1274,38 +1253,6 @@ void PeerManagerImpl::RemoveBlockRequest(const uint256& hash, std::optional<Node
         state.m_stalling_since = 0us;
 
         range.first = mapBlocksInFlight.erase(range.first);
-||||||| core24
-    state->nBlocksInFlight--;
-    if (state->nBlocksInFlight == 0) {
-        // Last validated block on the queue was received.
-        m_peers_downloading_from--;
-=======
-    Assume(mapBlocksInFlight.count(hash) <= MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK);
-
-    while (range.first != range.second) {
-        const auto [node_id, list_it] = range.first->second;
-
-        if (from_peer && *from_peer != node_id) {
-            ++range.first;
-            continue;
-        }
-
-        CNodeState& state = *Assert(State(node_id));
-
-        if (state.vBlocksInFlight.begin() == list_it) {
-            // First block on the queue was received, update the start download time for the next one
-            state.m_downloading_since = std::max(state.m_downloading_since, GetTime<std::chrono::microseconds>());
-        }
-        state.vBlocksInFlight.erase(list_it);
-
-        state.nBlocksInFlight--;
-        if (state.nBlocksInFlight == 0) {
-            // Last validated block on the queue for this peer was received.
-            m_peers_downloading_from--;
-        }
-        state.m_stalling_since = 0us;
-        range.first = mapBlocksInFlight.erase(range.first);
->>>>>>> litecoin24x
     }
 }
 
@@ -1319,53 +1266,21 @@ bool PeerManagerImpl::BlockRequested(NodeId nodeid, const CBlockIndex& block, st
     Assume(mapBlocksInFlight.count(hash) <= MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK);
 
     // Short-circuit most stuff in case it is from the same node
-<<<<<<< btco
     for (auto range = mapBlocksInFlight.equal_range(hash); range.first != range.second; range.first++) {
         if (range.first->second.first == nodeid) {
             if (pit) {
                 *pit = &range.first->second.second;
             }
             return false;
-||||||| core24
-    std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator> >::iterator itInFlight = mapBlocksInFlight.find(hash);
-    if (itInFlight != mapBlocksInFlight.end() && itInFlight->second.first == nodeid) {
-        if (pit) {
-            *pit = &itInFlight->second.second;
-=======
-    for (auto range = mapBlocksInFlight.equal_range(hash); range.first != range.second; ++range.first) {
-        if (range.first->second.first == nodeid) {
-            if (pit) {
-                *pit = &range.first->second.second;
-            }
-            return false;
->>>>>>> litecoin24x
         }
     }
 
-<<<<<<< btco
     // Make sure it's not being fetched already from same peer.
     RemoveBlockRequest(hash, nodeid);
-||||||| core24
-    // Make sure it's not listed somewhere already.
-    RemoveBlockRequest(hash);
-=======
-    // Make sure it isn't already being fetched from this peer.
-    RemoveBlockRequest(hash, nodeid);
->>>>>>> litecoin24x
 
     std::list<QueuedBlock>::iterator it = state->vBlocksInFlight.insert(state->vBlocksInFlight.end(),
-<<<<<<< btco
-            {&block, std::unique_ptr<PartiallyDownloadedBlock>(pit ? new PartiallyDownloadedBlock(&m_mempool) : nullptr)});
-    if (state->vBlocksInFlight.size() == 1) {
-||||||| core24
-            {&block, std::unique_ptr<PartiallyDownloadedBlock>(pit ? new PartiallyDownloadedBlock(&m_mempool) : nullptr)});
-    state->nBlocksInFlight++;
-    if (state->nBlocksInFlight == 1) {
-=======
             {&block, std::unique_ptr<PartiallyDownloadedBlock>(pit ? new PartiallyDownloadedBlock(&m_mempool, MWEB::Block{}) : nullptr)});
-    state->nBlocksInFlight++;
-    if (state->nBlocksInFlight == 1) {
->>>>>>> litecoin24x
+    if (state->vBlocksInFlight.size() == 1) {
         // We're starting a block download (batch) from this peer.
         state->m_downloading_since = GetTime<std::chrono::microseconds>();
         m_peers_downloading_from++;
@@ -1734,7 +1649,6 @@ void PeerManagerImpl::FinalizeNode(const CNode& node)
         nSyncStarted--;
 
     for (const QueuedBlock& entry : state->vBlocksInFlight) {
-<<<<<<< btco
         auto range = mapBlocksInFlight.equal_range(entry.pindex->GetBlockHash());
         while (range.first != range.second) {
             auto [node_id, list_it] = range.first->second;
@@ -1744,18 +1658,6 @@ void PeerManagerImpl::FinalizeNode(const CNode& node)
                 range.first = mapBlocksInFlight.erase(range.first);
             }
         }
-||||||| core24
-        mapBlocksInFlight.erase(entry.pindex->GetBlockHash());
-=======
-        auto range = mapBlocksInFlight.equal_range(entry.pindex->GetBlockHash());
-        while (range.first != range.second) {
-            if (range.first->second.first != nodeid) {
-                ++range.first;
-            } else {
-                range.first = mapBlocksInFlight.erase(range.first);
-            }
-        }
->>>>>>> litecoin24x
     }
     m_orphanage.EraseForPeer(nodeid);
     m_txrequest.DisconnectedPeer(nodeid);
@@ -2015,21 +1917,10 @@ std::optional<std::string> PeerManagerImpl::FetchBlock(NodeId peer_id, const CBl
 
     LOCK(cs_main);
 
-<<<<<<< btco
     // Forget about all prior requests
     RemoveBlockRequest(block_index.GetBlockHash(), std::nullopt);
 
     // Mark block as in-flight
-||||||| core24
-    // Mark block as in-flight unless it already is (for this peer).
-    // If a block was already in-flight for a different peer, its BLOCKTXN
-    // response will be dropped.
-=======
-    // Manual fetching is a singleton request and supersedes automatic downloads.
-    RemoveBlockRequest(block_index.GetBlockHash(), std::nullopt);
-
-    // Mark block as in-flight.
->>>>>>> litecoin24x
     if (!BlockRequested(peer_id, block_index)) return "Already requested from this peer";
 
     // Construct message to request the block
@@ -2565,11 +2456,6 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
     }
 }
 
-<<<<<<< btco
-CTransactionRef PeerManagerImpl::FindTxForGetData(const Peer::TxRelay& tx_relay, const GenTxid& gtxid, const std::chrono::seconds mempool_req, const std::chrono::seconds now)
-||||||| core24
-CTransactionRef PeerManagerImpl::FindTxForGetData(const CNode& peer, const GenTxid& gtxid, const std::chrono::seconds mempool_req, const std::chrono::seconds now)
-=======
 static bool AllowMWEBServe(CNode& pfrom) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     if (pfrom.HasPermission(NetPermissionFlags::NoBan)) {
@@ -2762,8 +2648,7 @@ void PeerManagerImpl::ProcessGetMWEBUTXOs(CNode& pfrom, Peer& peer, const GetMWE
     m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::MWEBUTXOS, utxos_msg));
 }
 
-CTransactionRef PeerManagerImpl::FindTxForGetData(const CNode& peer, const GenTxid& gtxid, const std::chrono::seconds mempool_req, const std::chrono::seconds now)
->>>>>>> litecoin24x
+CTransactionRef PeerManagerImpl::FindTxForGetData(const Peer::TxRelay& tx_relay, const GenTxid& gtxid, const std::chrono::seconds mempool_req, const std::chrono::seconds now)
 {
     auto txinfo = m_mempool.info(gtxid);
     if (txinfo.tx) {
@@ -3725,19 +3610,11 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block);
     if (new_block) {
         node.m_last_block_time = GetTime<std::chrono::seconds>();
-<<<<<<< btco
         // In case this block came from a different peer than we requested
         // from, we can erase the block request now anyway (as we just stored
         // this block to disk).
         LOCK(cs_main);
         RemoveBlockRequest(block->GetHash(), std::nullopt);
-||||||| core24
-=======
-        // The block may have arrived from a different peer than one we requested
-        // it from. It is now stored, so no parallel request should remain live.
-        LOCK(cs_main);
-        RemoveBlockRequest(block->GetHash(), std::nullopt);
->>>>>>> litecoin24x
     } else {
         LOCK(cs_main);
         mapBlockSource.erase(block->GetHash());
@@ -3974,13 +3851,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
         // If the peer is old enough to have the old alert system, send it the final alert.
         if (greatest_common_version <= 70012) {
-<<<<<<< btco
             DataStream finalAlert{ParseHex("60010000000000000000000000ffffff7f00000000ffffff7ffeffff7f01ffffff7f00000000ffffff7f00ffffff7f002f555247454e543a20416c657274206b657920636f6d70726f6d697365642c2075706772616465207265717569726564004630440220653febd6410f470f6bae11cad19c48413becb1ac2c17f908fd0fd53bdc3abd5202206d0e9c96fe88d4a0f01ed9dedae2b6f9e00da94cad0fecaae66ecf689bf71b50")};
-||||||| core24
-            CDataStream finalAlert(ParseHex("60010000000000000000000000ffffff7f00000000ffffff7ffeffff7f01ffffff7f00000000ffffff7f00ffffff7f002f555247454e543a20416c657274206b657920636f6d70726f6d697365642c2075706772616465207265717569726564004630440220653febd6410f470f6bae11cad19c48413becb1ac2c17f908fd0fd53bdc3abd5202206d0e9c96fe88d4a0f01ed9dedae2b6f9e00da94cad0fecaae66ecf689bf71b50"), SER_NETWORK, PROTOCOL_VERSION);
-=======
-            CDataStream finalAlert(ParseHex("5c0100000015f7675900000000ffffff7f00000000ffffff7ffeffff7f0000000000ffffff7f00ffffff7f002f555247454e543a20416c657274206b657920636f6d70726f6d697365642c2075706772616465207265717569726564004630440220405f7e7572b176f3316d4e12deab75ad4ff978844f7a7bcd5ed06f6aa094eb6602207880fcc07d0a78e0f46f188d115e04ed4ad48980ea3572cb0e0cb97921048095"), SER_NETWORK, PROTOCOL_VERSION);
->>>>>>> litecoin24x
             m_connman.PushMessage(&pfrom, CNetMsgMaker(greatest_common_version).Make("alert", finalAlert));
         }
 
@@ -4905,7 +4776,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         if (pindex->nStatus & BLOCK_HAVE_DATA) // Nothing to do here
             return;
 
-<<<<<<< btco
         auto range_flight = mapBlocksInFlight.equal_range(pindex->GetBlockHash());
         size_t already_in_flight = std::distance(range_flight.first, range_flight.second);
         bool requested_block_from_this_peer{false};
@@ -4921,24 +4791,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             range_flight.first++;
         }
 
-||||||| core24
-=======
-        auto range_flight = mapBlocksInFlight.equal_range(pindex->GetBlockHash());
-        const size_t already_in_flight = std::distance(range_flight.first, range_flight.second);
-        bool requested_block_from_this_peer{false};
-
-        // The multimap preserves request order, so the first entry is the primary download.
-        const bool first_in_flight = already_in_flight == 0 || range_flight.first->second.first == pfrom.GetId();
-
-        while (range_flight.first != range_flight.second) {
-            if (range_flight.first->second.first == pfrom.GetId()) {
-                requested_block_from_this_peer = true;
-                break;
-            }
-            ++range_flight.first;
-        }
-
->>>>>>> litecoin24x
         if (pindex->nChainWork <= m_chainman.ActiveChain().Tip()->nChainWork || // We know something better
                 pindex->nTx != 0) { // We had this block at some point, but pruned it
             if (requested_block_from_this_peer) {
@@ -4959,16 +4811,8 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         // We want to be a bit conservative just to be extra careful about DoS
         // possibilities in compact block processing...
         if (pindex->nHeight <= m_chainman.ActiveChain().Height() + 2) {
-<<<<<<< btco
             if ((already_in_flight < MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK && nodestate->vBlocksInFlight.size() < MAX_BLOCKS_IN_TRANSIT_PER_PEER) ||
                  requested_block_from_this_peer) {
-||||||| core24
-            if ((!fAlreadyInFlight && nodestate->nBlocksInFlight < MAX_BLOCKS_IN_TRANSIT_PER_PEER) ||
-                 (fAlreadyInFlight && blockInFlightIt->second.first == pfrom.GetId())) {
-=======
-            if ((already_in_flight < MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK && nodestate->nBlocksInFlight < MAX_BLOCKS_IN_TRANSIT_PER_PEER) ||
-                 requested_block_from_this_peer) {
->>>>>>> litecoin24x
                 std::list<QueuedBlock>::iterator* queuedBlockIt = nullptr;
                 if (!BlockRequested(pfrom.GetId(), *pindex, &queuedBlockIt)) {
                     if (!(*queuedBlockIt)->partialBlock)
@@ -4987,7 +4831,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                     Misbehaving(*peer, 100, "invalid compact block");
                     return;
                 } else if (status == READ_STATUS_FAILED) {
-<<<<<<< btco
                     if (first_in_flight)  {
                         // Duplicate txindexes, the block is now in-flight, so just request it
                         std::vector<CInv> vInv(1);
@@ -4997,22 +4840,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                         // Give up for this peer and wait for other peer(s)
                         RemoveBlockRequest(pindex->GetBlockHash(), pfrom.GetId());
                     }
-||||||| core24
-                    // Duplicate txindexes, the block is now in-flight, so just request it
-                    std::vector<CInv> vInv(1);
-                    vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(*peer), cmpctblock.header.GetHash());
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
-=======
-                    if (first_in_flight) {
-                        // Duplicate txindexes on the primary download, so request the full block.
-                        std::vector<CInv> vInv(1);
-                        vInv[0] = CInv(MSG_BLOCK | GetFetchFlags(*peer), cmpctblock.header.GetHash());
-                        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, vInv));
-                    } else {
-                        // Give up on this parallel attempt and wait for another peer.
-                        RemoveBlockRequest(pindex->GetBlockHash(), pfrom.GetId());
-                    }
->>>>>>> litecoin24x
                     return;
                 }
 
@@ -5027,7 +4854,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                     txn.blockhash = blockhash;
                     blockTxnMsg << txn;
                     fProcessBLOCKTXN = true;
-<<<<<<< btco
                 } else if (first_in_flight) {
                     // We will try to round-trip any compact blocks we get on failure,
                     // as long as it's first...
@@ -5041,31 +4867,11 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                     // - peer is outbound, or
                     // - we already have an outbound attempt in flight(so we'll take what we can get), or
                     // - it's not the final parallel download slot (which we may reserve for first outbound)
-||||||| core24
-                } else {
-=======
-                } else if (first_in_flight) {
-                    // Always round-trip the primary compact-block download.
->>>>>>> litecoin24x
                     req.blockhash = pindex->GetBlockHash();
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETBLOCKTXN, req));
-<<<<<<< btco
                 } else {
                     // Give up for this peer and wait for other peer(s)
                     RemoveBlockRequest(pindex->GetBlockHash(), pfrom.GetId());
-||||||| core24
-=======
-                } else if (pfrom.m_bip152_highbandwidth_to &&
-                           (!pfrom.IsInboundConn() ||
-                            IsBlockRequestedFromOutbound(pindex->GetBlockHash()) ||
-                            already_in_flight < MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK - 1)) {
-                    // Parallel attempts require a high-bandwidth peer. Reserve the final
-                    // slot for an outbound peer unless an outbound attempt already exists.
-                    req.blockhash = pindex->GetBlockHash();
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETBLOCKTXN, req));
-                } else {
-                    RemoveBlockRequest(pindex->GetBlockHash(), pfrom.GetId());
->>>>>>> litecoin24x
                 }
             } else {
                 // This block is either already in flight from a different
@@ -5160,7 +4966,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         {
             LOCK(cs_main);
 
-<<<<<<< btco
             auto range_flight = mapBlocksInFlight.equal_range(resp.blockhash);
             size_t already_in_flight = std::distance(range_flight.first, range_flight.second);
             bool requested_block_from_this_peer{false};
@@ -5178,53 +4983,21 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             }
 
             if (!requested_block_from_this_peer) {
-||||||| core24
-            std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator> >::iterator it = mapBlocksInFlight.find(resp.blockhash);
-            if (it == mapBlocksInFlight.end() || !it->second.second->partialBlock ||
-                    it->second.first != pfrom.GetId()) {
-=======
-            auto range_flight = mapBlocksInFlight.equal_range(resp.blockhash);
-            const size_t already_in_flight = std::distance(range_flight.first, range_flight.second);
-            bool requested_block_from_this_peer{false};
-
-            // The first request remains the primary fallback if reconstruction fails.
-            const bool first_in_flight = already_in_flight == 0 || range_flight.first->second.first == pfrom.GetId();
-
-            while (range_flight.first != range_flight.second) {
-                const auto [node_id, block_it] = range_flight.first->second;
-                if (node_id == pfrom.GetId() && block_it->partialBlock) {
-                    requested_block_from_this_peer = true;
-                    break;
-                }
-                ++range_flight.first;
-            }
-
-            if (!requested_block_from_this_peer) {
->>>>>>> litecoin24x
                 LogPrint(BCLog::NET, "Peer %d sent us block transactions for block we weren't expecting\n", pfrom.GetId());
                 return;
             }
 
-<<<<<<< btco
             PartiallyDownloadedBlock& partialBlock = *range_flight.first->second.second->partialBlock;
 
             // We should not have gotten this far in compact block processing unless it's attached to a known header
             const CBlockIndex* prev_block{Assume(m_chainman.m_blockman.LookupBlockIndex(partialBlock.header.hashPrevBlock))};
             ReadStatus status = partialBlock.FillBlock(*pblock, resp.txn,
                                                        /*segwit_active=*/DeploymentActiveAfter(prev_block, m_chainman, Consensus::DEPLOYMENT_SEGWIT));
-||||||| core24
-            PartiallyDownloadedBlock& partialBlock = *it->second.second->partialBlock;
-            ReadStatus status = partialBlock.FillBlock(*pblock, resp.txn);
-=======
-            PartiallyDownloadedBlock& partialBlock = *range_flight.first->second.second->partialBlock;
-            ReadStatus status = partialBlock.FillBlock(*pblock, resp.txn);
->>>>>>> litecoin24x
             if (status == READ_STATUS_INVALID) {
                 RemoveBlockRequest(resp.blockhash, pfrom.GetId()); // Reset in-flight state in case Misbehaving does not result in a disconnect
                 Misbehaving(*peer, 100, "invalid compact block/non-matching block transactions");
                 return;
             } else if (status == READ_STATUS_FAILED) {
-<<<<<<< btco
                 if (first_in_flight) {
                     // Might have collided, fall back to getdata now :(
                     std::vector<CInv> invs;
@@ -5235,66 +5008,9 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                     LogPrint(BCLog::NET, "Peer %d sent us a compact block but it failed to reconstruct, waiting on first download to complete\n", pfrom.GetId());
                     return;
                 }
-||||||| core24
-                // Might have collided, fall back to getdata now :(
-                std::vector<CInv> invs;
-                invs.push_back(CInv(MSG_BLOCK | GetFetchFlags(*peer), resp.blockhash));
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, invs));
-=======
-                if (first_in_flight) {
-                    // The primary attempt may have collided, so fall back to the full block.
-                    std::vector<CInv> invs;
-                    invs.push_back(CInv(MSG_BLOCK | GetFetchFlags(*peer), resp.blockhash));
-                    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETDATA, invs));
-                } else {
-                    RemoveBlockRequest(resp.blockhash, pfrom.GetId());
-                    LogPrint(BCLog::NET, "Peer %d sent us a compact block but it failed to reconstruct, waiting on the primary download\n", pfrom.GetId());
-                    return;
-                }
->>>>>>> litecoin24x
             } else {
-<<<<<<< btco
                 // Block is okay for further processing
                 RemoveBlockRequest(resp.blockhash, pfrom.GetId()); // it is now an empty pointer
-||||||| core24
-                // Block is either okay, or possibly we received
-                // READ_STATUS_CHECKBLOCK_FAILED.
-                // Note that CheckBlock can only fail for one of a few reasons:
-                // 1. bad-proof-of-work (impossible here, because we've already
-                //    accepted the header)
-                // 2. merkleroot doesn't match the transactions given (already
-                //    caught in FillBlock with READ_STATUS_FAILED, so
-                //    impossible here)
-                // 3. the block is otherwise invalid (eg invalid coinbase,
-                //    block is too big, too many legacy sigops, etc).
-                // So if CheckBlock failed, #3 is the only possibility.
-                // Under BIP 152, we don't discourage the peer unless proof of work is
-                // invalid (we don't require all the stateless checks to have
-                // been run).  This is handled below, so just treat this as
-                // though the block was successfully read, and rely on the
-                // handling in ProcessNewBlock to ensure the block index is
-                // updated, etc.
-                RemoveBlockRequest(resp.blockhash); // it is now an empty pointer
-=======
-                // Block is either okay, or possibly we received
-                // READ_STATUS_CHECKBLOCK_FAILED.
-                // Note that CheckBlock can only fail for one of a few reasons:
-                // 1. bad-proof-of-work (impossible here, because we've already
-                //    accepted the header)
-                // 2. merkleroot doesn't match the transactions given (already
-                //    caught in FillBlock with READ_STATUS_FAILED, so
-                //    impossible here)
-                // 3. the block is otherwise invalid (eg invalid coinbase,
-                //    block is too big, too many legacy sigops, etc).
-                // So if CheckBlock failed, #3 is the only possibility.
-                // Under BIP 152, we don't discourage the peer unless proof of work is
-                // invalid (we don't require all the stateless checks to have
-                // been run).  This is handled below, so just treat this as
-                // though the block was successfully read, and rely on the
-                // handling in ProcessNewBlock to ensure the block index is
-                // updated, etc.
-                RemoveBlockRequest(resp.blockhash, pfrom.GetId()); // it is now an empty pointer
->>>>>>> litecoin24x
                 fBlockRead = true;
                 // mapBlockSource is used for potentially punishing peers and
                 // updating which peers send us compact blocks, so the race
@@ -6534,17 +6250,9 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                     // especially since we have many peers and some will draw much shorter delays.
                     unsigned int nRelayedTransactions = 0;
                     LOCK(tx_relay->m_bloom_filter_mutex);
-<<<<<<< btco
                     size_t broadcast_max{INVENTORY_BROADCAST_MAX + (tx_relay->m_tx_inventory_to_send.size()/1000)*5};
                     broadcast_max = std::min<size_t>(1000, broadcast_max);
                     while (!vInvTx.empty() && nRelayedTransactions < broadcast_max) {
-||||||| core24
-                    while (!vInvTx.empty() && nRelayedTransactions < INVENTORY_BROADCAST_MAX) {
-=======
-                    size_t broadcast_max{INVENTORY_BROADCAST_MAX + (tx_relay->m_tx_inventory_to_send.size() / 1000) * 5};
-                    broadcast_max = std::min<size_t>(1000, broadcast_max);
-                    while (!vInvTx.empty() && nRelayedTransactions < broadcast_max) {
->>>>>>> litecoin24x
                         // Fetch the top element from the heap
                         std::pop_heap(vInvTx.begin(), vInvTx.end(), compareInvMempoolOrder);
                         std::set<uint256>::iterator it = vInvTx.back();

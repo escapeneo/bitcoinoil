@@ -72,14 +72,9 @@
 #include <optional>
 #include <set>
 #include <string>
-<<<<<<< btco
-#include <utility>
-||||||| core24
-=======
 #include <thread>
 #include <utility>
 #include <vector>
->>>>>>> litecoin24x
 
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
@@ -123,28 +118,9 @@ static constexpr int PRUNE_LOCK_BUFFER{10};
 GlobalMutex g_best_block_mutex;
 std::condition_variable g_best_block_cv;
 uint256 g_best_block;
-<<<<<<< btco
-||||||| core24
-bool g_parallel_script_checks{false};
-bool fCheckBlockIndex = false;
-bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
-int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
-
-uint256 hashAssumeValid;
-arith_uint256 nMinimumChainWork;
-=======
-bool g_parallel_script_checks{false};
-
 // Serialize block storage and activation so concurrent same-hash bodies
 // cannot connect one representation while retaining another on disk.
 static Mutex g_process_new_block_mutex;
-bool fCheckBlockIndex = false;
-bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
-int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
-
-uint256 hashAssumeValid;
-arith_uint256 nMinimumChainWork;
->>>>>>> litecoin24x
 
 const CBlockIndex* Chainstate::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {
@@ -449,23 +425,11 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
         // The transaction must be final.
         if (!CheckFinalTxAtTip(*Assert(m_chain.Tip()), tx)) return true;
-<<<<<<< btco
-
-        const LockPoints& lp = it->GetLockPoints();
-||||||| core24
-        LockPoints lp = it->GetLockPoints();
-        const bool validLP{TestLockPointValidity(m_chain, lp)};
-        CCoinsViewMemPool view_mempool(&CoinsTip(), *m_mempool);
-=======
-
         if (!CheckMWEBInputsForMempoolReorg(tx, *m_mempool, CoinsTip())) {
             return true;
         }
 
-        LockPoints lp = it->GetLockPoints();
-        const bool validLP{TestLockPointValidity(m_chain, lp)};
-        CCoinsViewMemPool view_mempool(&CoinsTip(), *m_mempool);
->>>>>>> litecoin24x
+        const LockPoints& lp = it->GetLockPoints();
         // CheckSequenceLocksAtTip checks if the transaction will be final in the next block to be
         // created on top of the new chain.
         if (TestLockPointValidity(m_chain, lp)) {
@@ -587,27 +551,14 @@ private:
 class MemPoolAccept
 {
 public:
-<<<<<<< btco
     explicit MemPoolAccept(CTxMemPool& mempool, Chainstate& active_chainstate) :
         m_pool(mempool),
-        m_view(&m_dummy),
         m_viewmempool(&active_chainstate.CoinsTip(), m_pool),
+        m_dummy(m_viewmempool),
+        m_view(&m_dummy),
         m_active_chainstate(active_chainstate),
         m_limits{m_pool.m_limits}
     {
-||||||| core24
-    explicit MemPoolAccept(CTxMemPool& mempool, Chainstate& active_chainstate) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&active_chainstate.CoinsTip(), m_pool), m_active_chainstate(active_chainstate),
-        m_limit_ancestors(m_pool.m_limits.ancestor_count),
-        m_limit_ancestor_size(m_pool.m_limits.ancestor_size_vbytes),
-        m_limit_descendants(m_pool.m_limits.descendant_count),
-        m_limit_descendant_size(m_pool.m_limits.descendant_size_vbytes) {
-=======
-    explicit MemPoolAccept(CTxMemPool& mempool, Chainstate& active_chainstate) : m_pool(mempool), m_viewmempool(&active_chainstate.CoinsTip(), m_pool), m_dummy(m_viewmempool), m_view(&m_dummy), m_active_chainstate(active_chainstate),
-        m_limit_ancestors(m_pool.m_limits.ancestor_count),
-        m_limit_ancestor_size(m_pool.m_limits.ancestor_size_vbytes),
-        m_limit_descendants(m_pool.m_limits.descendant_count),
-        m_limit_descendant_size(m_pool.m_limits.descendant_size_vbytes) {
->>>>>>> litecoin24x
     }
 
     // We put the arguments we're handed into a struct, so we can pass them
@@ -901,27 +852,11 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD, reason);
     }
 
-<<<<<<< btco
     // Transactions smaller than 65 non-witness bytes are not relayed to mitigate CVE-2017-12842.
-    if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) < MIN_STANDARD_TX_NONWITNESS_SIZE)
-        return state.Invalid(TxValidationResult::TX_NOT_STANDARD, "tx-size-small");
-||||||| core24
-    // Do not work on transactions that are too small.
-    // A transaction with 1 segwit input and 1 P2WPHK output has non-witness size of 82 bytes.
-    // Transactions smaller than this are not relayed to mitigate CVE-2017-12842 by not relaying
-    // 64-byte transactions.
-    if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) < MIN_STANDARD_TX_NONWITNESS_SIZE)
-        return state.Invalid(TxValidationResult::TX_NOT_STANDARD, "tx-size-small");
-=======
-    // Do not work on transactions that are too small.
-    // A transaction with 1 segwit input and 1 P2WPHK output has non-witness size of 82 bytes.
-    // Transactions smaller than this are not relayed to mitigate CVE-2017-12842 by not relaying
-    // 64-byte transactions.
     if (!tx.IsMWEBOnly()) {
         if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS | SERIALIZE_NO_MWEB) < MIN_STANDARD_TX_NONWITNESS_SIZE)
             return state.Invalid(TxValidationResult::TX_NOT_STANDARD, "tx-size-small");
     }
->>>>>>> litecoin24x
 
     // Only accept nLockTime-using transactions that can be mined in the next
     // block; we don't want our mempool filled up with transactions that can't
@@ -1052,13 +987,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     entry.reset(new CTxMemPoolEntry(ptx, ws.m_base_fees, nAcceptTime, m_active_chainstate.m_chain.Height(),
-<<<<<<< btco
-                                    fSpendsCoinbase, nSigOpsCost, lock_points.value()));
-||||||| core24
-            fSpendsCoinbase, nSigOpsCost, lp));
-=======
-            fSpendsCoinbaseOrPegout, nSigOpsCost, lp));
->>>>>>> litecoin24x
+                                    fSpendsCoinbaseOrPegout, nSigOpsCost, lock_points.value()));
     ws.m_vsize = entry->GetTxSize();
     ws.m_mweb_weight = entry->GetMWEBWeight();
 
@@ -1406,14 +1335,8 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
             std::vector<uint256>({ws.m_ptx->GetWitnessHash()});
         if (m_pool.exists(GenTxid::Wtxid(ws.m_ptx->GetWitnessHash()))) {
             results.emplace(ws.m_ptx->GetWitnessHash(),
-<<<<<<< btco
-                MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize,
+                MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight,
                                              ws.m_base_fees, effective_feerate, effective_feerate_wtxids));
-||||||| core24
-                MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees));
-=======
-                MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees));
->>>>>>> litecoin24x
             GetMainSignals().TransactionAddedToMempool(ws.m_ptx, m_pool.GetAndIncrementSequence());
         } else {
             all_submitted = false;
@@ -1445,28 +1368,16 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
     const std::vector<uint256> single_wtxid{ws.m_ptx->GetWitnessHash()};
     // Tx was accepted, but not added
     if (args.m_test_accept) {
-<<<<<<< btco
-        return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize,
+        return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight,
                                             ws.m_base_fees, effective_feerate, single_wtxid);
-||||||| core24
-        return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees);
-=======
-        return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees);
->>>>>>> litecoin24x
     }
 
     if (!Finalize(args, ws)) return MempoolAcceptResult::Failure(ws.m_state);
 
     GetMainSignals().TransactionAddedToMempool(ptx, m_pool.GetAndIncrementSequence());
 
-<<<<<<< btco
-    return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees,
+    return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees,
                                         effective_feerate, single_wtxid);
-||||||| core24
-    return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_base_fees);
-=======
-    return MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions), ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees);
->>>>>>> litecoin24x
 }
 
 PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::vector<CTransactionRef>& txns, ATMPArgs& args)
@@ -1545,14 +1456,8 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
                 std::vector<uint256>{ws.m_ptx->GetWitnessHash()};
             results.emplace(ws.m_ptx->GetWitnessHash(),
                             MempoolAcceptResult::Success(std::move(ws.m_replaced_transactions),
-<<<<<<< btco
-                                                         ws.m_vsize, ws.m_base_fees, effective_feerate,
+                                                         ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees, effective_feerate,
                                                          effective_feerate_wtxids));
-||||||| core24
-                                                         ws.m_vsize, ws.m_base_fees));
-=======
-                                                         ws.m_vsize, ws.m_mweb_weight, ws.m_base_fees));
->>>>>>> litecoin24x
         }
     }
 
@@ -1569,16 +1474,9 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
 PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, ATMPArgs& args)
 {
     AssertLockHeld(cs_main);
-<<<<<<< btco
     // Used if returning a PackageMempoolAcceptResult directly from this function.
     PackageValidationState package_state_quit_early;
 
-||||||| core24
-    PackageValidationState package_state;
-
-=======
-    PackageValidationState package_state;
->>>>>>> litecoin24x
     // Check that the package is well-formed. If it isn't, we won't try to validate any of the
     // transactions and thus won't return any MempoolAcceptResults, just a package-wide error.
 
@@ -1631,20 +1529,10 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
             return unconfirmed_parent_txids.count(input.GetTxIn().prevout.hash) > 0 || m_view.HaveCoin(input.GetID());
         }
     };
-<<<<<<< btco
-    if (!std::all_of(child->vin.cbegin(), child->vin.cend(), package_or_confirmed)) {
-        package_state_quit_early.Invalid(PackageValidationResult::PCKG_POLICY, "package-not-child-with-unconfirmed-parents");
-        return PackageMempoolAcceptResult(package_state_quit_early, {});
-||||||| core24
-    if (!std::all_of(child->vin.cbegin(), child->vin.cend(), package_or_confirmed)) {
-        package_state.Invalid(PackageValidationResult::PCKG_POLICY, "package-not-child-with-unconfirmed-parents");
-        return PackageMempoolAcceptResult(package_state, {});
-=======
     std::vector<AnyInput> child_inputs = child->GetInputs();
     if (!std::all_of(child_inputs.cbegin(), child_inputs.cend(), package_or_confirmed)) {
-        package_state.Invalid(PackageValidationResult::PCKG_POLICY, "package-not-child-with-unconfirmed-parents");
-        return PackageMempoolAcceptResult(package_state, {});
->>>>>>> litecoin24x
+        package_state_quit_early.Invalid(PackageValidationResult::PCKG_POLICY, "package-not-child-with-unconfirmed-parents");
+        return PackageMempoolAcceptResult(package_state_quit_early, {});
     }
     // Protect against bugs where we pull more inputs from disk that miss being added to
     // coins_to_uncache. The backend will be connected again when needed in PreChecks.
@@ -1679,13 +1567,7 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
             // Exact transaction already exists in the mempool.
             auto iter = m_pool.GetIter(txid);
             assert(iter != std::nullopt);
-<<<<<<< btco
-            results_final.emplace(wtxid, MempoolAcceptResult::MempoolTx(iter.value()->GetTxSize(), iter.value()->GetFee()));
-||||||| core24
-            results.emplace(wtxid, MempoolAcceptResult::MempoolTx(iter.value()->GetTxSize(), iter.value()->GetFee()));
-=======
-            results.emplace(wtxid, MempoolAcceptResult::MempoolTx(iter.value()->GetTxSize(), iter.value()->GetMWEBWeight(), iter.value()->GetFee()));
->>>>>>> litecoin24x
+            results_final.emplace(wtxid, MempoolAcceptResult::MempoolTx(iter.value()->GetTxSize(), iter.value()->GetMWEBWeight(), iter.value()->GetFee()));
         } else if (m_pool.exists(GenTxid::Txid(txid))) {
             // Transaction with the same non-witness data but different witness (same txid,
             // different wtxid) already exists in the mempool.
@@ -1776,20 +1658,12 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
         // number of invalid transactions that attempt to overrun the in-memory coins cache
         // (`CCoinsViewCache::cacheCoins`).
 
-<<<<<<< btco
-        for (const COutPoint& hashTx : coins_to_uncache)
-            active_chainstate.CoinsTip().Uncache(hashTx);
+        for (const AnyOutputID& output_id : coins_to_uncache)
+            active_chainstate.CoinsTip().Uncache(output_id);
         TRACE2(mempool, rejected,
                 tx->GetHash().data(),
                 result.m_state.GetRejectReason().c_str()
         );
-||||||| core24
-        for (const COutPoint& hashTx : coins_to_uncache)
-            active_chainstate.CoinsTip().Uncache(hashTx);
-=======
-        for (const AnyOutputID& output_id : coins_to_uncache)
-            active_chainstate.CoinsTip().Uncache(output_id);
->>>>>>> litecoin24x
     }
     // After we've (potentially) uncached entries, ensure our coins cache is still within its size limits
     BlockValidationState state_dummy;
@@ -1804,19 +1678,9 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     assert(!package.empty());
     assert(std::all_of(package.cbegin(), package.cend(), [](const auto& tx){return tx != nullptr;}));
 
-<<<<<<< btco
-    std::vector<COutPoint> coins_to_uncache;
+    std::vector<AnyOutputID> coins_to_uncache;
     const CChainParams& chainparams = active_chainstate.m_chainman.GetParams();
     auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
-||||||| core24
-    std::vector<COutPoint> coins_to_uncache;
-    const CChainParams& chainparams = active_chainstate.m_params;
-    const auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
-=======
-    std::vector<AnyOutputID> coins_to_uncache;
-    const CChainParams& chainparams = active_chainstate.m_params;
-    const auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
->>>>>>> litecoin24x
         AssertLockHeld(cs_main);
         if (test_accept) {
             auto args = MemPoolAccept::ATMPArgs::PackageTestAccept(chainparams, GetTime(), coins_to_uncache);
@@ -1884,7 +1748,6 @@ void Chainstate::InitCoinsDB(
     }
 
     m_coins_views = std::make_unique<CoinsViews>(
-<<<<<<< btco
         DBParams{
             .path = m_chainman.m_options.datadir / leveldb_name,
             .cache_bytes = cache_size_bytes,
@@ -1893,10 +1756,6 @@ void Chainstate::InitCoinsDB(
             .obfuscate = true,
             .options = m_chainman.m_options.coins_db},
         m_chainman.m_options.coins_view);
-||||||| core24
-        leveldb_name, cache_size_bytes, in_memory, should_wipe);
-=======
-        leveldb_name, cache_size_bytes, in_memory, should_wipe);
 
     // MWEB: Initialize MWEB node APIs
     CBlockIndex* pindex = m_chainman.m_blockman.LookupBlockIndex(CoinsDB().GetBestBlock());
@@ -1916,7 +1775,6 @@ void Chainstate::InitCoinsDB(
         confirm_upgrade
     );
     CoinsDB().SetMWEBView(mweb_dbview);
->>>>>>> litecoin24x
 }
 
 void Chainstate::InitCoinsCache(size_t cache_size_bytes)
@@ -2396,7 +2254,8 @@ public:
 
     int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
     int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
-<<<<<<< btco
+    int64_t BeginHeight(const Consensus::Params& params) const override { return 0; }
+    int64_t EndHeight(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
     //int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
     //int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
 
@@ -2440,15 +2299,6 @@ public:
             return params.nRuleChangeActivationThresholdV2;
         }
     }
-||||||| core24
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
-=======
-    int64_t BeginHeight(const Consensus::Params& params) const override { return 0; }
-    int64_t EndHeight(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
->>>>>>> litecoin24x
 
     bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
     {
@@ -2630,15 +2480,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
     // two in the chain that violate it. This prevents exploiting the issue against nodes during their
     // initial block download.
-<<<<<<< btco
     bool fEnforceBIP30 = !IsBIP30Repeat(*pindex);
-||||||| core24
-    bool fEnforceBIP30 = !((pindex->nHeight==91842 && pindex->GetBlockHash() == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-                           (pindex->nHeight==91880 && pindex->GetBlockHash() == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
-=======
-
-    bool fEnforceBIP30 = true;
->>>>>>> litecoin24x
 
     // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
     // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
@@ -2732,7 +2574,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     CBlockUndo blockundo;
 
-<<<<<<< btco
     // Precomputed transaction data pointers must not be invalidated
     // until after `control` has run the script checks (potentially
     // in multiple threads). Preallocate the vector size so a new allocation
@@ -2740,19 +2581,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // for as long as `control`. `txsdata` must be declared first: locals are
     // destroyed in reverse order, and on an early return the destructor of
     // `control` waits for script checks that still read `txsdata`.
-||||||| core24
-    // Precomputed transaction data pointers must not be invalidated
-    // until after `control` has run the script checks (potentially
-    // in multiple threads). Preallocate the vector size so a new allocation
-    // doesn't invalidate pointers into the vector, and keep txsdata in scope
-    // for as long as `control`.
-    CCheckQueueControl<CScriptCheck> control(fScriptChecks && g_parallel_script_checks ? &scriptcheckqueue : nullptr);
-=======
-    // CScriptCheck objects may hold pointers into txsdata while running in the
-    // script-check queue. txsdata must therefore outlive the CCheckQueueControl
-    // object, whose destructor waits for queued checks to finish on early returns.
-    // Declare txsdata before control so destruction happens in the safe order.
->>>>>>> litecoin24x
     std::vector<PrecomputedTransactionData> txsdata(block.vtx.size());
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &scriptcheckqueue : nullptr);
 
@@ -2848,7 +2676,12 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
     }
-<<<<<<< btco
+
+    // MWEB: Check activation
+    if (!MWEB::Node::ConnectBlock(block, m_chainman.GetParams().GetConsensus(), m_chainman, pindex->pprev, blockundo, *view.GetMWEBCacheView(), state)) {
+        return false;
+    }
+
     const auto time_4{SteadyClock::now()};
     time_verify += time_4 - time_2;
     LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1,
@@ -2856,28 +2689,10 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              nInputs <= 1 ? 0 : Ticks<MillisecondsDouble>(time_4 - time_2) / (nInputs - 1),
              Ticks<SecondsDouble>(time_verify),
              Ticks<MillisecondsDouble>(time_verify) / num_blocks_total);
-||||||| core24
-    int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
-    LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
-=======
-
-    // MWEB: Check activation
-    if (!MWEB::Node::ConnectBlock(block, m_chainman.GetParams().GetConsensus(), m_chainman, pindex->pprev, blockundo, *view.GetMWEBCacheView(), state)) {
-        return false;
-    }
-
-    int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
-    LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
->>>>>>> litecoin24x
 
     if (fJustCheck)
         return true;
 
-<<<<<<< btco
-    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, params)) {
-||||||| core24
-    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, m_params)) {
-=======
     // MWEB: Update BlockIndex // MWEB: TODO - Move to blockstorage
     if (!block.mweb_block.IsNull()) {
         auto pHogEx = block.GetHogEx();
@@ -2890,8 +2705,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         }
     }
 
-    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, m_params)) {
->>>>>>> litecoin24x
+    if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, params)) {
         return false;
     }
 
@@ -4144,13 +3958,7 @@ void Chainstate::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pin
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-<<<<<<< btco
     if (fCheckPOW && !CheckProofOfWork(block, consensusParams))
-||||||| core24
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-=======
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
->>>>>>> litecoin24x
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -4228,33 +4036,8 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     }
 
     // Check the merkle root.
-<<<<<<< btco
     if (fCheckMerkleRoot && !CheckMerkleRoot(block, state)) {
         return false;
-||||||| core24
-    if (fCheckMerkleRoot) {
-        bool mutated;
-        uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
-        if (block.hashMerkleRoot != hashMerkleRoot2)
-            return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-txnmrklroot", "hashMerkleRoot mismatch");
-
-        // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
-        // of transactions in a block without affecting the merkle root of a block,
-        // while still invalidating it.
-        if (mutated)
-            return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-txns-duplicate", "duplicate transaction");
-=======
-    if (fCheckMerkleRoot) {
-        bool mutated;
-        uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
-        if (block.hashMerkleRoot != hashMerkleRoot2)
-            return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-txnmrklroot", "hashMerkleRoot mismatch");
-        // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
-        // of transactions in a block without affecting the merkle root of a block,
-        // while still invalidating it.
-        if (mutated)
-            return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-txns-duplicate", "duplicate transaction");
->>>>>>> litecoin24x
     }
 
     // All potential-corruption validation must be done before we do any
@@ -4351,7 +4134,6 @@ static size_t GetNumPoWCheckThreads(const size_t num_headers)
 
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
-<<<<<<< btco
     return std::all_of(headers.cbegin(), headers.cend(),
             [&](const auto& header) { return CheckProofOfWork(header, consensusParams);});
 }
@@ -4385,44 +4167,6 @@ bool IsBlockMutated(const CBlock& block, bool check_witness_root)
     }
 
     return false;
-||||||| core24
-    return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams);});
-=======
-    if (headers.empty()) return true;
-
-    const size_t nthreads = GetNumPoWCheckThreads(headers.size());
-
-    if (nthreads == 1) {
-        return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams); });
-    }
-
-    std::atomic<bool> ok{true};
-    const size_t total = headers.size();
-    const size_t chunk = (total + nthreads - 1) / nthreads;
-
-    auto worker = [&](size_t start) {
-        const size_t end = std::min(start + chunk, total);
-        for (size_t i = start; i < end && ok.load(std::memory_order_relaxed); ++i) {
-            const auto& header = headers[i];
-            if (!CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams)) {
-                ok.store(false, std::memory_order_relaxed);
-                break;
-            }
-        }
-    };
-
-    std::vector<std::thread> threads;
-    threads.reserve(nthreads - 1);
-    for (size_t t = 1; t < nthreads; ++t) {
-        threads.emplace_back(worker, t * chunk);
-    }
-    worker(0);
-    for (auto& thread : threads) thread.join();
-
-    return ok.load(std::memory_order_relaxed);
->>>>>>> litecoin24x
 }
 
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
@@ -5410,15 +5154,9 @@ void Chainstate::LoadExternalBlockFile(
     int nLoaded = 0;
     try {
         // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
-<<<<<<< btco
-        CBufferedFile blkdat(fileIn, 2*MAX_BLOCK_SERIALIZED_SIZE, MAX_BLOCK_SERIALIZED_SIZE+8, SER_DISK, CLIENT_VERSION);
+        CBufferedFile blkdat(fileIn, 2 * MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB, MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB + 8, SER_DISK, CLIENT_VERSION);
         // nRewind indicates where to resume scanning in case something goes wrong,
         // such as a block fails to deserialize.
-||||||| core24
-        CBufferedFile blkdat(fileIn, 2*MAX_BLOCK_SERIALIZED_SIZE, MAX_BLOCK_SERIALIZED_SIZE+8, SER_DISK, CLIENT_VERSION);
-=======
-        CBufferedFile blkdat(fileIn, 2 * MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB, MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB + 8, SER_DISK, CLIENT_VERSION);
->>>>>>> litecoin24x
         uint64_t nRewind = blkdat.GetPos();
         while (!blkdat.eof()) {
             if (ShutdownRequested()) return;

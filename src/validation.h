@@ -66,20 +66,6 @@ struct Params;
 static const int MAX_SCRIPTCHECK_THREADS = 15;
 /** -par default (number of script-checking threads, 0 = auto) */
 static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
-<<<<<<< btco
-||||||| core24
-static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
-static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
-static const bool DEFAULT_TXINDEX = false;
-static constexpr bool DEFAULT_COINSTATSINDEX{false};
-static const char* const DEFAULT_BLOCKFILTERINDEX = "0";
-=======
-static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
-static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
-static const bool DEFAULT_TXINDEX = false;
-static constexpr bool DEFAULT_COINSTATSINDEX{false};
-static const char* const DEFAULT_BLOCKFILTERINDEX = "1";
->>>>>>> litecoin24x
 /** Default for -stopatheight */
 static const int DEFAULT_STOPATHEIGHT = 0;
 /** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will not be pruned. */
@@ -176,21 +162,14 @@ struct MempoolAcceptResult {
         return MempoolAcceptResult(state);
     }
 
-<<<<<<< btco
     static MempoolAcceptResult Success(std::list<CTransactionRef>&& replaced_txns,
                                        int64_t vsize,
+                                       int64_t mweb_weight,
                                        CAmount fees,
                                        CFeeRate effective_feerate,
                                        const std::vector<uint256>& wtxids_fee_calculations) {
-        return MempoolAcceptResult(std::move(replaced_txns), vsize, fees,
+        return MempoolAcceptResult(std::move(replaced_txns), vsize, mweb_weight, fees,
                                    effective_feerate, wtxids_fee_calculations);
-||||||| core24
-    static MempoolAcceptResult Success(std::list<CTransactionRef>&& replaced_txns, int64_t vsize, CAmount fees) {
-        return MempoolAcceptResult(std::move(replaced_txns), vsize, fees);
-=======
-    static MempoolAcceptResult Success(std::list<CTransactionRef>&& replaced_txns, int64_t vsize, int64_t mweb_weight, CAmount fees) {
-        return MempoolAcceptResult(std::move(replaced_txns), vsize, mweb_weight, fees);
->>>>>>> litecoin24x
     }
 
     static MempoolAcceptResult MempoolTx(int64_t vsize, int64_t mweb_weight, CAmount fees) {
@@ -210,29 +189,19 @@ private:
         }
 
     /** Constructor for success case */
-<<<<<<< btco
     explicit MempoolAcceptResult(std::list<CTransactionRef>&& replaced_txns,
                                  int64_t vsize,
+                                 int64_t mweb_weight,
                                  CAmount fees,
                                  CFeeRate effective_feerate,
                                  const std::vector<uint256>& wtxids_fee_calculations)
-||||||| core24
-    explicit MempoolAcceptResult(std::list<CTransactionRef>&& replaced_txns, int64_t vsize, CAmount fees)
-=======
-    explicit MempoolAcceptResult(std::list<CTransactionRef>&& replaced_txns, int64_t vsize, int64_t mweb_weight, CAmount fees)
->>>>>>> litecoin24x
         : m_result_type(ResultType::VALID),
-<<<<<<< btco
         m_replaced_transactions(std::move(replaced_txns)),
         m_vsize{vsize},
+        m_mweb_weight{mweb_weight},
         m_base_fees(fees),
         m_effective_feerate(effective_feerate),
         m_wtxids_fee_calculations(wtxids_fee_calculations) {}
-||||||| core24
-        m_replaced_transactions(std::move(replaced_txns)), m_vsize{vsize}, m_base_fees(fees) {}
-=======
-        m_replaced_transactions(std::move(replaced_txns)), m_vsize{vsize}, m_mweb_weight{mweb_weight}, m_base_fees(fees) {}
->>>>>>> litecoin24x
 
     /** Constructor for already-in-mempool case. It wouldn't replace any transactions. */
     explicit MempoolAcceptResult(int64_t vsize, int64_t mweb_weight, CAmount fees)
