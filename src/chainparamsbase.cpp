@@ -47,29 +47,11 @@ const CBaseChainParams& BaseParams()
 std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain)
 {
     if (chain == CBaseChainParams::MAIN) {
-<<<<<<< btco
         return std::make_unique<CBaseChainParams>("", 19711, 8334);
-||||||| core24
-        return std::make_unique<CBaseChainParams>("", 8332, 8334);
-=======
-        return std::make_unique<CBaseChainParams>("", 9332, 9333);
->>>>>>> litecoin24x
     } else if (chain == CBaseChainParams::TESTNET) {
-<<<<<<< btco
         return std::make_unique<CBaseChainParams>("testnet3", 29711, 18334);
-||||||| core24
-        return std::make_unique<CBaseChainParams>("testnet3", 18332, 18334);
-=======
-        return std::make_unique<CBaseChainParams>("testnet4", 19332, 19335);
->>>>>>> litecoin24x
     } else if (chain == CBaseChainParams::SIGNET) {
-<<<<<<< btco
         return std::make_unique<CBaseChainParams>("signet", 39711, 38334);
-||||||| core24
-        return std::make_unique<CBaseChainParams>("signet", 38332, 38334);
-=======
-        return std::make_unique<CBaseChainParams>("signet", 39332, 39335);
->>>>>>> litecoin24x
     } else if (chain == CBaseChainParams::REGTEST) {
         return std::make_unique<CBaseChainParams>("regtest", 19443, 19444);
     }

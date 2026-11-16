@@ -584,7 +584,6 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
     }
     UniValue ret = m_fun(*this, request);
     if (gArgs.GetBoolArg("-rpcdoccheck", DEFAULT_RPC_DOC_CHECK)) {
-<<<<<<< btco
         UniValue mismatch{UniValue::VARR};
         for (const auto& res : m_results.m_results) {
             UniValue match{res.MatchesType(ret)};
@@ -605,14 +604,6 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
                           PACKAGE_NAME, FormatFullVersion(),
                           PACKAGE_BUGREPORT)};
         }
-||||||| core24
-        CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); }));
-=======
-        if (!std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); })) {
-            LogPrintf(ret.write(1, 2).c_str());
-        }
-        CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [&ret](const RPCResult& res) { return res.MatchesType(ret); }));
->>>>>>> litecoin24x
     }
     return ret;
 }

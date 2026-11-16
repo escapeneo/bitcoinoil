@@ -82,12 +82,9 @@ bool ExternalSigner::SignTransaction(PartiallySignedTransaction& psbtx, std::str
         for (const auto& entry : input.hd_keypaths) {
             if (parsed_m_fingerprint == MakeUCharSpan(entry.second.fingerprint)) return true;
         }
-<<<<<<< btco
         for (const auto& entry : input.m_tap_bip32_paths) {
             if (parsed_m_fingerprint == MakeUCharSpan(entry.second.second.fingerprint)) return true;
         }
-||||||| core24
-=======
 
         auto provider_matches_fingerprint = [&](const FlatSigningProvider& provider) {
             for (const auto& entry : provider.origins) {
@@ -115,7 +112,6 @@ bool ExternalSigner::SignTransaction(PartiallySignedTransaction& psbtx, std::str
             }
         }
 
->>>>>>> litecoin24x
         return false;
     };
 

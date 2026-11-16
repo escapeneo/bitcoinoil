@@ -420,7 +420,6 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
-<<<<<<< btco
                         {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
                         {RPCResult::Type::OBJ, "auxpow", "Merge-mining activation for the next block", {
                             {RPCResult::Type::NUM, "chainid", "AuxPoW chain ID"},
@@ -433,11 +432,6 @@ static RPCHelpMan getmininginfo()
                             {RPCResult::Type::NUM, "halflife", /*optional=*/true, "ASERT half-life in seconds, if scheduled"},
                             {RPCResult::Type::BOOL, "enabled", "Whether ASERT sets the target of that candidate"},
                         }},
-||||||| core24
-                        {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
-=======
-                        {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
->>>>>>> litecoin24x
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
                     }},
                 RPCExamples{

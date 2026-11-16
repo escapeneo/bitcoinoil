@@ -174,11 +174,6 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
-<<<<<<< btco
-||||||| core24
-    if (blockindex->pprev)
-        result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
-=======
     if (blockindex->mweb_header != nullptr) {
         UniValue mweb_header(UniValue::VOBJ);
         mweb_header.pushKV("hash", blockindex->mweb_header->GetHash().ToHex());
@@ -198,9 +193,6 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
         }
     }
 
-    if (blockindex->pprev)
-        result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
->>>>>>> litecoin24x
     if (pnext)
         result.pushKV("nextblockhash", pnext->GetBlockHash().GetHex());
     return result;
@@ -595,16 +587,10 @@ static RPCHelpMan getblockfrompeer()
         "getblockfrompeer",
         "Attempt to fetch block from a given peer.\n\n"
         "We must have the header for this block, e.g. using submitheader.\n"
-<<<<<<< btco
         "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n"
         "Peers generally ignore requests for a stale block that they never fully verified, or one that is more than a month old.\n"
         "When a peer does not respond with a block, we will disconnect.\n"
         "Note: The block could be re-pruned as soon as it is received.\n\n"
-||||||| core24
-        "Subsequent calls for the same block and a new peer will cause the response from the previous peer to be ignored.\n\n"
-=======
-        "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n\n"
->>>>>>> litecoin24x
         "Returns an empty JSON object if the request was successfully scheduled.",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash to try to fetch"},

@@ -147,6 +147,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
 
         bech32_hrp = "btco";
+        mweb_hrp = "btcomweb";
 
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
@@ -278,6 +279,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tbtco";
+        mweb_hrp = "tbtcomweb";
 
 
         fDefaultConsistencyChecks = false;
@@ -430,6 +432,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tbtco";
+        mweb_hrp = "sbtcomweb";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
@@ -585,6 +588,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "rbtco";
+        mweb_hrp = "rbtcomweb";
     }
 };
 

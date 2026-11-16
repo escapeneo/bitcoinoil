@@ -156,11 +156,6 @@ private:
     CMerkleBlock(const CBlock& block, CBloomFilter* filter, const std::set<uint256>* txids);
 };
 
-<<<<<<< btco
-#endif // BITCOINOIL_MERKLEBLOCK_H
-||||||| core24
-#endif // BITCOIN_MERKLEBLOCK_H
-=======
 
 /**
  * Can be requested by MWEB light clients to retrieve and verify MWEB headers.
@@ -210,5 +205,4 @@ public:
     SERIALIZE_METHODS(CMerkleBlockWithMWEB, obj) { READWRITE(obj.merkle, obj.hogex, obj.mweb_header); }
 };
 
-#endif // BITCOIN_MERKLEBLOCK_H
->>>>>>> litecoin24x
+#endif // BITCOINOIL_MERKLEBLOCK_H

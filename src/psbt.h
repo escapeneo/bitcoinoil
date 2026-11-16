@@ -1401,16 +1401,8 @@ struct PSBTOutput
                         if ((leaf_ver & ~TAPROOT_LEAF_MASK) != 0) {
                             throw std::ios_base::failure("Output Taproot tree has a leaf with an invalid leaf version");
                         }
-<<<<<<< btco
                         m_tap_tree.push_back(std::make_tuple(depth, leaf_ver, script));
                         builder.Add((int)depth, script, (int)leaf_ver, /*track=*/true);
-||||||| core24
-                        m_tap_tree.push_back(std::make_tuple(depth, leaf_ver, script));
-                        builder.Add((int)depth, script, (int)leaf_ver, true /* track */);
-=======
-                        m_tap_tree.emplace_back(depth, leaf_ver, script);
-                        builder.Add((int)depth, script, (int)leaf_ver, true /* track */);
->>>>>>> litecoin24x
                     }
                     if (!builder.IsComplete()) {
                         throw std::ios_base::failure("Output Taproot tree is malformed");
@@ -2231,15 +2223,6 @@ struct PartiallySignedTransaction
             throw std::ios_base::failure("Separator is missing at the end of the global map");
         }
 
-<<<<<<< btco
-        // Make sure that we got an unsigned tx
-        if (!tx) {
-            throw std::ios_base::failure("No unsigned transaction was provided");
-||||||| core24
-        // Make sure that we got an unsigned tx
-        if (!tx) {
-            throw std::ios_base::failure("No unsigned transcation was provided");
-=======
         const uint32_t psbt_ver = GetPSBTVersion();
 
         // Check PSBT version constraints
@@ -2293,7 +2276,6 @@ struct PartiallySignedTransaction
             if (tx) {
                 throw std::ios_base::failure("PSBT_GLOBAL_UNSIGNED_TX is not allowed in PSBTv2");
             }
->>>>>>> litecoin24x
         }
 
         // Read input data
@@ -2393,16 +2375,9 @@ PrecomputedTransactionData PrecomputePSBTData(const PartiallySignedTransaction& 
 /** Checks whether a PSBTInput is already signed by checking for non-null finalized fields. */
 bool PSBTInputSigned(const PSBTInput& input);
 
-<<<<<<< btco
-/** Checks whether a PSBTInput is already signed by doing script verification using final fields. */
-bool PSBTInputSignedAndVerified(const PartiallySignedTransaction psbt, unsigned int input_index, const PrecomputedTransactionData* txdata);
-
-||||||| core24
-=======
 /** Checks whether a PSBTInput is already signed by doing script verification using final fields. */
 bool PSBTInputSignedAndVerified(const PartiallySignedTransaction& psbt, unsigned int input_index, const PrecomputedTransactionData* txdata);
 
->>>>>>> litecoin24x
 /** Signs a PSBTInput, verifying that all provided data matches what is being signed.
  *
  * txdata should be the output of PrecomputePSBTData (which can be shared across

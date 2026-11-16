@@ -13,16 +13,9 @@
 #include <cstdint>
 #include <vector>
 
-<<<<<<< btco
 // Peers may move this node's clock by five minutes at most. It was 70
 // minutes, which is more than the 15-minute future limit for ASERT blocks.
 static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 5 * 60;
-||||||| core24
-static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 70 * 60;
-=======
-// BitcoinOil: Reduce amount that peers can adjust our time to eliminate an attack vector.
-static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 35 * 60;
->>>>>>> litecoin24x
 
 class CNetAddr;
 

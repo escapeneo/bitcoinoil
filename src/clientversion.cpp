@@ -16,13 +16,7 @@
  * for both bitcoinoild and bitcoinoil-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-<<<<<<< btco
 const std::string CLIENT_NAME("BitcoinOil");
-||||||| core24
-const std::string CLIENT_NAME("Satoshi");
-=======
-const std::string CLIENT_NAME("BitcoinOilCore");
->>>>>>> litecoin24x
 
 
 #ifdef HAVE_BUILD_INFO
@@ -89,25 +83,11 @@ std::string CopyrightHolders(const std::string& strPrefix)
     const auto copyright_devs = strprintf(_(COPYRIGHT_HOLDERS).translated, COPYRIGHT_HOLDERS_SUBSTITUTION);
     std::string strCopyrightHolders = strPrefix + copyright_devs;
 
-<<<<<<< btco
     // Make sure Bitcoin Core copyright is not removed by accident
     if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
         std::string strYear = strPrefix;
         strYear.replace(strYear.find("2024"), sizeof("2024")-1, "2009-2024");
         strCopyrightHolders += "\n" + strYear + "The Bitcoin Core developers";
-||||||| core24
-    // Make sure BitcoinOil Core copyright is not removed by accident
-    if (copyright_devs.find("BitcoinOil Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The BitcoinOil Core developers";
-=======
-    // Make sure BitcoinOil Core copyright is not removed by accident
-    if (copyright_devs.find("BitcoinOil Core") == std::string::npos) {
-        if (strPrefix.find("2011") != std::string::npos) {
-            std::string strYear = strPrefix;
-            strYear.replace(strYear.find("2011"), sizeof("2011")-1, "2009");
-            strCopyrightHolders += "\n" + strYear + "The BitcoinOil Core developers";
-        }
->>>>>>> litecoin24x
     }
     return strCopyrightHolders;
 }

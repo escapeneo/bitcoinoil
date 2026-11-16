@@ -129,32 +129,9 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
         {
             {RPCResult::Type::OBJ, "", "",
             {
-<<<<<<< btco
-                {RPCResult::Type::STR_AMOUNT, "value", "The value in " + CURRENCY_UNIT},
-                {RPCResult::Type::NUM, "n", "index"},
-                {RPCResult::Type::OBJ, "scriptPubKey", "", ScriptPubKeyDoc()},
-||||||| core24
-                {RPCResult::Type::STR_AMOUNT, "value", "The value in " + CURRENCY_UNIT},
-                {RPCResult::Type::NUM, "n", "index"},
-                {RPCResult::Type::OBJ, "scriptPubKey", "",
-                {
-                    {RPCResult::Type::STR, "asm", "Disassembly of the public key script"},
-                    {RPCResult::Type::STR, "desc", "Inferred descriptor for the output"},
-                    {RPCResult::Type::STR_HEX, "hex", "The raw public key script bytes, hex-encoded"},
-                    {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
-                    {RPCResult::Type::STR, "address", /*optional=*/true, "The BitcoinOil address (only if a well-defined address exists)"},
-                }},
-=======
                 {RPCResult::Type::STR_AMOUNT, "value", /*optional=*/true, "The value in " + CURRENCY_UNIT},
                 {RPCResult::Type::NUM, "n", /*optional=*/true, "index"},
-                {RPCResult::Type::OBJ, "scriptPubKey", /*optional=*/true, "",
-                {
-                    {RPCResult::Type::STR, "asm", "Disassembly of the public key script"},
-                    {RPCResult::Type::STR, "desc", "Inferred descriptor for the output"},
-                    {RPCResult::Type::STR_HEX, "hex", "The raw public key script bytes, hex-encoded"},
-                    {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
-                    {RPCResult::Type::STR, "address", /*optional=*/true, "The BitcoinOil address (only if a well-defined address exists)"},
-                }},
+                {RPCResult::Type::OBJ, "scriptPubKey", /*optional=*/true, "", ScriptPubKeyDoc()},
                 {RPCResult::Type::STR_HEX, "output_id", /*optional=*/true, "The MWEB output identifier"},
                 {RPCResult::Type::BOOL, "ismweb", /*optional=*/true, "If this is an MWEB output"},
             }},
@@ -164,7 +141,6 @@ static std::vector<RPCResult> DecodeTxDoc(const std::string& txid_field_doc)
             {RPCResult::Type::OBJ, "", "",
             {
                 {RPCResult::Type::ELISION, "", "The MWEB kernel"},
->>>>>>> litecoin24x
             }},
         }},
     };
@@ -1198,21 +1174,9 @@ static RPCHelpMan decodepsbt()
                 },
                 RPCExamples{
                     HelpExampleCli("decodepsbt", "\"psbt\"")
-<<<<<<< btco
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-||||||| core24
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    RPCTypeCheck(request.params, {UniValue::VSTR});
-
-=======
-                }, [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
-    RPCTypeCheck(request.params, {UniValue::VSTR});
-
->>>>>>> litecoin24x
     // Unserialize the transactions
     PartiallySignedTransaction psbtx;
     std::string error;
@@ -1951,27 +1915,6 @@ static RPCHelpMan createpsbt()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
-<<<<<<< btco
-||||||| core24
-    RPCTypeCheck(request.params, {
-        UniValue::VARR,
-        UniValueType(), // ARR or OBJ, checked later
-        UniValue::VNUM,
-        UniValue::VBOOL,
-        }, true
-    );
-
-=======
-    RPCTypeCheck(request.params, {
-        UniValue::VARR,
-        UniValueType(), // ARR or OBJ, checked later
-        UniValue::VNUM,
-        UniValue::VBOOL,
-		UniValue::VNUM
-        }, true
-    );
-
->>>>>>> litecoin24x
     std::optional<bool> rbf;
     if (!request.params[3].isNull()) {
         rbf = request.params[3].get_bool();
@@ -2083,28 +2026,6 @@ static RPCHelpMan utxoupdatepsbt()
             },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-<<<<<<< btco
-    // Unserialize the transactions
-    PartiallySignedTransaction psbtx;
-    std::string error;
-    if (!DecodeBase64PSBT(psbtx, request.params[0].get_str(), error)) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
-    }
-
-||||||| core24
-    RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR}, true);
-
-    // Unserialize the transactions
-    PartiallySignedTransaction psbtx;
-    std::string error;
-    if (!DecodeBase64PSBT(psbtx, request.params[0].get_str(), error)) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
-    }
-
-=======
-    RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VARR}, true);
-
->>>>>>> litecoin24x
     // Parse descriptors, if any.
     FlatSigningProvider provider;
     if (!request.params[1].isNull()) {

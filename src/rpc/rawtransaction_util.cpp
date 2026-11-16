@@ -21,13 +21,7 @@
 #include <util/strencodings.h>
 #include <util/translation.h>
 
-<<<<<<< btco
 void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optional<bool> rbf)
-||||||| core24
-CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf)
-=======
-CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf, bool allow_mweb)
->>>>>>> litecoin24x
 {
     UniValue inputs;
     if (inputs_in.isNull()) {

@@ -11,11 +11,9 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
 {
     int nPeriod = Period(params);
     int nThreshold = Threshold(params);
+    int min_activation_height = MinActivationHeight(params);
     int64_t nTimeStart = BeginTime(params);
     int64_t nTimeTimeout = EndTime(params);
-    int64_t nHeightStart = BeginHeight(params);
-    int64_t nHeightTimeout = EndHeight(params);
-    bool fHeightBased = (nTimeStart == 0 && nTimeTimeout == 0) ? true : false;
 
     // Check if this deployment is always active.
     if (nTimeStart == Consensus::BIP9Deployment::ALWAYS_ACTIVE) {
@@ -40,7 +38,7 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
             cache[pindexPrev] = ThresholdState::DEFINED;
             break;
         }
-        if (fHeightBased ? ((pindexPrev->nHeight + 1) < nHeightStart) : (pindexPrev->GetMedianTimePast() < nTimeStart)) {
+        if (pindexPrev->GetMedianTimePast() < nTimeStart) {
             // Optimization: don't recompute down further, as we know every earlier block will be before the start time
             cache[pindexPrev] = ThresholdState::DEFINED;
             break;
@@ -61,7 +59,7 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
 
         switch (state) {
             case ThresholdState::DEFINED: {
-                if (fHeightBased ? (pindexPrev->nHeight + 1) >= nHeightStart : pindexPrev->GetMedianTimePast() >= nTimeStart) {
+                if (pindexPrev->GetMedianTimePast() >= nTimeStart) {
                     stateNext = ThresholdState::STARTED;
                 }
                 break;
@@ -78,13 +76,16 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
                 }
                 if (count >= nThreshold) {
                     stateNext = ThresholdState::LOCKED_IN;
-                } else if (fHeightBased ? ((pindexPrev->nHeight + 1) >= nHeightTimeout) : (pindexPrev->GetMedianTimePast() >= nTimeTimeout)) {
-                    stateNext = fHeightBased ? ThresholdState::LOCKED_IN : ThresholdState::FAILED;
+                } else if (pindexPrev->GetMedianTimePast() >= nTimeTimeout) {
+                    stateNext = ThresholdState::FAILED;
                 }
                 break;
             }
             case ThresholdState::LOCKED_IN: {
-                stateNext = ThresholdState::ACTIVE;
+                // Progresses into ACTIVE provided activation height will have been reached.
+                if (pindexPrev->nHeight + 1 >= min_activation_height) {
+                    stateNext = ThresholdState::ACTIVE;
+                }
                 break;
             }
             case ThresholdState::FAILED:
@@ -184,20 +185,9 @@ private:
 protected:
     int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
     int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
-<<<<<<< btco
     int MinActivationHeight(const Consensus::Params& params) const override { return params.vDeployments[id].min_activation_height; }
     //int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
     //int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
-||||||| core24
-    int MinActivationHeight(const Consensus::Params& params) const override { return params.vDeployments[id].min_activation_height; }
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
-=======
-    int64_t BeginHeight(const Consensus::Params& params) const override { return params.vDeployments[id].nStartHeight; }
-    int64_t EndHeight(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeoutHeight; }
-    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
->>>>>>> litecoin24x
 
 
     // Overloads to satisfy the base class
