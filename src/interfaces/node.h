@@ -87,7 +87,8 @@ public:
     virtual bool baseInitialize() = 0;
 
     //! Start node.
-    virtual bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info = nullptr) = 0;
+    virtual bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info = nullptr,
+                            const std::function<bool()>& confirm_db_upgrade = {}) = 0;
 
     //! Stop node.
     virtual void appShutdown() = 0;
@@ -202,7 +203,7 @@ public:
     virtual void rpcUnsetTimerInterface(RPCTimerInterface* iface) = 0;
 
     //! Get unspent outputs associated with a transaction.
-    virtual bool getUnspentOutput(const COutPoint& output, Coin& coin) = 0;
+    virtual bool getUnspentOutput(const AnyOutputID& index, AnyOutput& output) = 0;
 
     //! Broadcast transaction.
     virtual TransactionError broadcastTransaction(CTransactionRef tx, CAmount max_tx_fee, std::string& err_string) = 0;

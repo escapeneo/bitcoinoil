@@ -18,9 +18,9 @@ static const struct {
     const int iconColorSaturationReduction;
 } network_styles[] = {
     {"main", QAPP_APP_NAME_DEFAULT, 0, 0},
-    {"test", QAPP_APP_NAME_TESTNET, 70, 30},
+    {"test", QAPP_APP_NAME_TESTNET, 0, 0},
     {"signet", QAPP_APP_NAME_SIGNET, 35, 15},
-    {"regtest", QAPP_APP_NAME_REGTEST, 160, 30},
+    {"regtest", QAPP_APP_NAME_REGTEST, 60, 1},
 };
 
 // titleAddText needs to be const char* for tr()
@@ -29,7 +29,12 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift,
     titleAddText(qApp->translate("SplashScreen", _titleAddText))
 {
     // load pixmap
-    QPixmap pixmap(":/icons/bitcoinoil");
+    QPixmap pixmap;
+    if (std::char_traits<char>::length(_titleAddText) == 0) {
+        pixmap.load(":/icons/bitcoinoil");
+    } else {
+        pixmap.load(":/icons/bitcoinoil_splash");
+    }
 
     if(iconColorHueShift != 0 && iconColorSaturationReduction != 0)
     {

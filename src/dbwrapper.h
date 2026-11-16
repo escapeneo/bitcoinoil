@@ -194,6 +194,13 @@ public:
         return true;
     }
 
+    bool GetKey(std::string& key)
+    {
+        leveldb::Slice slKey = piter->key();
+        key = slKey.ToString();
+        return true;
+    }
+
     template<typename V> bool GetValue(V& value) {
         leveldb::Slice slValue = piter->value();
         try {

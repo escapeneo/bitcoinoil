@@ -5,17 +5,24 @@
 #ifndef BITCOINOIL_SCRIPT_KEYORIGIN_H
 #define BITCOINOIL_SCRIPT_KEYORIGIN_H
 
+#include <util/bip32.h>
 #include <serialize.h>
+#include <optional>
 #include <vector>
 
 struct KeyOriginInfo
 {
     unsigned char fingerprint[4]; //!< First 32 bits of the Hash160 of the public key at the root of the path
-    std::vector<uint32_t> path;
+    HDKeyPath hdkeypath;
+
+    SERIALIZE_METHODS(KeyOriginInfo, obj)
+    {
+        READWRITE(obj.fingerprint, obj.hdkeypath);
+    }
 
     friend bool operator==(const KeyOriginInfo& a, const KeyOriginInfo& b)
     {
-        return std::equal(std::begin(a.fingerprint), std::end(a.fingerprint), std::begin(b.fingerprint)) && a.path == b.path;
+        return std::equal(std::begin(a.fingerprint), std::end(a.fingerprint), std::begin(b.fingerprint)) && a.hdkeypath == b.hdkeypath;
     }
 
     friend bool operator<(const KeyOriginInfo& a, const KeyOriginInfo& b)
@@ -27,22 +34,15 @@ struct KeyOriginInfo
         } else if (fpr_cmp > 0) {
             return false;
         }
-        // Compare the sizes of the paths, shorter is "less than"
-        if (a.path.size() < b.path.size()) {
-            return true;
-        } else if (a.path.size() > b.path.size()) {
-            return false;
-        }
-        // Paths same length, compare them lexicographically
-        return a.path < b.path;
-    }
 
-    SERIALIZE_METHODS(KeyOriginInfo, obj) { READWRITE(obj.fingerprint, obj.path); }
+        // Compare the MWEB indices
+        return a.hdkeypath < b.hdkeypath;
+    }
 
     void clear()
     {
         memset(fingerprint, 0, 4);
-        path.clear();
+        hdkeypath.clear();
     }
 };
 

@@ -11,12 +11,9 @@
 #include <consensus/amount.h>
 
 #include <QObject>
+#include <vector>
 
 class SendCoinsRecipient;
-
-namespace interfaces {
-class Node;
-}
 
 /** Data model for a walletmodel transaction. */
 class WalletModelTransaction
@@ -36,7 +33,7 @@ public:
 
     CAmount getTotalTransactionAmount() const;
 
-    void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
+    void reassignAmounts(const std::vector<CAmount>& recipient_amounts); // needed for the subtract-fee-from-amount feature
 
 private:
     QList<SendCoinsRecipient> recipients;

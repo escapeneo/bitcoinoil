@@ -6,10 +6,11 @@
 #ifndef BITCOINOIL_SCRIPT_INTERPRETER_H
 #define BITCOINOIL_SCRIPT_INTERPRETER_H
 
+#include <consensus/amount.h>
 #include <hash.h>
 #include <script/script_error.h>
-#include <span.h>
 #include <primitives/transaction.h>
+#include <span.h>
 
 #include <optional>
 #include <vector>
@@ -21,6 +22,7 @@ class CScript;
 class CTransaction;
 class CTxOut;
 class uint256;
+struct CMutableTransaction;
 
 /** Signature hash types/flags */
 enum

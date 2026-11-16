@@ -348,7 +348,7 @@ static RPCHelpMan echoipc()
                 ipc->addCleanup(*echo, [init = init.release()] { delete init; });
             } else {
                 // IPC support is not available because this is a bitcoinoild
-                // process not a bitcoinoild-node process, so just create a local
+                // process not a bitcoinoil-node process, so just create a local
                 // interfaces::Echo object and return it so the `echoipc` RPC
                 // method will work, and the python test calling `echoipc`
                 // can expect the same result.

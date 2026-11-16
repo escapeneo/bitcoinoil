@@ -1227,6 +1227,7 @@ void BitcoinOilGUI::message(const QString& title, QString message, unsigned int 
         QMessageBox mBox(static_cast<QMessageBox::Icon>(nMBoxIcon), strTitle, message, buttons, this);
         mBox.setTextFormat(Qt::PlainText);
         mBox.setDetailedText(detailed_message);
+        if (buttons & QMessageBox::Cancel) mBox.setDefaultButton(QMessageBox::Cancel);
         int r = mBox.exec();
         if (ret != nullptr)
             *ret = r == QMessageBox::Ok;

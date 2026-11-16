@@ -42,7 +42,8 @@ constexpr bool ValidDeployment(BuriedDeployment dep) { return dep <= DEPLOYMENT_
 enum DeploymentPos : uint16_t {
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_TAPROOT, // Deployment of Schnorr/Taproot (BIPs 340-342)
-    // NOTE: Also add new deployments to VersionBitsDeploymentInfo in deploymentinfo.cpp
+    DEPLOYMENT_MWEB, // Deployment of MWEB (LIPs 0002-0004)
+    // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
 constexpr bool ValidDeployment(DeploymentPos dep) { return dep < MAX_VERSION_BITS_DEPLOYMENTS; }
@@ -57,11 +58,10 @@ struct BIP9Deployment {
     int64_t nStartTime{NEVER_ACTIVE};
     /** Timeout/expiry MedianTime for the deployment attempt. */
     int64_t nTimeout{NEVER_ACTIVE};
-    /** If lock in occurs, delay activation until at least this block
-     *  height.  Note that activation will only occur on a retarget
-     *  boundary.
-     */
-    int min_activation_height{0};
+    /** Start block height for version bits miner confirmation. Should be a retarget block, can be in the past */
+    int64_t nStartHeight{NEVER_ACTIVE};
+    /** Timeout/expiry block height for the deployment attempt. Should be a retarget block. */
+    int64_t nTimeoutHeight{NEVER_ACTIVE};
 
     /** Constant for nTimeout very far in the future. */
     static constexpr int64_t NO_TIMEOUT = std::numeric_limits<int64_t>::max();
@@ -140,6 +140,18 @@ struct Params {
      */
     bool signet_blocks{false};
     std::vector<uint8_t> signet_challenge;
+
+    /** Optional one-block grandfather for the known MWEB input-metadata exploit. */
+    uint256 mweb_input_metadata_grandfather_blockhash;
+
+    /** MWEB kernels signaling pegouts must contain at least one pegout at and after this height. */
+    int mweb_pegout_feature_activation_height{0};
+
+    /** MWEB kernels signaling extra data must contain non-empty extra data at and after this height. */
+    int mweb_extradata_feature_activation_height{0};
+
+    /** Frozen MWEB output IDs that may not be spent. */
+    std::vector<uint256> frozen_mweb_output_ids;
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

@@ -7,6 +7,7 @@
 #include <key_io.h>
 #include <rpc/util.h>
 #include <util/moneystr.h>
+#include <util/strencodings.h>
 #include <wallet/coincontrol.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/util.h>
@@ -17,6 +18,18 @@
 
 
 namespace wallet {
+namespace {
+mw::Hash ParseMWEBOutputID(const UniValue& value)
+{
+    RPCTypeCheckArgument(value, UniValue::VSTR);
+    const std::string output_id = value.get_str();
+    if (output_id.size() != 64 || !IsHex(output_id)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, mweb_out must be a 64-character hexadecimal string");
+    }
+    return mw::Hash::FromHex(output_id);
+}
+} // namespace
+
 static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool by_label) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     std::vector<CTxDestination> addresses;
@@ -36,8 +49,8 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
     // Filter by own scripts only
     std::set<CScript> output_scripts;
     for (const auto& address : addresses) {
-        auto output_script{GetScriptForDestination(address)};
-        if (wallet.IsMine(output_script)) {
+        if (wallet.IsMine(GenericAddress(address))) {
+            auto output_script{GetScriptForDestination(address)};
             output_scripts.insert(output_script);
         }
     }
@@ -61,7 +74,7 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
         if (depth < min_depth
             // Coinbase with less than 1 confirmation is no longer in the main chain
             || (wtx.IsCoinBase() && (depth < 1))
-            || (wallet.IsTxImmatureCoinBase(wtx) && !include_immature_coinbase))
+            || (wallet.IsTxImmature(wtx) && !include_immature_coinbase))
         {
             continue;
         }
@@ -251,12 +264,13 @@ RPCHelpMan lockunspent()
                 "Also see the listunspent call\n",
                 {
                     {"unlock", RPCArg::Type::BOOL, RPCArg::Optional::NO, "Whether to unlock (true) or lock (false) the specified transactions"},
-                    {"transactions", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "The transaction outputs and within each, the txid (string) vout (numeric).",
+                    {"transactions", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "The transaction outputs. Each object must contain either txid and vout, or mweb_out.",
                         {
                             {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                                 {
-                                    {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id"},
-                                    {"vout", RPCArg::Type::NUM, RPCArg::Optional::NO, "The output number"},
+                                    {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The transaction id for a transparent output"},
+                                    {"vout", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The output number for a transparent output"},
+                                    {"mweb_out", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The MWEB output id"},
                                 },
                             },
                         },
@@ -305,44 +319,61 @@ RPCHelpMan lockunspent()
 
     const UniValue& output_params = request.params[1].get_array();
 
-    // Create and validate the COutPoints first.
+    // Create and validate the output ids first.
 
-    std::vector<COutPoint> outputs;
+    std::vector<AnyOutputID> outputs;
     outputs.reserve(output_params.size());
 
     for (unsigned int idx = 0; idx < output_params.size(); idx++) {
         const UniValue& o = output_params[idx].get_obj();
 
-        RPCTypeCheckObj(o,
-            {
-                {"txid", UniValueType(UniValue::VSTR)},
-                {"vout", UniValueType(UniValue::VNUM)},
-            });
+        AnyOutputID output_id;
+        if (o.exists("mweb_out")) {
+            if (o.exists("txid") || o.exists("vout")) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, specify either mweb_out or txid and vout");
+            }
 
-        const uint256 txid(ParseHashO(o, "txid"));
-        const int nOutput = find_value(o, "vout").getInt<int>();
-        if (nOutput < 0) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout cannot be negative");
+            RPCTypeCheckObj(o, {{"mweb_out", UniValueType(UniValue::VSTR)}});
+            output_id = ParseMWEBOutputID(o["mweb_out"]);
+            mw::WalletCoin coin;
+            if (!pwallet->GetMWEBWalletCoin(output_id.ToMWEB(), coin)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, unknown MWEB output");
+            }
+        } else {
+            RPCTypeCheckObj(o,
+                {
+                    {"txid", UniValueType(UniValue::VSTR)},
+                    {"vout", UniValueType(UniValue::VNUM)},
+                });
+            const uint256 txid(ParseHashO(o, "txid"));
+            const UniValue& vout = find_value(o, "vout");
+            if (!vout.isNum()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+            }
+            const int nOutput = vout.getInt<int>();
+            if (nOutput < 0) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout cannot be negative");
+            }
+
+            const COutPoint outpoint(txid, nOutput);
+            const auto it = pwallet->mapWallet.find(outpoint.hash);
+            if (it == pwallet->mapWallet.end()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, unknown transaction");
+            }
+
+            const CWalletTx& trans = it->second;
+
+            if (outpoint.n >= trans.tx->vout.size()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout index out of bounds");
+            }
+            output_id = outpoint;
         }
 
-        const COutPoint outpt(txid, nOutput);
-
-        const auto it = pwallet->mapWallet.find(outpt.hash);
-        if (it == pwallet->mapWallet.end()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, unknown transaction");
-        }
-
-        const CWalletTx& trans = it->second;
-
-        if (outpt.n >= trans.tx->vout.size()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout index out of bounds");
-        }
-
-        if (pwallet->IsSpent(outpt)) {
+        if (pwallet->IsSpent(output_id)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected unspent output");
         }
 
-        const bool is_locked = pwallet->IsLockedCoin(outpt);
+        const bool is_locked = pwallet->IsLockedCoin(output_id);
 
         if (fUnlock && !is_locked) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected locked output");
@@ -352,7 +383,7 @@ RPCHelpMan lockunspent()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, output already locked");
         }
 
-        outputs.push_back(outpt);
+        outputs.push_back(output_id);
     }
 
     std::unique_ptr<WalletBatch> batch = nullptr;
@@ -360,11 +391,11 @@ RPCHelpMan lockunspent()
     if (fUnlock || persistent) batch = std::make_unique<WalletBatch>(pwallet->GetDatabase());
 
     // Atomically set (un)locked status for the outputs.
-    for (const COutPoint& outpt : outputs) {
+    for (const AnyOutputID& output_id : outputs) {
         if (fUnlock) {
-            if (!pwallet->UnlockCoin(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Unlocking coin failed");
+            if (!pwallet->UnlockCoin(output_id, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Unlocking coin failed");
         } else {
-            if (!pwallet->LockCoin(outpt, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Locking coin failed");
+            if (!pwallet->LockCoin(output_id, batch.get())) throw JSONRPCError(RPC_WALLET_ERROR, "Locking coin failed");
         }
     }
 
@@ -384,8 +415,9 @@ RPCHelpMan listlockunspent()
                     {
                         {RPCResult::Type::OBJ, "", "",
                         {
-                            {RPCResult::Type::STR_HEX, "txid", "The transaction id locked"},
-                            {RPCResult::Type::NUM, "vout", "The vout value"},
+                            {RPCResult::Type::STR_HEX, "txid", /*optional=*/true, "The transaction id of a locked transparent output"},
+                            {RPCResult::Type::NUM, "vout", /*optional=*/true, "The vout value of a locked transparent output"},
+                            {RPCResult::Type::STR_HEX, "mweb_out", /*optional=*/true, "The MWEB output id of a locked MWEB output"},
                         }},
                     }
                 },
@@ -408,16 +440,22 @@ RPCHelpMan listlockunspent()
 
     LOCK(pwallet->cs_wallet);
 
-    std::vector<COutPoint> vOutpts;
+    std::vector<AnyOutputID> vOutpts;
     pwallet->ListLockedCoins(vOutpts);
 
     UniValue ret(UniValue::VARR);
 
-    for (const COutPoint& outpt : vOutpts) {
+    for (const AnyOutputID& output_id : vOutpts) {
         UniValue o(UniValue::VOBJ);
+        
+        if (output_id.IsOutPoint()) {
+            const COutPoint& outpt = output_id.ToOutPoint();
+            o.pushKV("txid", outpt.hash.GetHex());
+            o.pushKV("vout", (int)outpt.n);
+        } else {
+            o.pushKV("mweb_out", output_id.ToMWEB().ToHex());
+        }
 
-        o.pushKV("txid", outpt.hash.GetHex());
-        o.pushKV("vout", (int)outpt.n);
         ret.push_back(o);
     }
 
@@ -526,19 +564,21 @@ RPCHelpMan listunspent()
                         {RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::STR_HEX, "txid", "the transaction id"},
-                            {RPCResult::Type::NUM, "vout", "the vout value"},
+                            {RPCResult::Type::NUM, "vout", /*optional=*/true, "the vout value"},
+                            {RPCResult::Type::STR_HEX, "mweb_out", /*optional=*/true, "the MWEB output ID"},
                             {RPCResult::Type::STR, "address", /*optional=*/true, "the bitcoinoil address"},
                             {RPCResult::Type::STR, "label", /*optional=*/true, "The associated label, or \"\" for the default label"},
-                            {RPCResult::Type::STR, "scriptPubKey", "the script key"},
+                            {RPCResult::Type::STR, "scriptPubKey", /*optional=*/true, "the script key"},
                             {RPCResult::Type::STR_AMOUNT, "amount", "the transaction output amount in " + CURRENCY_UNIT},
                             {RPCResult::Type::NUM, "confirmations", "The number of confirmations"},
                             {RPCResult::Type::NUM, "ancestorcount", /*optional=*/true, "The number of in-mempool ancestor transactions, including this one (if transaction is in the mempool)"},
                             {RPCResult::Type::NUM, "ancestorsize", /*optional=*/true, "The virtual transaction size of in-mempool ancestors, including this one (if transaction is in the mempool)"},
                             {RPCResult::Type::STR_AMOUNT, "ancestorfees", /*optional=*/true, "The total fees of in-mempool ancestors (including this one) with fee deltas used for mining priority in " + CURRENCY_ATOM + " (if transaction is in the mempool)"},
+                            {RPCResult::Type::NUM, "ancestormwebweight", /*optional=*/true, "The mweb weight of in-mempool ancestors, including this one (if transaction is in the mempool)"},
                             {RPCResult::Type::STR_HEX, "redeemScript", /*optional=*/true, "The redeemScript if scriptPubKey is P2SH"},
                             {RPCResult::Type::STR, "witnessScript", /*optional=*/true, "witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH"},
                             {RPCResult::Type::BOOL, "spendable", "Whether we have the private keys to spend this output"},
-                            {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend this output, ignoring the lack of keys"},
+                            {RPCResult::Type::BOOL, "solvable", /*optional=*/true, "Whether we know how to spend this output, ignoring the lack of keys"},
                             {RPCResult::Type::BOOL, "reused", /*optional=*/true, "(only present if avoid_reuse is set) Whether this output is reused/dirty (sent to an address that was previously spent from)"},
                             {RPCResult::Type::STR, "desc", /*optional=*/true, "(only when solvable) A descriptor for spending this output"},
                             {RPCResult::Type::ARR, "parent_descs", /*optional=*/false, "List of parent descriptors for the scriptPubKey of this coin.", {
@@ -630,7 +670,7 @@ RPCHelpMan listunspent()
     pwallet->BlockUntilSyncedToCurrentChain();
 
     UniValue results(UniValue::VARR);
-    std::vector<COutput> vecOutputs;
+    std::vector<AnyWalletUTXO> vecOutputs;
     {
         CCoinControl cctl;
         cctl.m_avoid_address_reuse = false;
@@ -645,19 +685,24 @@ RPCHelpMan listunspent()
 
     const bool avoid_reuse = pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE);
 
-    for (const COutput& out : vecOutputs) {
+    for (const AnyWalletUTXO& output_coin : vecOutputs) {
         CTxDestination address;
-        const CScript& scriptPubKey = out.txout.scriptPubKey;
-        bool fValidAddress = ExtractDestination(scriptPubKey, address);
-        bool reused = avoid_reuse && pwallet->IsSpentKey(scriptPubKey);
+        bool fValidAddress = output_coin.GetDestination(address);
 
         if (destinations.size() && (!fValidAddress || !destinations.count(address)))
             continue;
 
         UniValue entry(UniValue::VOBJ);
-        entry.pushKV("txid", out.outpoint.hash.GetHex());
-        entry.pushKV("vout", (int)out.outpoint.n);
-
+        entry.pushKV("txid", output_coin.GetTxHash().GetHex());
+        if (output_coin.IsMWEB()) {
+            entry.pushKV("mweb_out", output_coin.GetID().ToMWEB().ToHex());
+        } else {
+            entry.pushKV("vout", (int)output_coin.GetID().ToOutPoint().n);
+        }
+        entry.pushKV("amount", ValueFromAmount(output_coin.GetValue()));
+        entry.pushKV("confirmations", output_coin.GetDepth());
+        entry.pushKV("spendable", output_coin.IsSpendable());
+        entry.pushKV("safe", output_coin.IsSafe());
         if (fValidAddress) {
             entry.pushKV("address", EncodeDestination(address));
 
@@ -665,7 +710,20 @@ RPCHelpMan listunspent()
             if (address_book_entry) {
                 entry.pushKV("label", address_book_entry->GetLabel());
             }
+        }
 
+        if (output_coin.IsMWEB()) {
+            PushParentDescriptors(*pwallet, address, entry);
+            results.push_back(entry);
+            continue;
+        }
+        
+        const CWalletUTXO& out = std::get<CWalletUTXO>(output_coin.m_output);
+        const CScript& scriptPubKey = out.txout.scriptPubKey;
+
+        bool reused = avoid_reuse && fValidAddress && pwallet->IsSpentKey(address);
+
+        if (fValidAddress) {
             std::unique_ptr<SigningProvider> provider = pwallet->GetSolvingProvider(scriptPubKey);
             if (provider) {
                 if (scriptPubKey.IsPayToScriptHash()) {
@@ -699,21 +757,19 @@ RPCHelpMan listunspent()
         }
 
         entry.pushKV("scriptPubKey", HexStr(scriptPubKey));
-        entry.pushKV("amount", ValueFromAmount(out.txout.nValue));
-        entry.pushKV("confirmations", out.depth);
-        if (!out.depth) {
-            size_t ancestor_count, descendant_count, ancestor_size;
+        if (!output_coin.GetDepth()) {
+            size_t ancestor_count, descendant_count, ancestor_size, ancestor_mweb_weight;
             CAmount ancestor_fees;
-            pwallet->chain().getTransactionAncestry(out.outpoint.hash, ancestor_count, descendant_count, &ancestor_size, &ancestor_fees);
+            pwallet->chain().getTransactionAncestry(output_coin.GetTxHash(), ancestor_count, descendant_count, &ancestor_size, &ancestor_fees, &ancestor_mweb_weight);
             if (ancestor_count) {
                 entry.pushKV("ancestorcount", uint64_t(ancestor_count));
                 entry.pushKV("ancestorsize", uint64_t(ancestor_size));
                 entry.pushKV("ancestorfees", uint64_t(ancestor_fees));
+                entry.pushKV("ancestormwebweight", uint64_t(ancestor_mweb_weight));
             }
         }
-        entry.pushKV("spendable", out.spendable);
-        entry.pushKV("solvable", out.solvable);
-        if (out.solvable) {
+        entry.pushKV("solvable", output_coin.IsSolvable());
+        if (output_coin.IsSolvable()) {
             std::unique_ptr<SigningProvider> provider = pwallet->GetSolvingProvider(scriptPubKey);
             if (provider) {
                 auto descriptor = InferDescriptor(scriptPubKey, *provider);

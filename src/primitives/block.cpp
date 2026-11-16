@@ -7,6 +7,9 @@
 
 #include <hash.h>
 #include <tinyformat.h>
+#include <util/strencodings.h>
+#include <crypto/common.h>
+#include <crypto/scrypt.h>
 
 void CBlockHeader::SetAuxpow (std::unique_ptr<CAuxPow> apow)
 {
@@ -19,6 +22,13 @@ void CBlockHeader::SetAuxpow (std::unique_ptr<CAuxPow> apow)
         auxpow.reset();
         SetAuxpowVersion(false);
     }
+}
+
+PoWHash CBlockHeader::GetPoWHash() const
+{
+    PoWHash thash;
+    scrypt_1024_1_1_256((char*)this, (char*)thash.begin());
+    return thash;
 }
 
 std::string CBlock::ToString() const
@@ -34,5 +44,18 @@ std::string CBlock::ToString() const
     for (const auto& tx : vtx) {
         s << "  " << tx->ToString() << "\n";
     }
+    if (!mweb_block.IsNull()) {
+        s << "  " + mweb_block.ToString() + "\n";
+    }
     return s.str();
+}
+
+CTransactionRef CBlock::GetHogEx() const noexcept
+{
+    if (vtx.size() >= 2 && vtx.back()->IsHogEx()) {
+        assert(!vtx.back()->vout.empty());
+        return vtx.back();
+    }
+
+    return nullptr;
 }

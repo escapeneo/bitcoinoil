@@ -104,9 +104,10 @@ public:
 
         return true;
     }
-    bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info) override
+    bool appInitMain(interfaces::BlockAndHeaderTipInfo* tip_info,
+                     const std::function<bool()>& confirm_db_upgrade) override
     {
-        return AppInitMain(*m_context, tip_info);
+        return AppInitMain(*m_context, tip_info, confirm_db_upgrade);
     }
     void appShutdown() override
     {
@@ -322,10 +323,23 @@ public:
     std::vector<std::string> listRpcCommands() override { return ::tableRPC.listCommands(); }
     void rpcSetTimerInterfaceIfUnset(RPCTimerInterface* iface) override { RPCSetTimerInterfaceIfUnset(iface); }
     void rpcUnsetTimerInterface(RPCTimerInterface* iface) override { RPCUnsetTimerInterface(iface); }
-    bool getUnspentOutput(const COutPoint& output, Coin& coin) override
+    bool getUnspentOutput(const AnyOutputID& output_id, AnyOutput& output) override
     {
         LOCK(::cs_main);
-        return chainman().ActiveChainstate().CoinsTip().GetCoin(output, coin);
+        if (output_id.IsMWEB()) {
+            mw::Coin::CPtr mweb_coin{nullptr};
+            if (chainman().ActiveChainstate().CoinsTip().GetMWEBCoin(output_id.ToMWEB(), mweb_coin)) {
+                output = AnyOutput{mweb_coin->GetOutput()};
+                return true;
+            }
+        } else {
+            Coin coin;
+            if (chainman().ActiveChainstate().CoinsTip().GetCoin(output_id.ToOutPoint(), coin)) {
+                output = AnyOutput{output_id.ToOutPoint(), coin.out};
+                return true;
+            }
+        }
+        return false;
     }
     TransactionError broadcastTransaction(CTransactionRef tx, CAmount max_tx_fee, std::string& err_string) override
     {
@@ -599,7 +613,7 @@ public:
                int{FillBlock(block1, block1_out, lock, active)} &
                int{FillBlock(block2, block2_out, lock, active)};
     }
-    void findCoins(std::map<COutPoint, Coin>& coins) override { return FindCoins(m_node, coins); }
+    void findCoins(std::map<AnyOutputID, AnyCoin>& coins) override { return FindCoins(m_node, coins); }
     double guessVerificationProgress(const uint256& block_hash) override
     {
         LOCK(::cs_main);
@@ -654,11 +668,11 @@ public:
         // that Chain clients do not need to know about.
         return TransactionError::OK == err;
     }
-    void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize, CAmount* ancestorfees) override
+    void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize, CAmount* ancestorfees, size_t* ancestor_mweb_weight) override
     {
         ancestors = descendants = 0;
         if (!m_node.mempool) return;
-        m_node.mempool->GetTransactionAncestry(txid, ancestors, descendants, ancestorsize, ancestorfees);
+        m_node.mempool->GetTransactionAncestry(txid, ancestors, descendants, ancestorsize, ancestorfees, ancestor_mweb_weight);
     }
     void getPackageLimits(unsigned int& limit_ancestor_count, unsigned int& limit_descendant_count) override
     {

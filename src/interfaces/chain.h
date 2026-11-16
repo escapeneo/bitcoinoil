@@ -25,6 +25,7 @@ class CRPCCommand;
 class CScheduler;
 class UniValue;
 class Coin;
+class AnyCoin;
 class uint256;
 enum class MemPoolRemovalReason;
 enum class RBFTransactionState;
@@ -183,7 +184,7 @@ public:
     //! Look up unspent output information. Returns coins in the mempool and in
     //! the current chain UTXO set. Iterates through all the keys in the map and
     //! populates the values.
-    virtual void findCoins(std::map<COutPoint, Coin>& coins) = 0;
+    virtual void findCoins(std::map<AnyOutputID, AnyCoin>& coins) = 0;
 
     //! Estimate fraction of total transactions verified if blocks up to
     //! the specified block hash are verified.
@@ -212,7 +213,7 @@ public:
         std::string& err_string) = 0;
 
     //! Calculate mempool ancestor and descendant counts for the given transaction.
-    virtual void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) = 0;
+    virtual void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr, size_t* ancestor_mweb_weight = nullptr) = 0;
 
     //! Get the node's package limits.
     //! Currently only returns the ancestor and descendant count limits, but could be enhanced to
