@@ -171,8 +171,9 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
         if (!check_output(CTxOut{pegout.GetAmount(), pegout.GetScriptPubKey()}, /*is_pegout=*/true)) return false;
     }
 
-    // A peg-out OP_RETURN must still be the transaction's only data-carrier output.
-    if (has_pegout_data && nDataOut > 1) {
+    // only one OP_RETURN txout is permitted (BitcoinOil keeps this for all
+    // transactions; Litecoin limits it to peg-out data carriers)
+    if (nDataOut > 1) {
         reason = "multi-op-return";
         return false;
     }

@@ -228,6 +228,7 @@ private:
     {
         m_sender.LoadWallet();
         m_sender.LoadMinVersion(FEATURE_MWEB);
+        m_sender.m_fallback_fee = CFeeRate(200'000); // BitcoinOil has no default fallback fee
         m_sender.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
         m_sender.SetupDescriptorScriptPubKeyMans();
 
@@ -243,6 +244,7 @@ private:
         wallet.LoadWallet();
         wallet.SetupLegacyScriptPubKeyMan();
         WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_MWEB));
+        wallet.m_fallback_fee = CFeeRate(200'000); // BitcoinOil has no default fallback fee
 
         LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
         BOOST_REQUIRE(spk_man);

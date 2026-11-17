@@ -326,6 +326,9 @@ static RPCHelpMan generateblock()
         if (!IsValidDestination(destination)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address or descriptor");
         }
+        if (std::holds_alternative<StealthAddress>(destination)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot mine to an MWEB address");
+        }
 
         coinbase_script = GetScriptForDestination(destination);
     }
@@ -1121,6 +1124,9 @@ static RPCHelpMan createauxblock()
     if (!IsValidDestination(coinbaseScript)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Error: Invalid coinbase payout address");
+    }
+    if (std::holds_alternative<StealthAddress>(coinbaseScript)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot mine to an MWEB address");
     }
     const CScript scriptPubKey = GetScriptForDestination(coinbaseScript);
 

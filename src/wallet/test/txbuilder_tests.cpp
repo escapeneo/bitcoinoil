@@ -31,6 +31,7 @@ public:
     {
         m_wallet.LoadWallet();
         m_wallet.LoadMinVersion(FEATURE_MWEB);
+        m_wallet.m_fallback_fee = CFeeRate(200'000); // BitcoinOil has no default fallback fee
         m_wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
         m_wallet.SetupDescriptorScriptPubKeyMans();
 

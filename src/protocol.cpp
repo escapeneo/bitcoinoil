@@ -136,9 +136,11 @@ bool CMessageHeader::IsCommandValid() const
 
 ServiceFlags GetDesirableServiceFlags(ServiceFlags services) {
     if ((services & NODE_NETWORK_LIMITED) && g_initial_block_download_completed) {
-        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS | NODE_MWEB);
+        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
     }
-    return ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB);
+    // BitcoinOil: NODE_MWEB is not required here, so upgraded nodes keep
+    // connecting to the existing network before MWEB activates.
+    return ServiceFlags(NODE_NETWORK | NODE_WITNESS);
 }
 
 void SetServiceFlagsIBDCache(bool state) {
