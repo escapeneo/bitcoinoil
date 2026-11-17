@@ -33,19 +33,17 @@ class ToggleFailBatch : public DatabaseBatch
 private:
     bool* m_writes_succeed;
 
-    bool ReadKey(CDataStream&&, CDataStream&) override { return false; }
-    bool WriteKey(CDataStream&&, CDataStream&&, bool) override { return *m_writes_succeed; }
-    bool EraseKey(CDataStream&&) override { return *m_writes_succeed; }
-    bool HasKey(CDataStream&&) override { return false; }
+    bool ReadKey(DataStream&&, DataStream&) override { return false; }
+    bool WriteKey(DataStream&&, DataStream&&, bool) override { return *m_writes_succeed; }
+    bool EraseKey(DataStream&&) override { return *m_writes_succeed; }
+    bool HasKey(DataStream&&) override { return false; }
 
 public:
     explicit ToggleFailBatch(bool* writes_succeed) : m_writes_succeed(writes_succeed) { }
 
     void Flush() override { }
     void Close() override { }
-    bool StartCursor() override { return false; }
-    bool ReadAtCursor(CDataStream&, CDataStream&, bool&) override { return false; }
-    void CloseCursor() override { }
+    std::unique_ptr<DatabaseCursor> GetNewCursor() override { return std::make_unique<DummyCursor>(); }
     bool TxnBegin() override { return false; }
     bool TxnCommit() override { return false; }
     bool TxnAbort() override { return false; }
@@ -97,7 +95,8 @@ public:
     CPubKey m_seed;
 
     MWEBKeychainTestingSetup()
-        : m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         BOOST_REQUIRE(m_wallet.LoadWallet() == DBErrors::LOAD_OK);
         SetupLegacyWallet(m_wallet);

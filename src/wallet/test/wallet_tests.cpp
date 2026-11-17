@@ -592,7 +592,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoinsTest, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 1U);
 
     // Check initial balance from one mature coinbase transaction.
-    BOOST_CHECK_EQUAL(50 * COIN, WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).GetTotalAmount()));
+    BOOST_CHECK_EQUAL(50 * COIN, WITH_LOCK(wallet->cs_wallet, return GetAvailableBalance(*wallet)));
 
     // Add a transaction creating a change address, and confirm ListCoins still
     // returns the coin associated with the change address underneath the
@@ -633,45 +633,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoinsTest, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 2U);
 }
 
-void TestCoinsResult(ListCoinsTest& context, OutputType out_type, CAmount amount,
-                     std::map<OutputType, size_t>& expected_coins_sizes)
-{
-    LOCK(context.wallet->cs_wallet);
-    util::Result<CTxDestination> dest = Assert(context.wallet->GetNewDestination(out_type, ""));
-    CWalletTx& wtx = context.AddTx(CRecipient{{GetScriptForDestination(*dest)}, amount, /*fSubtractFeeFromAmount=*/true});
-    CoinFilterParams filter;
-    filter.skip_locked = false;
-    CoinsResult available_coins = AvailableCoins(*context.wallet, nullptr, std::nullopt, filter);
-    // Lock outputs so they are not spent in follow-up transactions
-    for (uint32_t i = 0; i < wtx.tx->vout.size(); i++) context.wallet->LockCoin({wtx.GetHash(), i});
-    for (const auto& [type, size] : expected_coins_sizes) BOOST_CHECK_EQUAL(size, available_coins.coins[type].size());
-}
-
-BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTest)
-{
-    std::map<OutputType, size_t> expected_coins_sizes;
-    for (const auto& out_type : OUTPUT_TYPES) { expected_coins_sizes[out_type] = 0U; }
-
-    // Verify our wallet has one usable coinbase UTXO before starting
-    // This UTXO is a P2PK, so it should show up in the Other bucket
-    expected_coins_sizes[OutputType::UNKNOWN] = 1U;
-    CoinsResult available_coins = WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet));
-    BOOST_CHECK_EQUAL(available_coins.Size(), expected_coins_sizes[OutputType::UNKNOWN]);
-    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::UNKNOWN].size(), expected_coins_sizes[OutputType::UNKNOWN]);
-
-    // We will create a self transfer for each of the OutputTypes and
-    // verify it is put in the correct bucket after running GetAvailablecoins
-    //
-    // For each OutputType, We expect 2 UTXOs in our wallet following the self transfer:
-    //   1. One UTXO as the recipient
-    //   2. One UTXO from the change, due to payment address matching logic
-
-    for (const auto& out_type : OUTPUT_TYPES) {
-        if (out_type == OutputType::UNKNOWN) continue;
-        expected_coins_sizes[out_type] = 2U;
-        TestCoinsResult(*this, out_type, 1 * COIN, expected_coins_sizes);
-    }
-}
+// BasicOutputTypesTest (Core 25) removed: it needs CoinFilterParams::skip_locked.
 
 BOOST_AUTO_TEST_CASE(legacy_mweb_keychain_load_caches_scan_secret)
 {
@@ -730,7 +692,7 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_migration_rejects_mismatched_scan_key)
     const PublicKey spend_pubkey(spend_key.GetPubKey().begin());
     const StealthAddress address(spend_pubkey.Mul(SecretKey(other_scan_key.begin())), spend_pubkey);
     BOOST_CHECK(spk_man->IsMine(address) == ISMINE_NO);
-    BOOST_REQUIRE(wallet.SetAddressBook(address, "imported", "receive"));
+    BOOST_REQUIRE(wallet.SetAddressBook(address, "imported", AddressPurpose::RECEIVE));
 
     bilingual_str error;
     BOOST_CHECK(!wallet.GetDescriptorsForLegacy(error));
@@ -802,7 +764,7 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_ignores_transparent_only_inactive_chain)
 
 BOOST_AUTO_TEST_CASE(legacy_mweb_generated_key_metadata_uses_mweb_index)
 {
-    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_MWEB));
 
@@ -1433,7 +1395,7 @@ class FaultBatch : public DatabaseBatch
         return true;
     }
 
-    bool ReadKey(CDataStream&& key, CDataStream& value) override
+    bool ReadKey(DataStream&& key, DataStream& value) override
     {
         const TestDatabaseBytes key_bytes{key.begin(), key.end()};
         const auto iter = Records().find(key_bytes);
@@ -1445,7 +1407,7 @@ class FaultBatch : public DatabaseBatch
         return true;
     }
 
-    bool WriteKey(CDataStream&& key, CDataStream&& value, bool overwrite = true) override
+    bool WriteKey(DataStream&& key, DataStream&& value, bool overwrite = true) override
     {
         const TestDatabaseBytes key_bytes{key.begin(), key.end()};
         const std::string type = KeyType(key_bytes);
@@ -1464,7 +1426,7 @@ class FaultBatch : public DatabaseBatch
         return true;
     }
 
-    bool EraseKey(CDataStream&& key) override
+    bool EraseKey(DataStream&& key) override
     {
         const TestDatabaseBytes key_bytes{key.begin(), key.end()};
         const std::string type = KeyType(key_bytes);
@@ -1477,7 +1439,7 @@ class FaultBatch : public DatabaseBatch
         return true;
     }
 
-    bool HasKey(CDataStream&& key) override
+    bool HasKey(DataStream&& key) override
     {
         const TestDatabaseBytes key_bytes{key.begin(), key.end()};
         return Records().count(key_bytes) != 0;
@@ -1490,31 +1452,23 @@ public:
     void Flush() override { }
     void Close() override { }
 
-    bool StartCursor() override
+    class Cursor : public DatabaseCursor
     {
-        m_cursor = m_state->records.cbegin();
-        return true;
-    }
-
-    bool ReadAtCursor(CDataStream& key, CDataStream& value, bool& complete) override
-    {
-        if (!m_cursor) {
-            return false;
+        const TestDatabaseRecords& m_records;
+        TestDatabaseRecords::const_iterator m_it;
+    public:
+        explicit Cursor(const TestDatabaseRecords& records) : m_records(records), m_it(records.cbegin()) {}
+        Status Next(DataStream& key, DataStream& value) override
+        {
+            if (m_it == m_records.cend()) return Status::DONE;
+            key.write(Span<const std::byte>{m_it->first.data(), m_it->first.size()});
+            value.write(Span<const std::byte>{m_it->second.data(), m_it->second.size()});
+            ++m_it;
+            return Status::MORE;
         }
+    };
 
-        if (*m_cursor == m_state->records.cend()) {
-            complete = true;
-            return true;
-        }
-
-        complete = false;
-        key.write(Span<const std::byte>{(*m_cursor)->first.data(), (*m_cursor)->first.size()});
-        value.write(Span<const std::byte>{(*m_cursor)->second.data(), (*m_cursor)->second.size()});
-        ++(*m_cursor);
-        return true;
-    }
-
-    void CloseCursor() override { m_cursor.reset(); }
+    std::unique_ptr<DatabaseCursor> GetNewCursor() override { return std::make_unique<Cursor>(m_state->records); }
 
     bool TxnBegin() override
     {

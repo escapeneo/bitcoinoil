@@ -47,9 +47,10 @@ public:
     CWallet m_rescan_wallet;
 
     MWEBLifecycleTestingSetup()
-        : m_sender(m_node.chain.get(), "sender", m_args, CreateMockWalletDatabase()),
-          m_live_wallet(m_node.chain.get(), "live", m_args, CreateMockWalletDatabase()),
-          m_rescan_wallet(m_node.chain.get(), "rescan", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_sender(m_node.chain.get(), "sender", CreateMockWalletDatabase()),
+          m_live_wallet(m_node.chain.get(), "live", CreateMockWalletDatabase()),
+          m_rescan_wallet(m_node.chain.get(), "rescan", CreateMockWalletDatabase())
     {
         SetupSender();
 
@@ -57,7 +58,7 @@ public:
         SetupReceiver(m_live_wallet);
         SetupReceiver(m_rescan_wallet);
 
-        SetMockTime(1601450001);
+        SetMockTime(GetTime() + 1);
         MineAndScanSender(331); // Pre-MWEB activation blocks.
         m_build_block_with_mempool = true;
 

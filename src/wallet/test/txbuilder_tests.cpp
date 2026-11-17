@@ -26,7 +26,8 @@ public:
     CWallet m_wallet;
 
     TxBuilderTestingSetup()
-        : m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         m_wallet.LoadWallet();
         m_wallet.LoadMinVersion(FEATURE_MWEB);
@@ -39,7 +40,7 @@ public:
         m_wallet.AddWalletDescriptor(desc, provider, "", false);
 
         m_wallet.SetBroadcastTransactions(true);
-        SetMockTime(1601450001);
+        SetMockTime(GetTime() + 1);
         mineBlocks(331); // Pre-MWEB activation blocks
         m_build_block_with_mempool = true;
     }

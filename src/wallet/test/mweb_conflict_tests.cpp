@@ -62,9 +62,10 @@ public:
     CWallet m_rescan_wallet;
 
     MWEBConflictTestingSetup()
-        : m_funder(m_node.chain.get(), "funder", m_args, CreateMockWalletDatabase()),
-          m_live_wallet(m_node.chain.get(), "live", m_args, CreateMockWalletDatabase()),
-          m_rescan_wallet(m_node.chain.get(), "rescan", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_funder(m_node.chain.get(), "funder", CreateMockWalletDatabase()),
+          m_live_wallet(m_node.chain.get(), "live", CreateMockWalletDatabase()),
+          m_rescan_wallet(m_node.chain.get(), "rescan", CreateMockWalletDatabase())
     {
         SetupFunder();
 
@@ -72,7 +73,7 @@ public:
         SetupReceiver(m_live_wallet);
         SetupReceiver(m_rescan_wallet);
 
-        SetMockTime(1601450001);
+        SetMockTime(GetTime() + 1);
         MineAndScanFunder(331);
         m_build_block_with_mempool = true;
 
@@ -205,7 +206,7 @@ public:
     void RemoveFromMempool(CWallet& wallet, const CTransactionRef& tx)
     {
         interfaces::Chain::Notifications& notifications = wallet;
-        notifications.transactionRemovedFromMempool(tx, MemPoolRemovalReason::CONFLICT, 0 /* mempool_sequence */);
+        notifications.transactionRemovedFromMempool(tx, MemPoolRemovalReason::CONFLICT);
     }
 
     void ScanToTip(CWallet& wallet, const ChainTip& start, bool update = false)
@@ -476,7 +477,7 @@ BOOST_AUTO_TEST_CASE(BlockConflictPropagatesToDescendantsAfterMempoolRemoval)
     const Funding funding = FundReceiver(SOURCE_AMOUNT);
     const Spend winner = BuildSpend(funding.output_id, StealthAddress::Random(), 2 * COIN);
     const Spend loser = BuildSpend(funding.output_id, StealthAddress::Random(), 3 * COIN);
-    m_live_wallet.transactionAddedToMempool(loser.tx, /*mempool_sequence=*/0);
+    m_live_wallet.transactionAddedToMempool(loser.tx);
     CWalletTx& loser_wtx = AddKnown(m_live_wallet, loser.tx, TxStateInMempool{});
 
     const Spend child = BuildSpend(loser.change_id, StealthAddress::Random(), COIN);

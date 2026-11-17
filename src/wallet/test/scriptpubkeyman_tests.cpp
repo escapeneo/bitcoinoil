@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(FailedDescriptorReservationDoesNotReturnUsedAddress)
     auto descriptor = Parse("wpkh(" + EncodeExtPubKey(master.Neuter()) + "/*')", provider, error, false);
     BOOST_REQUIRE_MESSAGE(descriptor, error);
     WalletDescriptor wallet_descriptor(std::move(descriptor), 0, 0, 1, 1);
-    DescriptorScriptPubKeyMan keyman(wallet, wallet_descriptor);
+    DescriptorScriptPubKeyMan keyman(wallet, wallet_descriptor, /*keypool_size=*/1000);
 
     int64_t index{-1};
     CKeyPool keypool;

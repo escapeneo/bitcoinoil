@@ -25,6 +25,7 @@
 #include <wallet/txbuilder.h>
 #include <wallet/wallet.h>
 
+#include <test/util/random.h>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
@@ -127,7 +128,8 @@ public:
     CWallet m_wallet;
 
     MWEBRawTestingSetup()
-        : m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         m_wallet.LoadWallet();
         m_wallet.LoadMinVersion(FEATURE_MWEB);
@@ -145,7 +147,7 @@ public:
         BOOST_REQUIRE(m_wallet.AddWalletDescriptor(descriptor, provider, "", /*internal=*/false));
 
         m_wallet.SetBroadcastTransactions(true);
-        SetMockTime(1601450001);
+        SetMockTime(GetTime() + 1);
         MineBlocks(331); // Reach MWEB activation with mature transparent funds.
         m_build_block_with_mempool = true;
     }

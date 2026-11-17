@@ -35,8 +35,8 @@ public:
     CWallet m_wallet;
 
     MWEBRewindTestingSetup()
-        : TestChain100Setup(CBaseChainParams::REGTEST, {"-keypool=13"}), // Sender rewind tests use indexes through 12.
-          m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-keypool=13", "-mwebheight=432"}), // Sender rewind tests use indexes through 12.
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         BOOST_REQUIRE(m_wallet.LoadWallet() == DBErrors::LOAD_OK);
         SetupFreshWallet(m_wallet);

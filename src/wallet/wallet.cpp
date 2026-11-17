@@ -535,6 +535,9 @@ CWallet::CWallet(interfaces::Chain* chain, const std::string& name, std::unique_
       m_name(name),
       m_database(std::move(database))
 {
+    // Wallets built directly (unit tests) take the keypool size from the global
+    // arguments; CWallet::Create() overrides it from the wallet context.
+    m_keypool_size = std::max(gArgs.GetIntArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{1});
     mweb_wallet = std::make_shared<MWEB::Wallet>(this);
 }
 

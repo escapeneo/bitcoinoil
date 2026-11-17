@@ -454,6 +454,9 @@ public:
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 150;
+        // Regtest only: one frozen MWEB output ID so the freeze logic stays under test.
+        // BitcoinOil freezes nothing on the other networks.
+        consensus.frozen_mweb_output_ids = {uint256(ParseHex("2f3a08d9f5ef5f388386c11efe935394b14b524220cff4ec5c81942b82e694f7"))};
         consensus.BIP34Height = 1; // Always active unless overridden
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1;  // Always active unless overridden

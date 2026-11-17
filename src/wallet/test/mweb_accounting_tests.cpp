@@ -37,7 +37,8 @@ public:
     CWallet m_wallet;
 
     MWEBAccountingTestingSetup()
-        : m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         m_wallet.LoadWallet();
         m_wallet.SetupLegacyScriptPubKeyMan();

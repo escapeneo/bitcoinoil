@@ -32,7 +32,8 @@ public:
     CWallet m_wallet;
 
     MWEBCoinSelectionTestingSetup()
-        : m_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase())
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+          m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         m_wallet.LoadWallet();
         m_wallet.SetupLegacyScriptPubKeyMan();
@@ -290,6 +291,7 @@ BOOST_AUTO_TEST_CASE(CoinControlFiltersMWEBAvailability)
     BOOST_CHECK(CoinIDs(Available(&minimum_depth)) == std::set<AnyOutputID>({deep, ltc}));
 
     CCoinControl selected_only;
+    selected_only.m_allow_other_inputs = false; // BitcoinOil keeps the Core 25 default (true)
     selected_only.Select(shallow);
     BOOST_CHECK(CoinIDs(Available(&selected_only)) == std::set<AnyOutputID>{shallow});
 
@@ -450,6 +452,7 @@ BOOST_AUTO_TEST_CASE(ManualMWEBSelectionHonorsCoinControlPolicy)
     const mw::Hash supplemental_id = AddMWEBReceive(40'000, Confirmed(6));
 
     CCoinControl selected_only;
+    selected_only.m_allow_other_inputs = false; // BitcoinOil keeps the Core 25 default (true)
     selected_only.Select(selected_id);
     const std::optional<SelectionResult> exact = Select(30'000, TxType::MWEB_TO_MWEB, selected_only);
     BOOST_REQUIRE(exact);
