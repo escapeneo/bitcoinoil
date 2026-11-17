@@ -23,6 +23,10 @@ class WalletBTCODefaultsTest(BitcoinOilTestFramework):
         self.generate(node, 101)
         addr = node.getnewaddress()
 
+        self.log.info("listunspent lists immature coinbases only on request")
+        assert_equal(len(node.listunspent()), 1)
+        assert_equal(len(node.listunspent(query_options={"include_immature_coinbase": True})), 101)
+
         self.log.info("add_inputs=false adds no inputs, also when none were given")
         assert_raises_rpc_error(-4, "Insufficient funds", node.walletcreatefundedpsbt, [], [{addr: 1}], 0, {"add_inputs": False})
         raw = node.createrawtransaction([], [{addr: 1}])

@@ -172,7 +172,8 @@ CoinsResult AvailableCoins(const CWallet& wallet,
                            const CAmount& nMaximumAmount,
                            const CAmount& nMinimumSumAmount,
                            const uint64_t nMaximumCount,
-                           bool only_spendable)
+                           bool only_spendable,
+                           bool include_immature_coinbase)
 {
     AssertLockHeld(wallet.cs_wallet);
 
@@ -189,7 +190,9 @@ CoinsResult AvailableCoins(const CWallet& wallet,
     {
         const CWalletTx& wtx = entry.second;
 
-        if (wallet.IsTxImmature(wtx))
+        // Immature coinbases can be listed on request (listunspent); immature
+        // peg-outs never are.
+        if (wallet.IsTxImmature(wtx) && !(include_immature_coinbase && wtx.IsCoinBase()))
             continue;
 
         int nDepth = wallet.GetTxDepthInMainChain(wtx);
@@ -354,9 +357,9 @@ CoinsResult AvailableCoins(const CWallet& wallet,
     return result;
 }
 
-CoinsResult AvailableCoinsListUnspent(const CWallet& wallet, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount)
+CoinsResult AvailableCoinsListUnspent(const CWallet& wallet, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount, bool include_immature_coinbase)
 {
-    return AvailableCoins(wallet, coinControl, /*feerate=*/ std::nullopt, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount, /*only_spendable=*/false);
+    return AvailableCoins(wallet, coinControl, /*feerate=*/ std::nullopt, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount, /*only_spendable=*/false, include_immature_coinbase);
 }
 
 CAmount GetAvailableBalance(const CWallet& wallet, const CCoinControl* coinControl)

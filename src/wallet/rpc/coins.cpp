@@ -631,7 +631,6 @@ RPCHelpMan listunspent()
         include_unsafe = request.params[3].get_bool();
     }
 
-    // include_immature_coinbase is accepted but has no effect with the MWEB coin listing.
     struct { CAmount min_amount{0}; CAmount max_amount{MAX_MONEY}; CAmount min_sum_amount{MAX_MONEY}; uint64_t max_count{0}; bool include_immature_coinbase{false}; } filter_coins;
 
     if (!request.params[4].isNull()) {
@@ -677,7 +676,7 @@ RPCHelpMan listunspent()
         cctl.m_max_depth = nMaxDepth;
         cctl.m_include_unsafe_inputs = include_unsafe;
         LOCK(pwallet->cs_wallet);
-        vecOutputs = AvailableCoinsListUnspent(*pwallet, &cctl, filter_coins.min_amount, filter_coins.max_amount, filter_coins.min_sum_amount, filter_coins.max_count).All();
+        vecOutputs = AvailableCoinsListUnspent(*pwallet, &cctl, filter_coins.min_amount, filter_coins.max_amount, filter_coins.min_sum_amount, filter_coins.max_count, filter_coins.include_immature_coinbase).All();
     }
 
     LOCK(pwallet->cs_wallet);

@@ -89,6 +89,41 @@ EXTENDED_SCRIPTS = [
 ]
 
 BASE_SCRIPTS = [
+    # MWEB tests ported from Litecoin 24.x, and BitcoinOil's own
+    'mweb_attached_tx.py --descriptors',
+    'mweb_basic.py --descriptors',
+    'mweb_consensus.py --descriptors',
+    'mweb_dbcrash.py --descriptors',
+    'mweb_duplicate_pegin.py --descriptors',
+    'mweb_empty_first_hogex.py --descriptors',
+    'mweb_mempool.py --descriptors',
+    'mweb_mining.py --descriptors',
+    'mweb_newpowvalidblock.py --descriptors',
+    'mweb_node_compatibility.py --descriptors',
+    'mweb_p2p.py --descriptors',
+    'mweb_p2p_mutated_block_submitblock.py --descriptors',
+    'mweb_p2p_mutated_compactblock.py --descriptors',
+    'mweb_pegout_all.py --descriptors',
+    'mweb_pre_activation_hogex_marker.py --descriptors',
+    'mweb_psbt.py --descriptors',
+    'mweb_reorg.py --descriptors',
+    'mweb_rewind_activation.py --descriptors',
+    'mweb_spent_history.py --descriptors',
+    'mweb_undo.py --descriptors',
+    'mweb_wallet_address_lifecycle.py --descriptors',
+    'mweb_wallet_basic.py --descriptors',
+    'mweb_wallet_change.py --descriptors',
+    'mweb_wallet_coincontrol.py --descriptors',
+    'mweb_wallet_descriptor.py --descriptors',
+    'mweb_wallet_partial_upgrade.py --descriptors',
+    'mweb_wallet_recipients.py --descriptors',
+    'mweb_wallet_sendall.py --descriptors',
+    'mweb_wallet_txlist.py --descriptors',
+    'mweb_wallet_upgrade.py --descriptors',
+    'mweb_watchonly.py --descriptors',
+    'mweb_weight.py --descriptors',
+    'mweb_wtxid_recentrejects.py --descriptors',
+    'wallet_btco_defaults.py --descriptors',
     # Scripts that are run by default.
     # Longest test should go first, to favor running tests in parallel
     # vv Tests less than 5m vv

@@ -5,6 +5,8 @@
 
 #include <wallet/wallet.h>
 
+#include <chainparams.h>
+
 #include <blockfilter.h>
 #include <chain.h>
 #include <consensus/amount.h>
@@ -2439,9 +2441,10 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
 
     std::unique_ptr<FastWalletRescanFilter> fast_rescan_filter;
     // MWEB: BIP158 block filters do not cover extension block outputs, so a filter
-    // miss says nothing about MWEB coins. Fast rescan is disabled until it can
-    // account for them.
-    // if (!IsLegacy() && chain().hasBlockFilterIndex(BlockFilterType::BASIC)) fast_rescan_filter = std::make_unique<FastWalletRescanFilter>(*this);
+    // miss says nothing about MWEB coins. The filters are only trusted for blocks
+    // below the MWEB activation height; later blocks are always inspected.
+    if (!IsLegacy() && chain().hasBlockFilterIndex(BlockFilterType::BASIC)) fast_rescan_filter = std::make_unique<FastWalletRescanFilter>(*this);
+    const int mweb_height{Params().GetConsensus().MWEBHeight};
 
     WalletLogPrintf("Rescan started from block %s... (%s)\n", start_block.ToString(),
                     fast_rescan_filter ? "fast variant using block filters" : "slow variant inspecting all blocks");
@@ -2472,7 +2475,7 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
         }
 
         bool fetch_block{true};
-        if (fast_rescan_filter) {
+        if (fast_rescan_filter && block_height < mweb_height) {
             fast_rescan_filter->UpdateIfNeeded();
             auto matches_block{fast_rescan_filter->MatchesBlock(block_hash)};
             if (matches_block.has_value()) {
