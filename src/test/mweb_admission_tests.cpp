@@ -81,13 +81,13 @@ public:
     explicit MWEBAdmissionTestingSetup(const bool require_standard = true)
         : TestingSetup{CBaseChainParams::REGTEST, {
               require_standard ? "-acceptnonstdtxn=0" : "-acceptnonstdtxn=1",
-              "-mwebheight=1"}},
+              "-mwebheight=0"}},
           m_pool{*m_node.mempool},
           m_coins{m_node.chainman->ActiveChainstate().CoinsTip()},
           m_view{m_coins.GetMWEBCacheView()},
           m_address{PublicKey::From(SecretKey::Random()), PublicKey::From(m_spend_key)}
     {
-        SetMockTime(1'601'450'001);
+        SetMockTime(1'729'400'000);
         BOOST_REQUIRE_EQUAL(m_pool.m_require_standard, require_standard);
     }
 

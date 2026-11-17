@@ -99,7 +99,7 @@ class MWEBMinerTestingSetup : public TestingSetup
 {
 public:
     MWEBMinerTestingSetup()
-        : TestingSetup{CBaseChainParams::REGTEST, {"-mwebheight=1"}},
+        : TestingSetup{CBaseChainParams::REGTEST, {"-mwebheight=0"}},
           m_view{m_node.chainman->ActiveChainstate().CoinsTip().GetMWEBCacheView()},
           m_address{PublicKey::From(SecretKey::Random()), PublicKey::From(m_spend_key)}
     {

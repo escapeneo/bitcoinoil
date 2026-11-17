@@ -51,7 +51,7 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
     if (args.IsArgSet("-mwebheight")) {
         const std::string value = args.GetArg("-mwebheight", "");
         int32_t height;
-        if (!ParseInt32(value, &height) || height < 1 || height >= std::numeric_limits<int>::max()) {
+        if (!ParseInt32(value, &height) || height < 0 || height >= std::numeric_limits<int>::max()) {
             throw std::runtime_error(strprintf("Invalid -mwebheight value (%s).", value));
         }
         options.mweb_height = height;

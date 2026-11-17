@@ -78,6 +78,8 @@ public:
     bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase = true) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
     CDBWrapper* GetDB() noexcept { return m_db.get(); }
+    //! Whether ResizeCache() replaces the database object (it does not for in-memory databases).
+    bool ResizeReopensDB() const noexcept { return !m_db_params.memory_only; }
     void SetMWEBView(const mw::ICoinsView::Ptr& view) { mweb_view = view; }
     mw::ICoinsView::Ptr GetMWEBView() const final { return mweb_view; }
     bool GetMWEBCoin(const mw::Hash& output_id, mw::Coin::CPtr& coin) const final;

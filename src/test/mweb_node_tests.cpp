@@ -138,7 +138,7 @@ public:
     explicit MWEBNodeTestingSetup(const bool fund_previous_block = false)
         : TestingSetup{
               CBaseChainParams::REGTEST,
-              {"-mwebheight=1"}},
+              {"-mwebheight=0"}},
           m_db{std::make_unique<CDBWrapper>(DBParams{.path = m_path_root / "mweb_node_db", .cache_bytes = 1 << 15})},
           m_miner{m_path_root / "mweb_node_miner"}
     {

@@ -264,9 +264,9 @@ class MWEBChainstateTestingSetup : public TestingSetup
 {
 public:
     MWEBChainstateTestingSetup()
-        : TestingSetup{CBaseChainParams::REGTEST, {"-acceptnonstdtxn=0", "-mwebheight=1"}}
+        : TestingSetup{CBaseChainParams::REGTEST, {"-acceptnonstdtxn=0", "-mwebheight=0"}}
     {
-        SetMockTime(1'601'450'001);
+        SetMockTime(1'729'400'000);
         {
             LOCK(cs_main);
             ReopenCoins(/*wipe=*/true);

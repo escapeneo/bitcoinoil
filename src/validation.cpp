@@ -5533,7 +5533,26 @@ bool Chainstate::ResizeCoinsCaches(size_t coinstip_size, size_t coinsdb_size)
     size_t old_coinstip_size = m_coinstip_cache_size_bytes;
     m_coinstip_cache_size_bytes = coinstip_size;
     m_coinsdb_cache_size_bytes = coinsdb_size;
+
+    // MWEB: resizing reopens the coins database, and the MWEB view (with its
+    // output MMR) keeps a pointer to the database object it was opened on.
+    // Write out all pending state first, then reopen the MWEB view on the new
+    // database object and rebuild the tip cache's MWEB cache on top of it.
+    // Litecoin 24.x does not do this and would use the old pointer.
+    const bool reopens_db{CoinsDB().ResizeReopensDB()};
+    if (reopens_db) {
+        BlockValidationState flush_state;
+        if (!FlushStateToDisk(flush_state, FlushStateMode::ALWAYS)) return false;
+    }
     CoinsDB().ResizeCache(coinsdb_size);
+    if (reopens_db) {
+        const CBlockIndex* best_block{m_chainman.m_blockman.LookupBlockIndex(CoinsDB().GetBestBlock())};
+        CoinsDB().SetMWEBView(mw::CoinsViewDB::Open(
+            FilePath{gArgs.GetDataDirNet()},
+            best_block == nullptr ? nullptr : best_block->mweb_header,
+            CoinsDB().GetDB()));
+        CoinsTip().SetBackend(CoinsErrorCatcher());
+    }
 
     LogPrintf("[%s] resized coinsdb cache to %.1f MiB\n",
         this->ToString(), coinsdb_size * (1.0 / 1024 / 1024));

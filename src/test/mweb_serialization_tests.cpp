@@ -125,7 +125,7 @@ public:
         const auto pegin = test::Tx::CreatePegIn(10 * COIN);
         CBlock block;
         block.nVersion = 4;
-        block.nTime = 1'601'450'001;
+        block.nTime = 1'729'400'000;
         block.nBits = 0x207fffff;
         block.mweb_block = MWEB::Block{m_miner.MineBlock(100, {pegin}).GetBlock()};
         CMutableTransaction coinbase;

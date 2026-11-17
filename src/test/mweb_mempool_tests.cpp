@@ -42,7 +42,7 @@ namespace {
 constexpr CAmount FUNDING_AMOUNT{10 * COIN};
 constexpr CAmount MWEB_FEE{10'000};
 constexpr CAmount CANONICAL_FEE{20'000};
-constexpr int64_t TEST_TIME{1'601'450'001};
+constexpr int64_t TEST_TIME{1'729'400'000};
 constexpr size_t ANCESTOR_LIMIT{5};
 
 CMutableTransaction WithMWEB(const test::Tx& mweb_tx)
@@ -93,7 +93,7 @@ public:
     MWEBMempoolTestingSetup()
         : TestingSetup{CBaseChainParams::REGTEST, {
               "-acceptnonstdtxn=0", "-mempoolreplacement=0", "-limitancestorcount=5",
-              "-mwebheight=1"}},
+              "-mwebheight=0"}},
           m_pool{*m_node.mempool},
           m_coins{m_node.chainman->ActiveChainstate().CoinsTip()},
           m_view{m_coins.GetMWEBCacheView()},
