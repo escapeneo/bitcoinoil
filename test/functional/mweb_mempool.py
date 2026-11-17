@@ -254,7 +254,9 @@ class MWEBMempoolTest(MWEBTestFramework):
         reconnected_partial_txid, reconnected_output_ids, reconnected_component_order = assert_confirmed_conflict()
         assert_equal(reconnected_partial_txid, partial_spend_txid)
         assert_equal(reconnected_output_ids, output_ids)
-        assert_equal(reconnected_component_order, component_order)
+        # Rows of one block are ordered by time received, and the reconnected
+        # spend is received anew, so only the set of components is stable here.
+        assert_equal(sorted(reconnected_component_order), sorted(component_order))
 
         self.log.info("Restart with the confirmed conflict and verify wallet reload parity")
         self.restart_node(1)
@@ -263,7 +265,7 @@ class MWEBMempoolTest(MWEBTestFramework):
         reloaded_partial_txid, reloaded_output_ids, reloaded_component_order = assert_confirmed_conflict()
         assert_equal(reloaded_partial_txid, partial_spend_txid)
         assert_equal(reloaded_output_ids, output_ids)
-        assert_equal(reloaded_component_order, component_order)
+        assert_equal(reloaded_component_order, reconnected_component_order)
 
         self.log.info("Reconnect all nodes and unload temporary wallets")
         self.connect_nodes(1, 0)
