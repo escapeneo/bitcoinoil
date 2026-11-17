@@ -2532,5 +2532,60 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletCoinMigrationFailuresAreAtomic, TestingS
     }
 }
 
+// Locks persisted before MWEB are keyed by the bare outpoint. They must load
+// whatever the first byte of the txid is, and unlocking must remove them.
+BOOST_FIXTURE_TEST_CASE(legacy_locked_utxo_records_load_and_unlock, TestingSetup)
+{
+    std::vector<COutPoint> outpoints;
+    for (const uint8_t first_byte : {uint8_t{0x00}, uint8_t{0x01}, uint8_t{0x02}, uint8_t{0xff}}) {
+        uint256 txid = GetRandHash();
+        *txid.begin() = first_byte;
+        outpoints.emplace_back(txid, 7);
+    }
+
+    auto database = CreateMockWalletDatabase();
+    for (const COutPoint& outpoint : outpoints) {
+        BOOST_REQUIRE(database->MakeBatch()->Write(
+            std::make_pair(DBKeys::LOCKED_UTXO, std::make_pair(outpoint.hash, outpoint.n)), uint8_t{'1'}));
+    }
+    DatabaseOptions options;
+    auto reloaded = DuplicateMockDatabase(*database, options);
+
+    CWallet wallet(m_node.chain.get(), "", std::move(database));
+    BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
+    {
+        LOCK(wallet.cs_wallet);
+        std::vector<AnyOutputID> locked;
+        wallet.ListLockedCoins(locked);
+        BOOST_CHECK_EQUAL(locked.size(), outpoints.size());
+        for (const COutPoint& outpoint : outpoints) {
+            BOOST_CHECK(wallet.IsLockedCoin(outpoint));
+        }
+
+        // A lock written now uses the new record and survives next to the old ones.
+        WalletBatch batch(wallet.GetDatabase());
+        const mw::Hash mweb_id = mw::Hash::FromHex(GetRandHash().GetHex());
+        BOOST_CHECK(wallet.LockCoin(mweb_id, &batch));
+        for (const COutPoint& outpoint : outpoints) {
+            BOOST_CHECK(wallet.UnlockCoin(outpoint, &batch));
+        }
+    }
+
+    // After unlocking, nothing but the MWEB lock may come back on reload.
+    DatabaseOptions options2;
+    CWallet wallet2(m_node.chain.get(), "", DuplicateMockDatabase(wallet.GetDatabase(), options2));
+    BOOST_REQUIRE(wallet2.LoadWallet() == DBErrors::LOAD_OK);
+    {
+        LOCK(wallet2.cs_wallet);
+        std::vector<AnyOutputID> locked;
+        wallet2.ListLockedCoins(locked);
+        BOOST_CHECK_EQUAL(locked.size(), 1U);
+        BOOST_CHECK(!locked.empty() && !locked.front().IsOutPoint());
+        for (const COutPoint& outpoint : outpoints) {
+            BOOST_CHECK(!wallet2.IsLockedCoin(outpoint));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet

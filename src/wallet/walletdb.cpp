@@ -347,6 +347,9 @@ bool WalletBatch::WriteMWEBNextSenderKeyIndex(const CKeyID& master_scan_keyid, u
     return WriteIC(std::make_pair(DBKeys::MWEB_SENDER_KEY_INDEX, master_scan_keyid), next_index);
 }
 
+//! Size of the key of a locked-output record written before MWEB (txid + index).
+static constexpr size_t LEGACY_LOCKED_UTXO_KEY_SIZE{36};
+
 class SerializableOutputIndex
 {
     AnyOutputID m_id;
@@ -397,6 +400,12 @@ bool WalletBatch::WriteLockedUTXO(const AnyOutputID& output)
 
 bool WalletBatch::EraseLockedUTXO(const AnyOutputID& output)
 {
+    // A lock made before MWEB is stored under the bare outpoint; remove that
+    // record too, or the lock would come back on the next load.
+    if (output.IsOutPoint()) {
+        const COutPoint& outpoint = output.ToOutPoint();
+        if (!EraseIC(std::make_pair(DBKeys::LOCKED_UTXO, std::make_pair(outpoint.hash, outpoint.n)))) return false;
+    }
     return EraseIC(std::make_pair(DBKeys::LOCKED_UTXO, SerializableOutputIndex(output)));
 }
 
@@ -939,15 +948,22 @@ ReadKeyValue(CWallet* pwallet, DataStream& ssKey, CDataStream& ssValue,
             wss.m_descriptor_crypt_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), std::make_pair(pubkey, privkey)));
             wss.fIsEncrypted = true;
         } else if (strType == DBKeys::LOCKED_UTXO) {
-            DataStream legacy_key{ssKey};
-            try {
+            // Records written before MWEB hold a bare outpoint (36 bytes). The
+            // current format puts a type byte first: 37 bytes for an outpoint,
+            // 33 for an MWEB output ID. The length tells them apart; trying the
+            // new format first would misread an old txid that starts with 0x01.
+            if (ssKey.size() == LEGACY_LOCKED_UTXO_KEY_SIZE) {
+                COutPoint outpoint;
+                ssKey >> outpoint;
+                pwallet->LockCoin(outpoint);
+            } else {
                 SerializableOutputIndex output_idx;
                 ssKey >> output_idx;
+                if (!ssKey.empty()) {
+                    strErr = "Error reading wallet database: locked output record has trailing data";
+                    return false;
+                }
                 pwallet->LockCoin(output_idx.Get());
-            } catch (const std::ios_base::failure&) {
-                COutPoint outpoint;
-                legacy_key >> outpoint;
-                pwallet->LockCoin(outpoint);
             }
         } else if (strType != DBKeys::BESTBLOCK && strType != DBKeys::BESTBLOCK_NOMERKLE &&
                    strType != DBKeys::MINVERSION && strType != DBKeys::ACENTRY &&

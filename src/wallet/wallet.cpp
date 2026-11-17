@@ -930,16 +930,17 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && !IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET)) {
            SetupDescriptorScriptPubKeyMans();
         }
-        // MWEB: We don't have support for replacing HD seed due to complications from MWEB key management.
-        // So for now, we don't generate a new seed.
-        // else if (auto spk_man = GetLegacyScriptPubKeyMan()) {
-        //     // if we are using HD, replace the HD seed with a new one
-        //     if (spk_man->IsHDEnabled()) {
-        //         if (!spk_man->SetupGeneration(true)) {
-        //             return false;
-        //         }
-        //     }
-        // }
+        else if (auto spk_man = GetLegacyScriptPubKeyMan()) {
+            // if we are using HD, replace the HD seed with a new one.
+            // A legacy wallet that already holds MWEB keychains keeps its seed:
+            // legacy MWEB key management cannot retain access to inactive
+            // keychains after a seed replacement (sethdseed refuses it too).
+            if (spk_man->IsHDEnabled() && !CanSupportFeature(FEATURE_MWEB)) {
+                if (!spk_man->SetupGeneration(true)) {
+                    return false;
+                }
+            }
+        }
         Lock();
 
         // Need to completely rewrite the wallet file; if we don't, bdb might keep
