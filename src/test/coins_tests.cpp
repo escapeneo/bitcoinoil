@@ -1126,6 +1126,8 @@ BOOST_AUTO_TEST_CASE(ccoins_flush_behavior)
 {
     // Create two in-memory caches atop a leveldb view.
     CCoinsViewDB base{{.path = "test", .cache_bytes = 1 << 23, .memory_only = true}, {}};
+    // The coins database always has an MWEB view in a running node; flushing without one is not supported.
+    base.SetMWEBView(mw::CoinsViewDB::Open(FilePath{gArgs.GetDataDirNet()}, {nullptr}, nullptr));
     std::vector<std::unique_ptr<CCoinsViewCacheTest>> caches;
     caches.push_back(std::make_unique<CCoinsViewCacheTest>(&base));
     caches.push_back(std::make_unique<CCoinsViewCacheTest>(caches.back().get()));

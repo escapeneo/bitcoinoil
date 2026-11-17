@@ -62,7 +62,7 @@ static constexpr auto UNCONDITIONAL_RELAY_DELAY = 2min;
 /** Headers download timeout.
  *  Timeout = base + per_header * (expected number of headers) */
 static constexpr auto HEADERS_DOWNLOAD_TIMEOUT_BASE = 15min;
-static constexpr auto HEADERS_DOWNLOAD_TIMEOUT_PER_HEADER = 10ms;
+static constexpr auto HEADERS_DOWNLOAD_TIMEOUT_PER_HEADER = 1ms;
 /** How long to wait for a peer to respond to a getheaders request */
 static constexpr auto HEADERS_RESPONSE_TIME{2min};
 /** Protect at least this many outbound peers from disconnection due to slow/
@@ -70,9 +70,9 @@ static constexpr auto HEADERS_RESPONSE_TIME{2min};
  */
 static constexpr int32_t MAX_OUTBOUND_PEERS_TO_PROTECT_FROM_DISCONNECT = 4;
 /** Timeout for (unprotected) outbound peers to sync to our chainwork */
-static constexpr auto CHAIN_SYNC_TIMEOUT{60min};
+static constexpr auto CHAIN_SYNC_TIMEOUT{20min};
 /** How frequently to check for stale tips */
-static constexpr auto STALE_CHECK_INTERVAL{150s}; // 2.5 minutes
+static constexpr auto STALE_CHECK_INTERVAL{10min};
 /** How frequently to check for extra outbound peers and disconnect */
 static constexpr auto EXTRA_PEER_CHECK_INTERVAL{45s};
 /** Minimum time an outbound-peer-eviction candidate must be connected for, in order to evict */

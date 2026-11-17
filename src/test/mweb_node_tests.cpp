@@ -301,7 +301,7 @@ public:
     MWEBActivationBoundaryTestingSetup()
         : TestingSetup{
               CBaseChainParams::REGTEST,
-              {"-vbparams=mweb:0:0:0:144"}},
+              {"-mwebheight=432"}},
           m_db{std::make_unique<CDBWrapper>(DBParams{.path = m_path_root / "mweb_activation_db", .cache_bytes = 1 << 15})},
           m_miner{m_path_root / "mweb_activation_miner"}
     {
