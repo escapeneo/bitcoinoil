@@ -215,13 +215,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         std::vector<CAmount> recipient_amounts;
 
         auto& newTx = transaction.getWtx();
-<<<<<<< btco
-        const auto& res = m_wallet->createTransaction(vecSend, coinControl, /*sign=*/!wallet().privateKeysDisabled(), nChangePosRet, nFeeRequired);
-||||||| core24
-        const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, nChangePosRet, nFeeRequired);
-=======
         const auto& res = m_wallet->createTransaction(vecSend, coinControl, !wallet().privateKeysDisabled() /* sign */, change_pos, nFeeRequired, recipient_amounts);
->>>>>>> litecoin24x
         newTx = res ? *res : nullptr;
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && newTx)
@@ -543,14 +537,8 @@ bool WalletModel::bumpFee(uint256 hash, uint256& new_hash)
 
     // Short-circuit if we are returning a bumped transaction PSBT to clipboard
     if (retval == QMessageBox::Save) {
-<<<<<<< btco
         // "Create Unsigned" clicked
-        PartiallySignedTransaction psbtx(mtx);
-||||||| core24
-        PartiallySignedTransaction psbtx(mtx);
-=======
         PartiallySignedTransaction psbtx(mtx, 0);
->>>>>>> litecoin24x
         bool complete = false;
         const TransactionError err = wallet().fillPSBT(SIGHASH_ALL, /*sign=*/false, /*bip32derivs=*/true, nullptr, psbtx, complete);
         if (err != TransactionError::OK || complete) {

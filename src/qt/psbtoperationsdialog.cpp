@@ -206,16 +206,8 @@ std::string PSBTOperationsDialog::renderTransaction(const PartiallySignedTransac
         if (address.isEmpty()) address = tr("(unknown)");
         totalAmount += recipient.amount;
         tx_description.append(tr(" * Sends %1 to %2")
-<<<<<<< btco
-            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTCO, out.nValue))
-            .arg(QString::fromStdString(EncodeDestination(address))));
-||||||| core24
-            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTC, out.nValue))
-            .arg(QString::fromStdString(EncodeDestination(address))));
-=======
-            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTC, recipient.amount))
+            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTCO, recipient.amount))
             .arg(address));
->>>>>>> litecoin24x
         tx_description.append("<br>");
     }
 

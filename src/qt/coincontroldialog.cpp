@@ -583,13 +583,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
         }
 
         // Fee
-<<<<<<< btco
-        nPayFee = model->wallet().getMinimumFee(nBytes, m_coin_control, /*returned_target=*/nullptr, /*reason=*/nullptr);
-||||||| core24
-        nPayFee = model->wallet().getMinimumFee(nBytes, m_coin_control, nullptr /* returned_target */, nullptr /* reason */);
-=======
         nPayFee = model->wallet().getMinimumFee(nBytes, mweb_weight, m_coin_control, nullptr /* returned_target */, nullptr /* reason */);
->>>>>>> litecoin24x
 
         if (nPayAmount > 0)
         {

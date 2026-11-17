@@ -19,14 +19,8 @@
 #include <policy/policy.h>
 #include <util/system.h>
 #include <validation.h>
-<<<<<<< btco
-#include <wallet/types.h>
-||||||| core24
-#include <wallet/types.h>
-=======
 #include <wallet/types.h>
 #include <wallet/txrecord.h>
->>>>>>> litecoin24x
 
 #include <stdint.h>
 #include <string>
@@ -365,27 +359,13 @@ QString TransactionDesc::toHTML_Amounts(interfaces::Wallet& wallet, const interf
                         std::string name;
                         if (wallet.getAddress(dest, &name, /* is_mine= */ nullptr, /* purpose= */ nullptr) && !name.empty()) {
                             strHTML += GUIUtil::HtmlEscape(name) + " ";
-<<<<<<< btco
-                        strHTML += GUIUtil::HtmlEscape(EncodeDestination(address));
-                        if(toSelf == ISMINE_SPENDABLE)
-                            strHTML += " (" + tr("own address") + ")";
-                        else if(toSelf & ISMINE_WATCH_ONLY)
-                            strHTML += " (" + tr("watch-only") + ")";
-||||||| core24
-                        strHTML += GUIUtil::HtmlEscape(EncodeDestination(address));
-                        if(toSelf == ISMINE_SPENDABLE)
-                            strHTML += " (own address)";
-                        else if(toSelf & ISMINE_WATCH_ONLY)
-                            strHTML += " (watch-only)";
-=======
                         }
                         strHTML += GUIUtil::HtmlEscape(wtxout.address.Encode());
                         if (toSelf == ISMINE_SPENDABLE) {
-                            strHTML += " (own address)";
+                            strHTML += " (" + tr("own address") + ")";
                         } else if (toSelf & ISMINE_WATCH_ONLY) {
-                            strHTML += " (watch-only)";
+                            strHTML += " (" + tr("watch-only") + ")";
                         }
->>>>>>> litecoin24x
                         strHTML += "<br>";
                     }
                 }

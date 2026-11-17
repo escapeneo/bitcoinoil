@@ -14,7 +14,6 @@ QT_TRANSLATE_NOOP("bitcoinoil-core", ""
 "%s corrupt. Try using the wallet tool bitcoinoil-wallet to salvage or "
 "restoring a backup."),
 QT_TRANSLATE_NOOP("bitcoinoil-core", ""
-<<<<<<< btco
 "%s failed to validate the -assumeutxo snapshot state. This indicates a "
 "hardware problem, or a bug in the software, or a bad software modification "
 "that allowed an invalid snapshot to be loaded. As a result of this, the node "
@@ -26,15 +25,6 @@ QT_TRANSLATE_NOOP("bitcoinoil-core", ""
 "diagnosing the issue that caused this error."),
 QT_TRANSLATE_NOOP("bitcoinoil-core", ""
 "%s is set very high! Fees this large could be paid on a single transaction."),
-||||||| core24
-"%s request to listen on port %u. This port is considered \"bad\" and thus it "
-"is unlikely that any BitcoinOil Core peers connect to it. See doc/p2p-bad-ports."
-"md for details and a full list."),
-=======
-"%s request to listen on port %u. This port is considered \"bad\" and thus it "
-"is unlikely that any BitcoinOil Core peers connect to it. See doc/p2p-bad-"
-"ports.md for details and a full list."),
->>>>>>> litecoin24x
 QT_TRANSLATE_NOOP("bitcoinoil-core", ""
 "%s request to listen on port %u. This port is considered \"bad\" and thus it "
 "is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for "

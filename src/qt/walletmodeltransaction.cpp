@@ -10,20 +10,10 @@
 
 #include <policy/policy.h>
 
-<<<<<<< btco
-WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient>& _recipients)
-    : recipients(_recipients)
-||||||| core24
-WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
-    recipients(_recipients),
-    fee(0)
-=======
 #include <cassert>
 
-WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
-    recipients(_recipients),
-    fee(0)
->>>>>>> litecoin24x
+WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient>& _recipients)
+    : recipients(_recipients)
 {
 }
 

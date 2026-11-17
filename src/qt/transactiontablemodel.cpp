@@ -93,22 +93,8 @@ public:
 
     TransactionTableModel *parent;
 
-<<<<<<< btco
     //! Local cache of wallet sorted by transaction hash
-    QList<TransactionRecord> cachedWallet;
-||||||| core24
-    /* Local cache of wallet.
-     * As it is in the same order as the CWallet, by definition
-     * this is sorted by sha256.
-     */
-    QList<TransactionRecord> cachedWallet;
-=======
-    /* Local cache of wallet.
-     * As it is in the same order as the CWallet, by definition
-     * this is sorted by sha256.
-     */
     QList<wallet::WalletTxRecord> cachedWallet;
->>>>>>> litecoin24x
 
     /** True when model finishes loading all wallet transactions on start */
     bool m_loaded = false;

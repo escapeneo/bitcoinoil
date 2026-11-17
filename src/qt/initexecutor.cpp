@@ -5,14 +5,8 @@
 #include <qt/initexecutor.h>
 
 #include <interfaces/node.h>
-<<<<<<< btco
-#include <util/exception.h>
-||||||| core24
-#include <util/system.h>
-=======
 #include <node/interface_ui.h>
-#include <util/system.h>
->>>>>>> litecoin24x
+#include <util/exception.h>
 #include <util/threadnames.h>
 #include <util/translation.h>
 
