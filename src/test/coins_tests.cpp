@@ -64,13 +64,7 @@ public:
 
     uint256 GetBestBlock() const override { return hashBestBlock_; }
 
-<<<<<<< btco
-    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, bool erase = true) override
-||||||| core24
-    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock) override
-=======
-    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& mweb_view) override
->>>>>>> litecoin24x
+    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& mweb_view, bool erase = true) override
     {
         for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end(); it = erase ? mapCoins.erase(it) : std::next(it)) {
             if (it->second.flags & CCoinsCacheEntry::DIRTY) {
@@ -302,18 +296,12 @@ BOOST_AUTO_TEST_CASE(coins_cache_simulation_test)
     CCoinsViewTest base;
     SimulationTest(&base, false);
 
-<<<<<<< btco
     CCoinsViewDB db_base{{.path = "test", .cache_bytes = 1 << 23, .memory_only = true}, {}};
-||||||| core24
-    CCoinsViewDB db_base{"test", /*nCacheSize=*/1 << 23, /*fMemory=*/true, /*fWipe=*/false};
-=======
-    CCoinsViewDB db_base{"test", /*nCacheSize=*/1 << 23, /*fMemory=*/true, /*fWipe=*/false};
     mw::ICoinsView::Ptr mweb_view = mw::CoinsViewDB::Open(
         FilePath{gArgs.GetDataDirNet()},
         {nullptr},
         nullptr);
     db_base.SetMWEBView(mweb_view);
->>>>>>> litecoin24x
     SimulationTest(&db_base, true);
 }
 
@@ -686,7 +674,7 @@ public:
 
     static std::unique_ptr<CCoinsViewDB> GetCoinsViewDB()
     {
-        std::unique_ptr<CCoinsViewDB> root(new CCoinsViewDB{gArgs.GetDataDirNet(), 1 << 20, false, false});
+        std::unique_ptr<CCoinsViewDB> root(new CCoinsViewDB{{.path = gArgs.GetDataDirNet() / "mweb_coins_test", .cache_bytes = 1 << 20, .memory_only = false, .wipe_data = false}, {}});
         mw::ICoinsView::Ptr mweb_view = mw::CoinsViewDB::Open(
             FilePath{gArgs.GetDataDirNet()},
             {nullptr},

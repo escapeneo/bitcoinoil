@@ -327,7 +327,6 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         BOOST_CHECK(AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey));
     }
 
-<<<<<<< btco
     {
         CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
@@ -342,61 +341,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         tx_mempool.addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(false).FromTx(tx));
         // Should throw bad-cb-multiple
         BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-cb-multiple"));
-||||||| core24
-    // double spend txn pair in *m_node.mempool, template creation fails
-    tx.vin[0].prevout.hash = txFirst[0]->GetHash();
-    tx.vin[0].scriptSig = CScript() << OP_1;
-    tx.vout[0].nValue = BLOCKSUBSIDY-HIGHFEE;
-    tx.vout[0].scriptPubKey = CScript() << OP_1;
-    hash = tx.GetHash();
-    m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    tx.vout[0].scriptPubKey = CScript() << OP_2;
-    hash = tx.GetHash();
-    m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    BOOST_CHECK_EXCEPTION(AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-txns-inputs-missingorspent"));
-    m_node.mempool->clear();
-
-    // subsidy changing
-    int nHeight = m_node.chainman->ActiveChain().Height();
-    // Create an actual 209999-long block chain (without valid blocks).
-    while (m_node.chainman->ActiveChain().Tip()->nHeight < 209999) {
-        CBlockIndex* prev = m_node.chainman->ActiveChain().Tip();
-        CBlockIndex* next = new CBlockIndex();
-        next->phashBlock = new uint256(InsecureRand256());
-        m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(next->GetBlockHash());
-        next->pprev = prev;
-        next->nHeight = prev->nHeight + 1;
-        next->BuildSkip();
-        m_node.chainman->ActiveChain().SetTip(*next);
-=======
-    // double spend txn pair in *m_node.mempool, template creation fails
-    tx.vin[0].prevout.hash = txFirst[0]->GetHash();
-    tx.vin[0].scriptSig = CScript() << OP_1;
-    tx.vout[0].nValue = BLOCKSUBSIDY-HIGHFEE;
-    tx.vout[0].scriptPubKey = CScript() << OP_1;
-    hash = tx.GetHash();
-    m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    tx.vout[0].scriptPubKey = CScript() << OP_2;
-    hash = tx.GetHash();
-    m_node.mempool->addUnchecked(entry.Fee(HIGHFEE).Time(GetTime()).SpendsCoinbase(true).FromTx(tx));
-    BOOST_CHECK_EXCEPTION(AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-txns-inputs-missingorspent"));
-    m_node.mempool->clear();
-
-    // subsidy changing
-    int nHeight = m_node.chainman->ActiveChain().Height();
-    // Create an actual 839999-long block chain (without valid blocks).
-    while (m_node.chainman->ActiveChain().Tip()->nHeight < 839999) {
-        CBlockIndex* prev = m_node.chainman->ActiveChain().Tip();
-        CBlockIndex* next = new CBlockIndex();
-        next->phashBlock = new uint256(InsecureRand256());
-        m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(next->GetBlockHash());
-        next->pprev = prev;
-        next->nHeight = prev->nHeight + 1;
-        next->BuildSkip();
-        m_node.chainman->ActiveChain().SetTip(*next);
->>>>>>> litecoin24x
     }
-<<<<<<< btco
 
     {
         CTxMemPool& tx_mempool{MakeMempool()};
@@ -413,31 +358,6 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         hash = tx.GetHash();
         tx_mempool.addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
         BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-txns-inputs-missingorspent"));
-||||||| core24
-    BOOST_CHECK(pblocktemplate = AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey));
-    // Extend to a 210000-long block chain.
-    while (m_node.chainman->ActiveChain().Tip()->nHeight < 210000) {
-        CBlockIndex* prev = m_node.chainman->ActiveChain().Tip();
-        CBlockIndex* next = new CBlockIndex();
-        next->phashBlock = new uint256(InsecureRand256());
-        m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(next->GetBlockHash());
-        next->pprev = prev;
-        next->nHeight = prev->nHeight + 1;
-        next->BuildSkip();
-        m_node.chainman->ActiveChain().SetTip(*next);
-=======
-    BOOST_CHECK(pblocktemplate = AssemblerForTest(chainparams).CreateNewBlock(scriptPubKey));
-    // Extend to an 840000-long block chain.
-    while (m_node.chainman->ActiveChain().Tip()->nHeight < 840000) {
-        CBlockIndex* prev = m_node.chainman->ActiveChain().Tip();
-        CBlockIndex* next = new CBlockIndex();
-        next->phashBlock = new uint256(InsecureRand256());
-        m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(next->GetBlockHash());
-        next->pprev = prev;
-        next->nHeight = prev->nHeight + 1;
-        next->BuildSkip();
-        m_node.chainman->ActiveChain().SetTip(*next);
->>>>>>> litecoin24x
     }
 
     {

@@ -3,8 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <mw/crypto/Bulletproofs.h>
-#include <secp256k1_bulletproofs.h>
-#include <secp256k1_generator.h>
+// BitcoinOil: use the private, prefixed copy of libsecp256k1 (see libmw/src/crypto/secp256k1-zkp.h)
+#include <mweb_zkp_prefix.h>
+#include <secp256k1-zkp/include/secp256k1_bulletproofs.h>
+#include <secp256k1-zkp/include/secp256k1_generator.h>
 
 #include <test_framework/TestMWEB.h>
 

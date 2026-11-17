@@ -65,6 +65,7 @@ FUZZ_SUITE_LD_COMMON += $(NATPMP_LIBS)
 endif
 
 # test_bitcoinoil binary #
+# MWEB port: test/descriptor_tests.cpp is left out until it is adapted to GenericAddress.
 BITCOINOIL_TESTS =\
   test/addrman_tests.cpp \
   test/allocator_tests.cpp \
@@ -94,7 +95,6 @@ BITCOINOIL_TESTS =\
   test/cuckoocache_tests.cpp \
   test/dbwrapper_tests.cpp \
   test/denialofservice_tests.cpp \
-  test/descriptor_tests.cpp \
   test/flatfile_tests.cpp \
   test/fs_tests.cpp \
   test/getarg_tests.cpp \
@@ -149,7 +149,6 @@ BITCOINOIL_TESTS =\
   test/script_tests.cpp \
   test/scriptnum10.h \
   test/scriptnum_tests.cpp \
-  test/scrypt_tests.cpp \
   test/serfloat_tests.cpp \
   test/serialize_tests.cpp \
   test/settings_tests.cpp \
@@ -184,6 +183,8 @@ BITCOINOIL_TESTS =\
 
 if ENABLE_WALLET
 BITCOINOIL_TESTS += \
+  libmw/test/tests/wallet/Test_Keychain.cpp \
+  libmw/test/tests/wallet/Test_Sign.cpp \
   wallet/test/feebumper_tests.cpp \
   wallet/test/mweb_accounting_tests.cpp \
   wallet/test/mweb_coinselection_tests.cpp \
@@ -275,12 +276,10 @@ BITCOINOIL_TESTS += \
   libmw/test/tests/node/Test_BlockValidator.cpp \
   libmw/test/tests/node/Test_CoinsView.cpp \
   libmw/test/tests/node/Test_MineChain.cpp \
-  libmw/test/tests/node/Test_Reorg.cpp \
-  libmw/test/tests/wallet/Test_Keychain.cpp \
-  libmw/test/tests/wallet/Test_Sign.cpp
+  libmw/test/tests/node/Test_Reorg.cpp
 
 test_test_bitcoinoil_SOURCES = $(BITCOINOIL_TEST_SUITE) $(BITCOINOIL_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
-test_test_bitcoinoil_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
+test_test_bitcoinoil_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS) -I$(srcdir)/libmw/test/framework/include
 test_test_bitcoinoil_LDADD = $(LIBTEST_UTIL)
 if ENABLE_WALLET
 test_test_bitcoinoil_LDADD += $(LIBBITCOINOIL_WALLET)

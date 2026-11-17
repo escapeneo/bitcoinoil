@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <chain.h>
 #include <clientversion.h>
 #include <coins.h>

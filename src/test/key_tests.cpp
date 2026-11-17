@@ -18,7 +18,6 @@
 
 #include <boost/test/unit_test.hpp>
 
-<<<<<<< btco
 static const std::string strSecret1 = "68Z8LithuLSUv4M4iNpjn7fC3ad6ycCLxefSfUUhX9RQrP9vM2d";
 static const std::string strSecret2 = "69ng4Y523YujPkoa3Xe5LE14vDwZKvpZ7Lkc7XUNrsRvHm5WELE";
 static const std::string strSecret1C = "PeLoQ3uDXzoUDBmZPdKhp8PZkPQMNrM56dEgGpHFr4AkGkbSpcky";
@@ -27,25 +26,6 @@ static const std::string addr1 = "Bs3XSBDhXmcGJevUwUYrvTws8r2ycUbZxc";
 static const std::string addr2 = "Bhseg3pjpJ8LFtw8p4MdBjiWQNvUjZJgBE";
 static const std::string addr1C = "BqazTddNR5E6vTv9wS7LtqhmDe7kdmSYkR";
 static const std::string addr2C = "BfDQd7iqTtaJFYnmyKYzsc493V9fzD57vz";
-||||||| core24
-static const std::string strSecret1 = "5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj";
-static const std::string strSecret2 = "5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3";
-static const std::string strSecret1C = "Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw";
-static const std::string strSecret2C = "L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g";
-static const std::string addr1 = "1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ";
-static const std::string addr2 = "1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ";
-static const std::string addr1C = "1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs";
-static const std::string addr2C = "1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs";
-=======
-static const std::string strSecret1 = "6uGFQ4DSW7zh1viHZi6iiVT17CncvoaV4MHvGvJKPDaLCdymj87";
-static const std::string strSecret2 = "6vVo7sPkeLTwVdAntrv4Gbnsyr75H8ChD3P5iyHziwaqe8mCYR5";
-static const std::string strSecret1C = "T3gJYmBuZXsdd65E7NQF88ZmUP2MaUanqnZg9GFS94W7kND4Ebjq";
-static const std::string strSecret2C = "T986ZKRRdnuuXLeDZuKBRrZW1ujotAncU9WTrFU1n7vMgRW75ZtF";
-static const std::string addr1 = "LiUo6Zn39joYJBzPUhssbDwAywhjFcoHE3";
-static const std::string addr2 = "LZJvLSP5SGKcFS13MHgdrVhpFUbEMB5XVC";
-static const std::string addr1C = "Lh2G82Bi33RNuzz4UfSMZbh54jnWHVnmw8";
-static const std::string addr2C = "LWegHWHB5rmaF5rgWYt1YN3StapRdnGJfU";
->>>>>>> litecoin24x
 
 static const std::string strAddressBad = "BkGpwRoMpyckCzgpP1KTePxh8JZWGHYSbT";
 

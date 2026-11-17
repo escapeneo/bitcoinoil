@@ -157,6 +157,7 @@ public:
         bool fastprune{false};
         std::optional<int> auxpow_start_height{};
         std::optional<int> asert_height{};
+        std::optional<int> mweb_height{};
         std::optional<int64_t> asert_half_life{};
     };
 

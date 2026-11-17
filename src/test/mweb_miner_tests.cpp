@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <chain.h>
 #include <coins.h>
 #include <consensus/consensus.h>
@@ -96,7 +99,7 @@ class MWEBMinerTestingSetup : public TestingSetup
 {
 public:
     MWEBMinerTestingSetup()
-        : TestingSetup{CBaseChainParams::REGTEST, {"-vbparams=mweb:-1:9223372036854775807:0:0"}},
+        : TestingSetup{CBaseChainParams::REGTEST, {"-mwebheight=1"}},
           m_view{m_node.chainman->ActiveChainstate().CoinsTip().GetMWEBCacheView()},
           m_address{PublicKey::From(SecretKey::Random()), PublicKey::From(m_spend_key)}
     {
@@ -842,7 +845,7 @@ BOOST_AUTO_TEST_CASE(assembler_reorders_children_after_ancestor_inclusion)
     PrepareAssembler();
     const CFeeRate min_fee{20'000};
     for (const bool earlier_ancestor : {false, true}) {
-        m_node.mempool->clear();
+        ClearMempool(*m_node.mempool);
         const auto make_parent = [&](CAmount amount) {
             CMutableTransaction tx = WithMWEB(Pegin(amount, 0));
             tx.vout.insert(tx.vout.end(), 2, CTxOut{COIN, CScript() << OP_TRUE});

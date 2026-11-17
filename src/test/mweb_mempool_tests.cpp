@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <coins.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -90,7 +93,7 @@ public:
     MWEBMempoolTestingSetup()
         : TestingSetup{CBaseChainParams::REGTEST, {
               "-acceptnonstdtxn=0", "-mempoolreplacement=0", "-limitancestorcount=5",
-              "-vbparams=mweb:-1:9223372036854775807:0:0"}},
+              "-mwebheight=1"}},
           m_pool{*m_node.mempool},
           m_coins{m_node.chainman->ActiveChainstate().CoinsTip()},
           m_view{m_coins.GetMWEBCacheView()},
@@ -698,7 +701,7 @@ BOOST_AUTO_TEST_CASE(clear_allows_clean_readmission)
     const auto child = MakeTransactionRef(WithMWEB(Spend(parent_mweb.GetOutputs().front())));
     Accept(parent, CANONICAL_FEE + MWEB_FEE);
     Accept(child);
-    m_pool.clear();
+    ClearMempool(m_pool);
     CheckPool({});
     Accept(parent, CANONICAL_FEE + MWEB_FEE);
     Accept(child);

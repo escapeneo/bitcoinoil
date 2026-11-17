@@ -91,48 +91,16 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     }
 
     int64_t nStartTime = GetTime();
-<<<<<<< btco
     // Wait 21 minutes
     SetMockTime(nStartTime+21*60);
     BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
-||||||| core24
-    // Wait 21 minutes
-    SetMockTime(nStartTime+21*60);
-    {
-        LOCK(dummyNode1.cs_sendProcessing);
-        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
-    }
-=======
-    // Wait 62 minutes
-    SetMockTime(nStartTime+62*60);
-    {
-        LOCK(dummyNode1.cs_sendProcessing);
-        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in getheaders
-    }
->>>>>>> litecoin24x
     {
         LOCK(dummyNode1.cs_vSend);
         BOOST_CHECK(dummyNode1.vSendMsg.size() > 0);
     }
-<<<<<<< btco
     // Wait 3 more minutes
     SetMockTime(nStartTime+24*60);
     BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
-||||||| core24
-    // Wait 3 more minutes
-    SetMockTime(nStartTime+24*60);
-    {
-        LOCK(dummyNode1.cs_sendProcessing);
-        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
-    }
-=======
-    // Wait 3 more minutes (2 minutes HEADERS_RESPONSE_TIME + buffer)
-    SetMockTime(nStartTime+65*60);
-    {
-        LOCK(dummyNode1.cs_sendProcessing);
-        BOOST_CHECK(peerman.SendMessages(&dummyNode1)); // should result in disconnect
-    }
->>>>>>> litecoin24x
     BOOST_CHECK(dummyNode1.fDisconnect == true);
 
     peerman.FinalizeNode(dummyNode1);

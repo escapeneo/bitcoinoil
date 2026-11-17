@@ -19,16 +19,8 @@
 // amounts 1 .. 10000
 #define NUM_MULTIPLES_1BTCO 10000
 
-<<<<<<< btco
 // amounts 50 .. 21000000
 #define NUM_MULTIPLES_50BTCO 420000
-||||||| core24
-// amounts 50 .. 21000000
-#define NUM_MULTIPLES_50BTC 420000
-=======
-// amounts 50 .. 84000000
-#define NUM_MULTIPLES_50BTC 1680000
->>>>>>> litecoin24x
 
 BOOST_FIXTURE_TEST_SUITE(compress_tests, BasicTestingSetup)
 

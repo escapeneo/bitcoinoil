@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <chain.h>
 #include <coins.h>
 #include <consensus/validation.h>
@@ -188,7 +191,7 @@ public:
     {
         m_cache.reset();
         m_db.reset();
-        m_db = std::make_unique<CCoinsViewDB>(m_path_root / "coins", DB_CACHE_BYTES, false, false);
+        m_db = std::make_unique<CCoinsViewDB>(DBParams{.path = m_path_root / "coins", .cache_bytes = DB_CACHE_BYTES, .memory_only = false, .wipe_data = false}, CoinsViewOptions{});
         m_db->SetMWEBView(mw::CoinsViewDB::Open(m_path_root / "mweb", header, m_db->GetDB()));
         m_cache = std::make_unique<CCoinsViewCache>(m_db.get());
     }
@@ -261,7 +264,7 @@ class MWEBChainstateTestingSetup : public TestingSetup
 {
 public:
     MWEBChainstateTestingSetup()
-        : TestingSetup{CBaseChainParams::REGTEST, {"-acceptnonstdtxn=0", "-vbparams=mweb:-1:9223372036854775807:0:0"}}
+        : TestingSetup{CBaseChainParams::REGTEST, {"-acceptnonstdtxn=0", "-mwebheight=1"}}
     {
         SetMockTime(1'601'450'001);
         {
@@ -340,7 +343,7 @@ public:
         BOOST_REQUIRE_MESSAGE(State().InvalidateBlock(state, index), state.ToString());
         // Mempool resurrection has its own suite. Keep fork construction here
         // independent of which disconnected transactions happen to be cached.
-        m_node.mempool->clear();
+        ClearMempool(*m_node.mempool);
     }
 
     void Reconsider(CBlockIndex* index)

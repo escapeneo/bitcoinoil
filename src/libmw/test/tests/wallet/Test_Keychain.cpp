@@ -81,7 +81,7 @@ public:
         : m_database(wallet::CreateDummyWalletDatabase())
     {}
 
-    const std::string GetDisplayName() const override { return "keychain-test"; }
+    std::string GetDisplayName() const override { return "keychain-test"; }
     wallet::WalletDatabase& GetDatabase() const override { return *m_database; }
     bool IsWalletFlagSet(uint64_t) const override { return false; }
     void UnsetBlankWalletFlag(wallet::WalletBatch&) override {}

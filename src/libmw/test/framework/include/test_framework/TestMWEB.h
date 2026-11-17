@@ -31,7 +31,7 @@ struct MWEBTestingSetup : public BasicTestingSetup
     explicit MWEBTestingSetup()
         : BasicTestingSetup(CBaseChainParams::MAIN)
     {
-        m_db = std::make_unique<CDBWrapper>(m_path_root / "db", 1 << 15);
+        m_db = std::make_unique<CDBWrapper>(DBParams{.path = m_path_root / "db", .cache_bytes = 1 << 15});
     }
 
     virtual ~MWEBTestingSetup() = default;

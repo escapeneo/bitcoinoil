@@ -978,22 +978,13 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     CheckIsNotStandard(t, "dust");
 
     // Check P2WPKH outputs dust threshold
-<<<<<<< btco
     t.vout[0].scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0);
     t.vout[0].nValue = 294;
-||||||| core24
-    t.vout[0].scriptPubKey = CScript() << OP_0 << ParseHex("ffffffffffffffffffffffffffffffffffffffff");
-    t.vout[0].nValue = 294;
-=======
-    t.vout[0].scriptPubKey = CScript() << OP_0 << ParseHex("ffffffffffffffffffffffffffffffffffffffff");
-    t.vout[0].nValue = 2940;
->>>>>>> litecoin24x
     CheckIsStandard(t);
     t.vout[0].nValue = 2939;
     CheckIsNotStandard(t, "dust");
 
     // Check P2WSH outputs dust threshold
-<<<<<<< btco
     t.vout[0].scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(32, 0);
     t.vout[0].nValue = 330;
     CheckIsStandard(t);
@@ -1003,33 +994,14 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     // Check P2TR outputs dust threshold (Invalid xonly key ok!)
     t.vout[0].scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0);
     t.vout[0].nValue = 330;
-||||||| core24
-    t.vout[0].scriptPubKey = CScript() << OP_0 << ParseHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    t.vout[0].nValue = 330;
-=======
-    t.vout[0].scriptPubKey = CScript() << OP_0 << ParseHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    t.vout[0].nValue = 3300;
->>>>>>> litecoin24x
     CheckIsStandard(t);
     t.vout[0].nValue = 3299;
     CheckIsNotStandard(t, "dust");
 
-<<<<<<< btco
     // Check future Witness Program versions dust threshold (non-32-byte pushes are undefined for version 1)
     for (int op = OP_1; op <= OP_16; op += 1) {
         t.vout[0].scriptPubKey = CScript() << (opcodetype)op << std::vector<unsigned char>(2, 0);
         t.vout[0].nValue = 240;
-||||||| core24
-    // Check future Witness Program versions dust threshold
-    for (int op = OP_2; op <= OP_16; op += 1) {
-        t.vout[0].scriptPubKey = CScript() << (opcodetype)op << ParseHex("ffff");
-        t.vout[0].nValue = 240;
-=======
-    // Check future Witness Program versions dust threshold
-    for (int op = OP_2; op <= OP_16; op += 1) {
-        t.vout[0].scriptPubKey = CScript() << (opcodetype)op << ParseHex("ffff");
-        t.vout[0].nValue = 2400;
->>>>>>> litecoin24x
         CheckIsStandard(t);
 
         t.vout[0].nValue = 2399;

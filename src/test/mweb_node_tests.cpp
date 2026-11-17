@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <chain.h>
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
@@ -135,8 +138,8 @@ public:
     explicit MWEBNodeTestingSetup(const bool fund_previous_block = false)
         : TestingSetup{
               CBaseChainParams::REGTEST,
-              {"-vbparams=mweb:-1:9223372036854775807"}},
-          m_db{std::make_unique<CDBWrapper>(m_path_root / "mweb_node_db", 1 << 15)},
+              {"-mwebheight=1"}},
+          m_db{std::make_unique<CDBWrapper>(DBParams{.path = m_path_root / "mweb_node_db", .cache_bytes = 1 << 15})},
           m_miner{m_path_root / "mweb_node_miner"}
     {
         std::vector<test::Tx> previous_transactions;
@@ -299,7 +302,7 @@ public:
         : TestingSetup{
               CBaseChainParams::REGTEST,
               {"-vbparams=mweb:0:0:0:144"}},
-          m_db{std::make_unique<CDBWrapper>(m_path_root / "mweb_activation_db", 1 << 15)},
+          m_db{std::make_unique<CDBWrapper>(DBParams{.path = m_path_root / "mweb_activation_db", .cache_bytes = 1 << 15})},
           m_miner{m_path_root / "mweb_activation_miner"}
     {
         m_chain.reserve(432);

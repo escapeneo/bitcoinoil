@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
+#include <test/util/random.h>
+#include <test/util/txmempool.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/tx_verify.h>
@@ -78,7 +81,7 @@ public:
     explicit MWEBAdmissionTestingSetup(const bool require_standard = true)
         : TestingSetup{CBaseChainParams::REGTEST, {
               require_standard ? "-acceptnonstdtxn=0" : "-acceptnonstdtxn=1",
-              "-vbparams=mweb:-1:9223372036854775807:0:0"}},
+              "-mwebheight=1"}},
           m_pool{*m_node.mempool},
           m_coins{m_node.chainman->ActiveChainstate().CoinsTip()},
           m_view{m_coins.GetMWEBCacheView()},

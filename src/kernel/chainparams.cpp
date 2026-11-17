@@ -491,6 +491,7 @@ public:
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
         consensus.nAsertHeight = opts.asert_height.value_or(Consensus::ASERT_DISABLED);
+        consensus.MWEBHeight = opts.mweb_height.value_or(std::numeric_limits<int>::max());
         consensus.nAsertHalfLife = opts.asert_half_life.value_or(Consensus::ASERT_HALF_LIFE);
 
         pchMessageStart[0] = 0xfe;

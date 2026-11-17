@@ -286,13 +286,7 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
-<<<<<<< btco
             "6b6086700b60b86a845d95828bdb49c6ec1e345030345fcf8e9d54ffc5086c66");
-||||||| core24
-            "571d80a9967ae599cec0448b0b0ba1cfb606f584d8069bd7166b86854ba7a191");
-=======
-            "7b93a7f3ce050f63a2bfed01c4147249935f89346f8ab896786b1370210d66b2");
->>>>>>> litecoin24x
     }
 }
 
@@ -320,7 +314,7 @@ CBlock TestChain100Setup::CreateBlock(
     }
     RegenerateCommitments(block, *Assert(m_node.chainman));
 
-    while (!CheckProofOfWork(block.GetPoWHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
 
     return block;
 }
