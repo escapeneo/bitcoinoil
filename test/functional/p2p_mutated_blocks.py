@@ -59,7 +59,7 @@ class MutatedBlocksTest(BitcoinOilTestFramework):
 
         # Announce the new block via a compact block through the honest relayer
         cmpctblock = HeaderAndShortIDs()
-        cmpctblock.initialize_from_block(block, use_witness=True)
+        cmpctblock.initialize_from_block(block, version=3)
         honest_relayer.send_message(msg_cmpctblock(cmpctblock.to_p2p()))
 
         # Wait for a `getblocktxn` that attempts to fetch the self-transfer
