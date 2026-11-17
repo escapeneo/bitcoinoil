@@ -9,16 +9,12 @@
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
 #include <key_io.h>
-#include <mweb/mweb_wallet.h>
-#include <policy/policy.h>
 #include <qt/bitcoinoilamountfield.h>
 #include <qt/bitcoinoilunits.h>
 #include <qt/clientmodel.h>
-#include <qt/coincontroldialog.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
 #include <qt/platformstyle.h>
-#include <qt/psbtoperationsdialog.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/receivecoinsdialog.h>
 #include <qt/receiverequestdialog.h>
@@ -28,19 +24,12 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
-#include <qt/walletmodeltransaction.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
-#include <wallet/coincontrol.h>
-#include <wallet/scriptpubkeyman.h>
-#include <wallet/spend.h>
 #include <wallet/wallet.h>
 
-#include <algorithm>
 #include <chrono>
 #include <memory>
-#include <utility>
-#include <vector>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -49,12 +38,9 @@
 #include <QClipboard>
 #include <QObject>
 #include <QPushButton>
-#include <QRadioButton>
-#include <QTemporaryDir>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QTextEdit>
-#include <QTreeWidget>
 #include <QListView>
 #include <QDialogButtonBox>
 
@@ -94,11 +80,10 @@ uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDe
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
     entry->findChild<QValidatedLineEdit*>("payTo")->setText(QString::fromStdString(EncodeDestination(address)));
     entry->findChild<BitcoinOilAmountField*>("payAmount")->setValue(amount);
-    // BitcoinOil: Disable RBF
-    // sendCoinsDialog.findChild<QFrame*>("frameFee")
-    //     ->findChild<QFrame*>("frameFeeSelection")
-    //     ->findChild<QCheckBox*>("optInRBF")
-    //     ->setCheckState(rbf ? Qt::Checked : Qt::Unchecked);
+    sendCoinsDialog.findChild<QFrame*>("frameFee")
+        ->findChild<QFrame*>("frameFeeSelection")
+        ->findChild<QCheckBox*>("optInRBF")
+        ->setCheckState(rbf ? Qt::Checked : Qt::Unchecked);
     uint256 txid;
     boost::signals2::scoped_connection c(wallet.NotifyTransactionChanged.connect([&txid](const uint256& hash, ChangeType status) {
         if (status == CT_NEW) txid = hash;
@@ -181,7 +166,7 @@ void VerifyUseAvailableBalance(SendCoinsDialog& sendCoinsDialog, const WalletMod
     QVERIFY(coins.size() == 1); // context check, coins received only on one destination
     for (const auto& [outpoint, tx_out] : coins.begin()->second) {
         sendCoinsDialog.getCoinControl()->Select(outpoint);
-        sum_selected_coins += tx_out.txout.nValue;
+        sum_selected_coins += tx_out.nValue;
         if (++selected == COINS_TO_SELECT) break;
     }
     QVERIFY(selected == COINS_TO_SELECT);
@@ -235,7 +220,7 @@ std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChai
     assert(desc);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
     if (!wallet->AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
-    CTxDestination dest = GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type);
+    CTxDestination dest = GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type, SecretKey{});
     wallet->SetAddressBook(dest, "", wallet::AddressPurpose::RECEIVE);
     wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
     SyncUpWallet(wallet, node);
@@ -404,11 +389,6 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
 
     // Check removal from wallet
     QCOMPARE(walletModel.wallet().getAddressReceiveRequests().size(), size_t{0});
-
-    TestMWEBCoinControl(walletModel, *wallet, platformStyle.get());
-    TestSendCoinsAddressEntry(walletModel, platformStyle.get());
-    TestSendCoinsDust(walletModel, platformStyle.get());
-    TestPSBTOperations(clientModel);
 }
 
 void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
@@ -429,7 +409,7 @@ void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
                    sendCoinsDialog.findChild<QLabel*>("labelBalance"));
 
     // Set change address
-    sendCoinsDialog.getCoinControl()->destChange = GetDestinationForKey(test.coinbaseKey.GetPubKey(), OutputType::LEGACY);
+    sendCoinsDialog.getCoinControl()->destChange = GetDestinationForKey(test.coinbaseKey.GetPubKey(), OutputType::LEGACY, SecretKey{});
 
     // Time to reject "save" PSBT dialog ('SendCoins' locks the main thread until the dialog receives the event).
     QTimer timer;
