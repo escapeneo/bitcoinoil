@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE(walletdb_ckeymetadata)
 
 BOOST_AUTO_TEST_CASE(walletdb_legacy_locked_utxo)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     const COutPoint outpoint{uint256S("0x0111111111111111111111111111111111111111111111111111111111111111"), 3};
 
     CDataStream ssKey(SER_DISK, CLIENT_VERSION);

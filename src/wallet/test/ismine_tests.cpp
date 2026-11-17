@@ -720,7 +720,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
     // MWEB addresses
     {
-        CWallet keystore(chain.get(), "", m_args, CreateDummyWalletDatabase());
+        CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
         bilingual_str error_str;

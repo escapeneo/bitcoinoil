@@ -675,7 +675,7 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTest)
 
 BOOST_AUTO_TEST_CASE(legacy_mweb_keychain_load_caches_scan_secret)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_MWEB));
 
@@ -709,7 +709,7 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_keychain_load_caches_scan_secret)
 // must be rejected before migration rather than assigned a guessed descriptor.
 BOOST_AUTO_TEST_CASE(legacy_mweb_migration_rejects_mismatched_scan_key)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     LOCK(wallet.cs_wallet);
     wallet.LoadMinVersion(FEATURE_MWEB);
@@ -753,7 +753,7 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_ignores_transparent_only_inactive_chain)
         }
     } keypool_arg_guard;
 
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_MWEB));
 
@@ -802,7 +802,7 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_ignores_transparent_only_inactive_chain)
 
 BOOST_AUTO_TEST_CASE(legacy_mweb_generated_key_metadata_uses_mweb_index)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_MWEB));
 
@@ -1699,7 +1699,7 @@ static TestDatabaseBytes WalletDatabaseKey(const std::string& type)
 
 BOOST_FIXTURE_TEST_CASE(MWEBUpgradeCoinsRewindsWithScanOnlyKeychain, TestingSetup)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet.SetupLegacyScriptPubKeyMan();
     BOOST_REQUIRE(wallet.SetMinVersion(FEATURE_MWEB));
 
@@ -1761,7 +1761,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBV21WatchKeychainUpgradesCoinsOnUnlock, TestingSetup)
     StealthAddress receive_address;
 
     {
-        CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+        CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
         wallet.SetupLegacyScriptPubKeyMan();
         BOOST_REQUIRE(wallet.SetMinVersion(FEATURE_MWEB));
 
@@ -1818,7 +1818,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBV21WatchKeychainUpgradesCoinsOnUnlock, TestingSetup)
         BOOST_CHECK(!wallet.GetMWEBWalletCoin(output_id, coin));
     }
 
-    CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     BOOST_REQUIRE(wallet.IsLocked());
 
@@ -1881,7 +1881,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyMigration, TestingSetup)
     state->records[coin_key] = LegacyV3MWEBWalletCoinValue(coin, persisted_spend_key);
 
     {
-        CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+        CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
         BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
         BOOST_CHECK_EQUAL(state->rewrite_count, 1U);
         BOOST_CHECK_EQUAL(state->reload_count, 1U);
@@ -1912,7 +1912,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyMigration, TestingSetup)
     ) == upgraded_value.end());
 
     // A successful scrub clears the marker, so later loads do not rewrite.
-    CWallet reopened(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet reopened(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_REQUIRE(reopened.LoadWallet() == DBErrors::LOAD_OK);
     BOOST_CHECK_EQUAL(state->rewrite_count, 1U);
     BOOST_CHECK_EQUAL(state->reload_count, 1U);
@@ -1927,7 +1927,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubRetriesAfterRewriteFailure, Te
     state->fault = FaultPoint::REWRITE;
 
     {
-        CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+        CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
         BOOST_CHECK(wallet.LoadWallet() == DBErrors::NEED_REWRITE);
         BOOST_CHECK_EQUAL(state->rewrite_count, 1U);
         BOOST_CHECK_EQUAL(state->reload_count, 0U);
@@ -1945,7 +1945,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubRetriesAfterRewriteFailure, Te
 
     // The durable marker retries the physical scrub even though the live coin
     // record was already migrated before the first rewrite failed.
-    CWallet retry(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet retry(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_REQUIRE(retry.LoadWallet() == DBErrors::LOAD_OK);
     BOOST_CHECK_EQUAL(state->rewrite_count, 2U);
     BOOST_CHECK_EQUAL(state->reload_count, 1U);
@@ -1962,7 +1962,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubRetriesAfterMarkerEraseFailure
     state->fault = FaultPoint::ERASE_SCRUB;
 
     {
-        CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+        CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
         BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
         BOOST_CHECK_EQUAL(state->rewrite_count, 1U);
         BOOST_CHECK_EQUAL(state->reload_count, 1U);
@@ -1973,7 +1973,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubRetriesAfterMarkerEraseFailure
 
     // Failure to erase the marker is safe: the next load repeats the scrub
     // and clears the marker after the second successful rewrite.
-    CWallet retry(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet retry(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_REQUIRE(retry.LoadWallet() == DBErrors::LOAD_OK);
     BOOST_CHECK_EQUAL(state->rewrite_count, 2U);
     BOOST_CHECK_EQUAL(state->reload_count, 2U);
@@ -1993,7 +1993,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBV21CoinMigrationUsesValidatedActiveKeychain, Testing
     CKeyID active_master_scan_key_id;
 
     {
-        CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+        CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
         wallet.SetupLegacyScriptPubKeyMan();
         BOOST_REQUIRE(wallet.SetMinVersion(FEATURE_MWEB));
 
@@ -2066,7 +2066,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBV21CoinMigrationUsesValidatedActiveKeychain, Testing
         state->records[MWEBWalletCoinDatabaseKey(mismatched_coin.output_id)] = LegacyV2MWEBWalletCoinValue(mismatched_coin, mismatched_spend_key);
     }
 
-    CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     BOOST_CHECK_EQUAL(state->rewrite_count, 1U);
 
@@ -2116,7 +2116,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyMigrationFailureIsFatal, TestingSet
     state->records[coin_key] = legacy_value;
     state->fault = FaultPoint::WRITE_COIN;
 
-    CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
     BOOST_CHECK(wallet.LoadWallet() == DBErrors::LOAD_FAIL);
     BOOST_CHECK_EQUAL(state->rewrite_count, 0U);
     BOOST_CHECK(state->records.at(coin_key) == legacy_value);
@@ -2138,7 +2138,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     auto legacy_state = std::make_shared<FaultDatabaseState>();
     legacy_state->records[WalletDatabaseKey(DBKeys::NAME)] = {};
     legacy_state->records[coin_key] = legacy_value;
-    CWallet legacy_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(legacy_state));
+    CWallet legacy_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(legacy_state));
     BOOST_CHECK(legacy_wallet.LoadWallet() == DBErrors::LOAD_FAIL);
     BOOST_CHECK_EQUAL(legacy_state->rewrite_count, 0U);
     BOOST_CHECK(legacy_state->records.at(coin_key) == legacy_value);
@@ -2151,7 +2151,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
         FaultDatabase database(marked_state);
         BOOST_REQUIRE(database.MakeBatch()->Write(DBKeys::MWEB_SPEND_KEY_SCRUB, uint8_t{1}));
     }
-    CWallet marked_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(marked_state));
+    CWallet marked_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(marked_state));
     BOOST_CHECK(marked_wallet.LoadWallet() == DBErrors::LOAD_FAIL);
     BOOST_CHECK_EQUAL(marked_state->rewrite_count, 0U);
     uint8_t scrub_flag{0};
@@ -2164,7 +2164,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     TestDatabaseBytes truncated_value = legacy_value;
     truncated_value.pop_back();
     corrupt_coin_state->records[coin_key] = std::move(truncated_value);
-    CWallet corrupt_coin_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(corrupt_coin_state));
+    CWallet corrupt_coin_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(corrupt_coin_state));
     BOOST_CHECK(corrupt_coin_wallet.LoadWallet() == DBErrors::CORRUPT);
     BOOST_CHECK_EQUAL(corrupt_coin_state->rewrite_count, 0U);
 
@@ -2174,7 +2174,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     const mw::Hash wrong_output_id = mw::Hash::ValueOf(98);
     const TestDatabaseBytes wrong_coin_key = MWEBWalletCoinDatabaseKey(wrong_output_id);
     mismatched_key_state->records[wrong_coin_key] = legacy_value;
-    CWallet mismatched_key_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(mismatched_key_state));
+    CWallet mismatched_key_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(mismatched_key_state));
     BOOST_CHECK(mismatched_key_wallet.LoadWallet() == DBErrors::CORRUPT);
     BOOST_CHECK_EQUAL(mismatched_key_state->rewrite_count, 0U);
     BOOST_CHECK(mismatched_key_state->records.at(wrong_coin_key) == legacy_value);
@@ -2197,7 +2197,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     }
     BOOST_REQUIRE_EQUAL(corrupt_tx_state->records.size(), 1U);
     corrupt_tx_state->records.begin()->second.pop_back();
-    CWallet corrupt_tx_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(corrupt_tx_state));
+    CWallet corrupt_tx_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(corrupt_tx_state));
     BOOST_CHECK(corrupt_tx_wallet.LoadWallet() == DBErrors::CORRUPT);
     BOOST_CHECK_EQUAL(corrupt_tx_state->rewrite_count, 0U);
 
@@ -2219,7 +2219,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     }
     BOOST_REQUIRE_EQUAL(overlong_tx_state->records.size(), 1U);
     const TestDatabaseRecords overlong_records = overlong_tx_state->records;
-    CWallet overlong_tx_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(overlong_tx_state));
+    CWallet overlong_tx_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(overlong_tx_state));
     BOOST_CHECK(overlong_tx_wallet.LoadWallet() == DBErrors::CORRUPT);
     BOOST_CHECK_EQUAL(overlong_tx_state->rewrite_count, 0U);
     BOOST_CHECK(overlong_tx_state->records == overlong_records);
@@ -2230,7 +2230,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
     TestDatabaseBytes overlong_coin_value = legacy_value;
     overlong_coin_value.push_back(std::byte{0});
     overlong_coin_state->records[coin_key] = overlong_coin_value;
-    CWallet overlong_coin_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(overlong_coin_state));
+    CWallet overlong_coin_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(overlong_coin_state));
     BOOST_CHECK(overlong_coin_wallet.LoadWallet() == DBErrors::CORRUPT);
     BOOST_CHECK_EQUAL(overlong_coin_state->rewrite_count, 0U);
     BOOST_CHECK(overlong_coin_state->records.at(coin_key) == overlong_coin_value);
@@ -2239,7 +2239,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBPersistedSpendKeyScrubFailsClosedOnCorruption, Testi
 BOOST_FIXTURE_TEST_CASE(MWEBWalletDatabaseWriteFailures, TestingSetup)
 {
     auto state = std::make_shared<FaultDatabaseState>();
-    CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+    CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
 
     state->fault = FaultPoint::WRITE_MINVERSION;
     BOOST_CHECK(!wallet.SetMinVersion(FEATURE_V24));
@@ -2282,7 +2282,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBWalletDatabaseWriteFailures, TestingSetup)
     }
 
     auto partial_state = std::make_shared<FaultDatabaseState>();
-    CWallet partial_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(partial_state));
+    CWallet partial_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(partial_state));
     partial_state->fault = FaultPoint::WRITE_MINVERSION;
     const uint256 partial_hash = MWEB::WalletTxInfo::Received(coin.output_id).GetHash();
     BOOST_CHECK(partial_wallet.AddToWallet(
@@ -2299,7 +2299,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBWalletDatabaseWriteFailures, TestingSetup)
     ));
 
     auto rewind_state = std::make_shared<FaultDatabaseState>();
-    CWallet rewind_wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(rewind_state));
+    CWallet rewind_wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(rewind_state));
     rewind_wallet.LoadMinVersion(FEATURE_MWEB);
     rewind_wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
     rewind_wallet.SetupDescriptorScriptPubKeyMans();
@@ -2428,7 +2428,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletTxHashMigration, TestingSetup)
         ));
     }
 
-    CWallet wallet(m_node.chain.get(), "", m_args, std::move(database));
+    CWallet wallet(m_node.chain.get(), "", std::move(database));
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
 
     {
@@ -2452,7 +2452,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletTxHashMigration, TestingSetup)
         std::make_pair(DBKeys::TX, corrupt_hash),
         persisted_wtx
     ));
-    CWallet corrupt_wallet(m_node.chain.get(), "", m_args, std::move(corrupt_database));
+    CWallet corrupt_wallet(m_node.chain.get(), "", std::move(corrupt_database));
     BOOST_CHECK(corrupt_wallet.LoadWallet() == DBErrors::NEED_RESCAN);
 }
 
@@ -2470,7 +2470,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletCoinMigration, TestingSetup)
         BOOST_REQUIRE(batch->Write(std::make_pair(DBKeys::TX, old_wtx_hash), legacy_wtx));
     }
 
-    CWallet wallet(m_node.chain.get(), "", m_args, std::move(database));
+    CWallet wallet(m_node.chain.get(), "", std::move(database));
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
 
     LOCK(wallet.cs_wallet);
@@ -2534,7 +2534,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletCoinMigrationFailuresAreAtomic, TestingS
 
         state->fault = fault;
         {
-            CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+            CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
             BOOST_CHECK(wallet.LoadWallet() == DBErrors::NONCRITICAL_ERROR);
 
             LOCK(wallet.cs_wallet);
@@ -2559,7 +2559,7 @@ BOOST_FIXTURE_TEST_CASE(MWEBLegacyWalletCoinMigrationFailuresAreAtomic, TestingS
         }
 
         {
-            CWallet wallet(m_node.chain.get(), "", m_args, std::make_unique<FaultDatabase>(state));
+            CWallet wallet(m_node.chain.get(), "", std::make_unique<FaultDatabase>(state));
             BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
 
             LOCK(wallet.cs_wallet);

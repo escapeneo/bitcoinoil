@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(CanProvide)
 // An exhausted descriptor must leave failed reservations unassigned so cleanup cannot return an already-issued address.
 BOOST_AUTO_TEST_CASE(FailedDescriptorReservationDoesNotReturnUsedAddress)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     CExtKey master;
     master.SetSeed(std::array<std::byte, 32>{});
     FlatSigningProvider provider;

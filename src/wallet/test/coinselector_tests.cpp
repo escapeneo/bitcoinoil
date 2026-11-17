@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
     coin_selection_params_bnb.m_change_params.m_cost_of_change = coin_selection_params_bnb.m_effective_feerate.GetFee(change_spend_size, 0) + coin_selection_params_bnb.m_change_params.m_change_fee;
     coin_selection_params_bnb.m_change_params.min_viable_change = coin_selection_params_bnb.m_effective_feerate.GetFee(change_spend_size, 0);
     {
-        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
         wallet->LoadWallet();
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -328,7 +328,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
     }
 
     {
-        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
         wallet->LoadWallet();
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -347,7 +347,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         BOOST_CHECK(result10);
     }
     {
-        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+        std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
         wallet->LoadWallet();
         LOCK(wallet->cs_wallet);
         wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -408,7 +408,7 @@ BOOST_AUTO_TEST_CASE(knapsack_solver_test)
     FastRandomContext rand{};
     const auto temp1{[&rand](std::vector<OutputGroup>& g, const CAmount& v, CAmount c) { return KnapsackSolver(g, v, c, rand); }};
     const auto KnapsackSolver{temp1};
-    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -718,7 +718,7 @@ BOOST_AUTO_TEST_CASE(knapsack_solver_test)
 BOOST_AUTO_TEST_CASE(ApproximateBestSubset)
 {
     FastRandomContext rand{};
-    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -740,7 +740,7 @@ BOOST_AUTO_TEST_CASE(ApproximateBestSubset)
 // Tests that with the ideal conditions, the coin selector will always be able to find a solution that can pay the target value
 BOOST_AUTO_TEST_CASE(SelectCoins_test)
 {
-    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -932,7 +932,7 @@ BOOST_AUTO_TEST_CASE(SelectCoins_effective_value_test)
     // This test creates a coin whose value is higher than the target but whose effective value is lower than the target.
     // The coin is selected using coin control, with m_allow_other_inputs = false. SelectCoins should fail due to insufficient funds.
 
-    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -940,7 +940,7 @@ BOOST_AUTO_TEST_CASE(SelectCoins_effective_value_test)
 
     CoinsResult available_coins;
     {
-        std::unique_ptr<CWallet> dummyWallet = std::make_unique<CWallet>(m_node.chain.get(), "dummy", m_args, CreateMockWalletDatabase());
+        std::unique_ptr<CWallet> dummyWallet = std::make_unique<CWallet>(m_node.chain.get(), "dummy", CreateMockWalletDatabase());
         dummyWallet->LoadWallet();
         LOCK(dummyWallet->cs_wallet);
         dummyWallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -981,7 +981,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_coinsresult_test, BasicTestingSetup)
     // Test case to verify CoinsResult object sanity.
     CoinsResult available_coins;
     {
-        std::unique_ptr<CWallet> dummyWallet = std::make_unique<CWallet>(m_node.chain.get(), "dummy", m_args, CreateMockWalletDatabase());
+        std::unique_ptr<CWallet> dummyWallet = std::make_unique<CWallet>(m_node.chain.get(), "dummy", CreateMockWalletDatabase());
         BOOST_CHECK_EQUAL(dummyWallet->LoadWallet(), DBErrors::LOAD_OK);
         LOCK(dummyWallet->cs_wallet);
         dummyWallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);

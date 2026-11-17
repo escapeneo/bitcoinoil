@@ -295,7 +295,7 @@ BOOST_FIXTURE_TEST_SUITE(mweb_keychain_tests, MWEBKeychainTestingSetup)
 BOOST_AUTO_TEST_CASE(DescriptorChangeReservationsUseSeparateBranch)
 {
     KeypoolArgGuard keypool_size(2);
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     LOCK(wallet.cs_wallet);
     wallet.LoadMinVersion(FEATURE_MWEB);
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(DescriptorChangeReservationsUseSeparateBranch)
 BOOST_AUTO_TEST_CASE(DescriptorChangePreservesIndexWhenStagedAndRewound)
 {
     KeypoolArgGuard keypool_size(4);
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     LOCK(wallet.cs_wallet);
     wallet.LoadMinVersion(FEATURE_MWEB);
@@ -388,7 +388,7 @@ BOOST_AUTO_TEST_CASE(ImportedInternalSubaddressesRemainSpendableChange)
     const auto direct = strprintf("mweb(%s,%s)", EncodeSecret(test::MWEBTestKeys::ToCKey(keys.scan_secret)),
                                  EncodeSecret(test::MWEBTestKeys::ToCKey(keys.SubaddressSpendSecret(7))));
     for (const auto& descriptor : {keys.Descriptor(7), direct}) {
-        CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+        CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
         BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
         LOCK(wallet.cs_wallet);
         wallet.LoadMinVersion(FEATURE_MWEB);
@@ -619,7 +619,7 @@ BOOST_AUTO_TEST_CASE(FailedSenderIndexWriteDoesNotConsumeKey)
 {
     auto database = std::make_unique<ToggleFailDatabase>();
     ToggleFailDatabase* failing_database = database.get();
-    CWallet wallet(m_node.chain.get(), "", m_args, std::move(database));
+    CWallet wallet(m_node.chain.get(), "", std::move(database));
     SetupLegacyWallet(wallet);
     WITH_LOCK(wallet.cs_wallet, wallet.LoadMinVersion(FEATURE_V24));
     SetNewSeed(wallet);
@@ -642,7 +642,7 @@ BOOST_AUTO_TEST_CASE(FailedSenderIndexWriteDoesNotConsumeKey)
 // Without an MWEB keychain, callers still receive independent ephemeral sender keys and no wallet state is persisted.
 BOOST_AUTO_TEST_CASE(MissingKeychainUsesEphemeralSenderKeys)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     const int original_version = wallet.GetVersion();
 
     const util::Result<SecretKey> first = GenerateSenderKey(wallet);
@@ -664,7 +664,7 @@ BOOST_AUTO_TEST_CASE(InactiveDescriptorKeychainRemainsDiscoverable)
     static constexpr CAmount RECEIVED_AMOUNT{4'000'000};
     static constexpr CAmount SENT_AMOUNT{5'000'000};
     const KeypoolArgGuard keypool_size{SENDER_INDEX + 1};
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     {
         LOCK(wallet.cs_wallet);
@@ -740,7 +740,7 @@ BOOST_AUTO_TEST_CASE(InactiveDescriptorKeychainRemainsDiscoverable)
 // Different spend branches sharing a scan key must each sign raw transactions and PSBTs, even when their coin address needs recovery.
 BOOST_AUTO_TEST_CASE(SharedScanDescriptorsSignTheirOwnOutputs)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     WITH_LOCK(wallet.cs_wallet, wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS));
     const auto first = test::MWEBTestKeys::Create('1', '2');
@@ -756,7 +756,7 @@ BOOST_AUTO_TEST_CASE(SharedScanDescriptorsSignTheirOwnOutputs)
 BOOST_AUTO_TEST_CASE(SharedScanRewindPreservesDescriptorOwnership)
 {
     const KeypoolArgGuard keypool_size{3};
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     LOCK(wallet.cs_wallet);
     wallet.LoadMinVersion(FEATURE_MWEB);
@@ -811,7 +811,7 @@ BOOST_AUTO_TEST_CASE(SharedScanRewindPreservesDescriptorOwnership)
 BOOST_AUTO_TEST_CASE(SharedScanSenderLookaheadSurvivesKeychainReload)
 {
     const KeypoolArgGuard keypool_size{3};
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     LOCK(wallet.cs_wallet);
     wallet.LoadMinVersion(FEATURE_MWEB);
@@ -862,7 +862,7 @@ BOOST_AUTO_TEST_CASE(SharedScanSenderLookaheadSurvivesKeychainReload)
 BOOST_AUTO_TEST_CASE(SharedScanSigningSkipsWatchOnlyManagers)
 {
     KeypoolArgGuard keypool_size{10};
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     WITH_LOCK(wallet.cs_wallet, wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS));
     const auto keys = test::MWEBTestKeys::Create();
@@ -937,7 +937,7 @@ BOOST_AUTO_TEST_CASE(SharedScanSigningSkipsWatchOnlyManagers)
 // Shared scan IDs must not guess an address or spend key when neither the stored coin nor its input identifies the spend branch.
 BOOST_AUTO_TEST_CASE(SharedScanSigningRequiresUnambiguousCoinData)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     WITH_LOCK(wallet.cs_wallet, wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS));
     const auto first = test::MWEBTestKeys::Create('1', '2');
@@ -987,7 +987,7 @@ BOOST_AUTO_TEST_CASE(SharedScanSigningRequiresUnambiguousCoinData)
 // A payment to another keychain retains the recipient's scan ID, the sender's history, and both raw and PSBT spending capability.
 BOOST_AUTO_TEST_CASE(SelfPaymentBetweenKeychainsRemainsSpendable)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     WITH_LOCK(wallet.cs_wallet, wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS));
     const auto first = test::MWEBTestKeys::Create('1', '2');
@@ -1019,7 +1019,7 @@ BOOST_AUTO_TEST_CASE(SelfPaymentBetweenKeychainsRemainsSpendable)
 // Committing a staged payment to another keychain's change address binds it to the recipient before sender rewind runs.
 BOOST_AUTO_TEST_CASE(SelfPaymentToAnotherKeychainsChangeRemainsSpendable)
 {
-    CWallet wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     BOOST_REQUIRE(wallet.LoadWallet() == DBErrors::LOAD_OK);
     WITH_LOCK(wallet.cs_wallet, wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS));
     const auto sender = ImportMWEBDescriptor(wallet, test::MWEBTestKeys::Create('1', '2').Descriptor(7));

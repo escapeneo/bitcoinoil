@@ -439,7 +439,7 @@ BOOST_AUTO_TEST_CASE(PureMWEBDraftFundingAndRawSigningAreEndToEnd)
     BOOST_CHECK_EQUAL(SOURCE_AMOUNT, output_total + funding.fee);
     BOOST_CHECK(!draft.tx.mweb_tx.IsFinal());
 
-    CWallet unrelated_wallet(m_node.chain.get(), "", m_args, CreateMockWalletDatabase());
+    CWallet unrelated_wallet(m_node.chain.get(), "", CreateMockWalletDatabase());
     unrelated_wallet.LoadWallet();
     CMutableTransaction unsigned_copy = draft.tx;
     WITH_LOCK(unrelated_wallet.cs_wallet, BOOST_CHECK(!unrelated_wallet.SignTransaction(unsigned_copy)));
