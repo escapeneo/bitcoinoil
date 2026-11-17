@@ -30,7 +30,9 @@ void CleanupPruneLists(const FilePath& dir, const uint32_t current_index)
     // Publication can precede a crash that leaves older, nonconsecutive prune
     // generations behind. Only the file named by current metadata is live.
     for (const auto& entry : fs::directory_iterator(fs::u8path(dir.ToString()))) {
-        const auto name = entry.path().filename().u8string();
+        // u8string() is std::u8string when built as C++20 (Windows cross build), std::string otherwise.
+        const auto u8name = entry.path().filename().u8string();
+        const std::string name(u8name.begin(), u8name.end());
         if (name.size() < 14 || name.compare(0, 4, "prun") != 0 || name.compare(name.size() - 4, 4, ".dat") != 0) {
             continue;
         }
