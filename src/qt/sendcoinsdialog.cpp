@@ -187,9 +187,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
 #endif
 
         connect(ui->customFee, &BitcoinOilAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-        // BitcoinOil: Disable RBF
-        // connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
-        // connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
+        connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         CAmount requiredFee = model->wallet().getRequiredFee(1000, 0);
         ui->customFee->SetMinValue(requiredFee);
         if (ui->customFee->value() < requiredFee) {
@@ -200,8 +199,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         updateSmartFeeLabel();
 
         // set default rbf checkbox state
-        // BitcoinOil: Disable RBF
-        // ui->optInRBF->setCheckState(Qt::Checked);
+        ui->optInRBF->setCheckState(Qt::Checked);
 
         if (model->wallet().hasExternalSigner()) {
             //: "device" usually means a hardware wallet.
@@ -367,14 +365,13 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
         question_string.append("</span><br />");
 
         // append RBF message according to transaction's signalling
-        // BitcoinOil: Disable RBF
-        //question_string.append("<span style='font-size:10pt; font-weight:normal;'>");
-        //if (ui->optInRBF->isChecked()) {
-        //    question_string.append(tr("You can increase the fee later (signals Replace-By-Fee, BIP-125)."));
-        //} else {
-        //    question_string.append(tr("Not signalling Replace-By-Fee, BIP-125."));
-        //}
-        //question_string.append("</span>");
+        question_string.append("<span style='font-size:10pt; font-weight:normal;'>");
+        if (ui->optInRBF->isChecked()) {
+            question_string.append(tr("You can increase the fee later (signals Replace-By-Fee, BIP-125)."));
+        } else {
+            question_string.append(tr("Not signalling Replace-By-Fee, BIP-125."));
+        }
+        question_string.append("</span>");
     }
 
     // add total amount in all subdivision units
@@ -856,8 +853,7 @@ void SendCoinsDialog::updateCoinControlState()
     // Avoid using global defaults when sending money from the GUI
     // Either custom fee will be used or if not selected, the confirmation target from dropdown box
     m_coin_control->m_confirm_target = getConfTargetForIndex(ui->confTargetSelector->currentIndex());
-    // BitcoinOil: Disable RBF GUI
-    // m_coin_control->m_signal_bip125_rbf = ui->optInRBF->isChecked();
+    m_coin_control->m_signal_bip125_rbf = ui->optInRBF->isChecked();
     // Include watch-only for wallets without private key
     m_coin_control->fAllowWatchOnly = model->wallet().privateKeysDisabled() && !model->wallet().hasExternalSigner();
 }
