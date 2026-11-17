@@ -706,6 +706,8 @@ static RPCHelpMan getblockheader()
                             {RPCResult::Type::NUM, "prev_mweb_amount", /*optional=*/true, "The previous block's mweb_amount"},
                             {RPCResult::Type::STR_HEX, "previousblockhash", /*optional=*/true, "The hash of the previous block (if available)"},
                             {RPCResult::Type::STR_HEX, "nextblockhash", /*optional=*/true, "The hash of the next block (if available)"},
+                            {RPCResult::Type::OBJ, "auxpow", /*optional=*/true, "The auxpow object attached to this header (merge-mined blocks only)",
+                                {{RPCResult::Type::ELISION, "", "Same format as in getblock"}}},
                         }},
                     RPCResult{"for verbose=false",
                         RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},

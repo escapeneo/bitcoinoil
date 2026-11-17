@@ -92,6 +92,7 @@ BASE_SCRIPTS = [
     # MWEB tests ported from Litecoin 24.x, and BitcoinOil's own
     'mweb_attached_tx.py --descriptors',
     'mweb_auxpow.py --descriptors',
+    'mweb_auxpow_asert.py --descriptors',
     'mweb_basic.py --descriptors',
     'mweb_consensus.py --descriptors',
     'mweb_dbcrash.py --descriptors',
