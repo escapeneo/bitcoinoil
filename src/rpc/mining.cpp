@@ -374,10 +374,14 @@ static RPCHelpMan generateblock()
         block = blocktemplate->block;
     }
 
-    CHECK_NONFATAL(block.vtx.size() == 1);
+    // Once MWEB is active the template ends with the HogEx, which has to stay
+    // last. The given transactions go before it; ones that peg in or carry MWEB
+    // data are not supported here and fail the validity test below.
+    const bool has_hogex{block.vtx.size() == 2 && block.vtx.back()->IsHogEx()};
+    CHECK_NONFATAL(block.vtx.size() == 1 || has_hogex);
 
     // Add transactions
-    block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
+    block.vtx.insert(has_hogex ? block.vtx.end() - 1 : block.vtx.end(), txs.begin(), txs.end());
     RegenerateCommitments(block, chainman);
 
     {

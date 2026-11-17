@@ -1595,7 +1595,7 @@ RPCHelpMan sendall()
                     return result;
                 }
 
-                PartiallySignedTransaction psbtx(draft.tx, 2);
+                PartiallySignedTransaction psbtx(draft.tx);
                 bool complete{false};
                 TransactionError err{pwallet->FillPSBT(psbtx, complete, SIGHASH_DEFAULT, false, true)};
                 if (err != TransactionError::OK) {
@@ -1829,7 +1829,7 @@ RPCHelpMan walletcreatefundedpsbt()
                         FundTxDoc()),
                         RPCArgOptions{.oneline_description="options"}},
                     {"bip32derivs", RPCArg::Type::BOOL, RPCArg::Default{true}, "Include BIP 32 derivation paths for public keys if we know them"},
-                    {"psbt_version", RPCArg::Type::NUM, RPCArg::Default(2), "The PSBT version number to use."},
+                    {"psbt_version", RPCArg::Type::NUM, RPCArg::DefaultHint{"0, or 2 if the transaction has MWEB data"}, "The PSBT version number to use."},
                 },
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
@@ -1867,7 +1867,7 @@ RPCHelpMan walletcreatefundedpsbt()
     FundTransactionResult ret = FundTransaction(wallet, draft, options, allow_other_inputs, /*override_min_fee=*/true);
 
     // Make a blank psbt
-    uint32_t psbt_version = 2;
+    uint32_t psbt_version = draft.tx.mweb_tx.IsNull() ? 0 : 2;
     if (!request.params[5].isNull()) {
         psbt_version = request.params[5].getInt<int>();
     }

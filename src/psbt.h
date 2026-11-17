@@ -1885,7 +1885,9 @@ struct PartiallySignedTransaction
     CMutableTransaction GetUnsignedTx() const;
     uint256 GetUniqueID() const;
     PartiallySignedTransaction() = default;
-    explicit PartiallySignedTransaction(const CMutableTransaction& tx, uint32_t version = 2);
+    //! Without a version, BitcoinOil keeps PSBT version 0 for transactions with
+    //! no MWEB data, so existing signers still read them; MWEB needs version 2.
+    explicit PartiallySignedTransaction(const CMutableTransaction& tx, std::optional<uint32_t> psbt_version = std::nullopt);
 
     bool IsComplete() const noexcept;
 

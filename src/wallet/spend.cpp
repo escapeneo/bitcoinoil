@@ -250,7 +250,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             }
 
             if (coinControl) {
-                if (coinControl->HasSelected() && !coinControl->m_allow_other_inputs && !coinControl->IsSelected(output_id)) {
+                if (!coinControl->m_allow_other_inputs && !coinControl->IsSelected(output_id)) {
                     continue;
                 }
             }
@@ -677,7 +677,9 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
     }
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
-    if (coin_control.HasSelected() && !coin_control.m_allow_other_inputs) {
+    // BitcoinOil keeps Core 25's meaning: without permission to add inputs, only
+    // the preset ones may be used, even when none were given.
+    if (!coin_control.m_allow_other_inputs) {
         SelectionResult result(nTargetValue, SelectionAlgorithm::MANUAL);
         result.AddInput(preset_inputs);
 

@@ -1903,7 +1903,7 @@ static RPCHelpMan createpsbt()
                 Cat<std::vector<RPCArg>>(
                     CreateTxDoc(/*allow_mweb=*/true),
                     {
-                        {"psbt_version", RPCArg::Type::NUM, RPCArg::Default{2}, "The PSBT version number to use."},
+                        {"psbt_version", RPCArg::Type::NUM, RPCArg::DefaultHint{"0, or 2 if the transaction has MWEB data"}, "The PSBT version number to use."},
                     }
                 ),
                 RPCResult{
@@ -1922,7 +1922,7 @@ static RPCHelpMan createpsbt()
     CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
 
     // Make a blank psbt
-    uint32_t psbt_version = 2;
+    uint32_t psbt_version = rawTx.mweb_tx.IsNull() ? 0 : 2;
     if (!request.params[4].isNull()) {
         psbt_version = request.params[4].getInt<int>();
     }

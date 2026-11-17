@@ -14,8 +14,10 @@
 #include <util/check.h>
 #include <util/strencodings.h>
 
-PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction& tx, uint32_t version) : m_psbt_version(version)
+PartiallySignedTransaction::PartiallySignedTransaction(const CMutableTransaction& tx, std::optional<uint32_t> psbt_version)
+    : m_psbt_version(psbt_version.value_or(tx.mweb_tx.IsNull() ? 0 : 2))
 {
+    const uint32_t version{m_psbt_version};
     if (version == 0) {
         this->tx = tx;
     }

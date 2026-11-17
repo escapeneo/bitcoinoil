@@ -79,6 +79,16 @@ class MWEBEmptyFirstHogExTest(BitcoinOilTestFramework):
         self.generate(node, 1)
         assert_equal(peer.getbestblockhash(), node.getbestblockhash())
 
+        self.log.info("generateblock works after activation, with and without transparent transactions")
+        self.generateblock(node, output=node.getnewaddress(), transactions=[], sync_fun=self.no_op)
+        txid = node.sendtoaddress(node.getnewaddress(), 1)
+        block_hash = self.generateblock(node, output=node.getnewaddress(), transactions=[txid], sync_fun=self.no_op)['hash']
+        block = node.getblock(block_hash, 2)
+        assert_equal([tx['txid'] for tx in block['tx'][1:-1]], [txid])
+        assert block['tx'][-1]['vout'][0]['scriptPubKey']['hex'].startswith('5820')
+        self.sync_blocks()
+        height_after_generateblock = node.getblockcount()
+
         self.log.info("createauxblock still hands out work after activation")
         work = node.createauxblock(node.getnewaddress())
         assert_equal(work['height'], node.getblockcount() + 1)
@@ -86,7 +96,7 @@ class MWEBEmptyFirstHogExTest(BitcoinOilTestFramework):
         self.log.info("The chain survives a restart and a full reindex")
         tip = node.getbestblockhash()
         self.restart_node(0, extra_args=['-reindex', '-whitelist=noban@127.0.0.1'])
-        self.wait_until(lambda: node.getblockcount() == ACTIVATION + 4)
+        self.wait_until(lambda: node.getblockcount() == height_after_generateblock)
         assert_equal(node.getbestblockhash(), tip)
 
         self.log.info("Reorg across the activation block")

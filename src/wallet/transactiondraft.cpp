@@ -292,7 +292,7 @@ CTransaction TransactionDraft::ToTransaction() const
 PartiallySignedTransaction TransactionDraft::ToPSBT(const CWallet& wallet) const
 {
     // Make a blank psbt
-    PartiallySignedTransaction psbtx(tx, 2);
+    PartiallySignedTransaction psbtx(tx);
 
     // First fill transaction with our data without signing,
     // so external signers are not asked sign more than once.
