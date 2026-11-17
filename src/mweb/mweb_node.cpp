@@ -135,6 +135,17 @@ bool Node::ContextualCheckBlock(const CBlock& block, const Consensus::Params& co
     const bool is_first_hogex = !DeploymentActiveAt(*pindexPrev, chainman, Consensus::DEPLOYMENT_MWEB);
     size_t next_pegin_idx = is_first_hogex ? 0 : 1;
 
+    // BitcoinOil: unlike Litecoin, the first MWEB block does not need a peg-in,
+    // so its HogEx may have no inputs. Every later HogEx spends the previous one.
+    if (pHogEx->vin.empty()) {
+        if (!is_first_hogex) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-hogex-empty", "HogEx does not spend the previous HogEx");
+        }
+        if (pHogEx->vout.size() != 1 || pHogEx->vout.front().nValue != 0) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-hogex-empty", "First HogEx without peg-ins must hold no value");
+        }
+    }
+
     // Loop through the block's txs looking for all outputs with pegin scriptPubKeys (skip Coinbase & HogEx which don't support pegins).
     // While looping though, we perform 2 tasks:
     //
