@@ -18,9 +18,11 @@ jobs:
         run: brew install automake libtool pkg-config boost libevent sqlite qt@5
       - name: Build wallet-compatible Berkeley DB
         run: bash contrib/auxpow/build_bdb4.sh "$RUNNER_TEMP/bdb" "$RUNNER_TEMP/bdb-build"
+      - name: Build the pinned libfmt that MWEB needs
+        run: contrib/mweb/build_libfmt.sh "$RUNNER_TEMP/fmt"
       - name: Build daemon, Qt and tests
         run: |
-          export PKG_CONFIG_PATH="$(brew --prefix qt@5)/lib/pkgconfig:$(brew --prefix sqlite)/lib/pkgconfig"
+          export PKG_CONFIG_PATH="$(brew --prefix qt@5)/lib/pkgconfig:$(brew --prefix sqlite)/lib/pkgconfig:$RUNNER_TEMP/fmt/lib/pkgconfig"
           export BDB_LIBS="-L$RUNNER_TEMP/bdb/lib -ldb_cxx-4.8"
           export BDB_CFLAGS="-I$RUNNER_TEMP/bdb/include"
           ./autogen.sh

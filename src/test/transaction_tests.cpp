@@ -753,7 +753,6 @@ BOOST_AUTO_TEST_CASE(test_witness)
     CheckWithFlag(output1, input1, STANDARD_SCRIPT_VERIFY_FLAGS, true);
 }
 
-// Standardness enforces version, dust and script rules while allowing multiple main-chain data carriers within a byte budget.
 BOOST_AUTO_TEST_CASE(test_IsStandard)
 {
     FillableSigningProvider keystore;
@@ -773,14 +772,14 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     key.MakeNewKey(true);
     t.vout[0].scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
 
-    constexpr auto CheckIsStandard = [](const auto& t, unsigned int limit = MAX_OP_RETURN_RELAY) {
+    constexpr auto CheckIsStandard = [](const auto& t) {
         std::string reason;
-        BOOST_CHECK(IsStandardTx(CTransaction{t}, limit, g_bare_multi, g_dust, reason));
+        BOOST_CHECK(IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, reason));
         BOOST_CHECK(reason.empty());
     };
-    constexpr auto CheckIsNotStandard = [](const auto& t, const std::string& reason_in, unsigned int limit = MAX_OP_RETURN_RELAY) {
+    constexpr auto CheckIsNotStandard = [](const auto& t, const std::string& reason_in) {
         std::string reason;
-        BOOST_CHECK(!IsStandardTx(CTransaction{t}, limit, g_bare_multi, g_dust, reason));
+        BOOST_CHECK(!IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, reason));
         BOOST_CHECK_EQUAL(reason_in, reason);
     };
 
@@ -788,7 +787,7 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
 
     // Check dust with default relay fee:
     CAmount nDustThreshold = 182 * g_dust.GetFeePerK() / 1000;
-    BOOST_CHECK_EQUAL(nDustThreshold, 5460);
+    BOOST_CHECK_EQUAL(nDustThreshold, 546);
     // dust:
     t.vout[0].nValue = nDustThreshold - 1;
     CheckIsNotStandard(t, "dust");
@@ -827,16 +826,15 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_1;
     CheckIsNotStandard(t, "scriptpubkey");
 
-    // An 83-byte TxoutType::NULL_DATA script fits the previous configured limit.
+    // MAX_OP_RETURN_RELAY-byte TxoutType::NULL_DATA (standard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
-    BOOST_CHECK_EQUAL(83U, t.vout[0].scriptPubKey.size());
-    CheckIsStandard(t, 83);
-
-    // An 84-byte script exceeds an 83-byte budget but fits the new default.
-    t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3800");
-    BOOST_CHECK_EQUAL(84U, t.vout[0].scriptPubKey.size());
-    CheckIsNotStandard(t, "datacarrier", 83);
+    BOOST_CHECK_EQUAL(MAX_OP_RETURN_RELAY, t.vout[0].scriptPubKey.size());
     CheckIsStandard(t);
+
+    // MAX_OP_RETURN_RELAY+1-byte TxoutType::NULL_DATA (non-standard)
+    t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3804678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef3800");
+    BOOST_CHECK_EQUAL(MAX_OP_RETURN_RELAY + 1, t.vout[0].scriptPubKey.size());
+    CheckIsNotStandard(t, "datacarrier");
 
     // Data payload can be encoded in any way...
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
@@ -858,24 +856,21 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     CheckIsStandard(t);
 
-    // Multiple main-chain data carriers are allowed, with their complete scripts sharing the budget.
+    // Only one TxoutType::NULL_DATA permitted in all cases
     t.vout.resize(2);
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
     t.vout[0].nValue = 0;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
     t.vout[1].nValue = 0;
-    CheckIsStandard(t);
-    CheckIsNotStandard(t, "datacarrier", 83);
-    CheckIsStandard(t, 84);
+    CheckIsNotStandard(t, "datacarrier");
 
     t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38");
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-    CheckIsStandard(t, 83);
+    CheckIsNotStandard(t, "multi-op-return");
 
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-    CheckIsStandard(t, 2);
-    CheckIsNotStandard(t, "datacarrier", 1);
+    CheckIsNotStandard(t, "multi-op-return");
 
     // Check large scriptSig (non-standard if size is >1650 bytes)
     t.vout.resize(1);
@@ -981,7 +976,7 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0);
     t.vout[0].nValue = 294;
     CheckIsStandard(t);
-    t.vout[0].nValue = 2939;
+    t.vout[0].nValue = 293;
     CheckIsNotStandard(t, "dust");
 
     // Check P2WSH outputs dust threshold
@@ -995,7 +990,7 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0);
     t.vout[0].nValue = 330;
     CheckIsStandard(t);
-    t.vout[0].nValue = 3299;
+    t.vout[0].nValue = 329;
     CheckIsNotStandard(t, "dust");
 
     // Check future Witness Program versions dust threshold (non-32-byte pushes are undefined for version 1)
@@ -1004,56 +999,9 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
         t.vout[0].nValue = 240;
         CheckIsStandard(t);
 
-        t.vout[0].nValue = 2399;
+        t.vout[0].nValue = 239;
         CheckIsNotStandard(t, "dust");
     }
-}
-
-// Data-carrier budgets count complete scripts, reject disabled carriers and leave the standard transaction weight bound intact.
-BOOST_AUTO_TEST_CASE(datacarrier_budget)
-{
-    CMutableTransaction tx;
-    tx.vin.resize(1);
-    tx.vout.emplace_back(0, CScript() << OP_RETURN);
-    const auto check = [&](const std::optional<unsigned>& limit, const std::string& expected_reason = "") {
-        std::string reason;
-        BOOST_CHECK_EQUAL(IsStandardTx(CTransaction{tx}, limit, g_bare_multi, g_dust, reason), expected_reason.empty());
-        BOOST_CHECK_EQUAL(reason, expected_reason);
-    };
-
-    check(std::nullopt, "datacarrier");
-    check(0, "datacarrier");
-    check(1);
-    tx.vout.push_back(tx.vout.front());
-    check(1, "datacarrier");
-    check(2);
-
-    tx.vout.resize(1);
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(80, 1);
-    BOOST_REQUIRE_EQUAL(tx.vout[0].scriptPubKey.size(), 83U);
-    check(82, "datacarrier");
-    check(83);
-    tx.vout.emplace_back(0, CScript() << OP_RETURN);
-    check(83, "datacarrier");
-    check(84);
-
-    // Large push encodings are accepted up to the transaction's exact weight limit.
-    tx.vout.resize(1);
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(99'000, 1);
-    const size_t payload_at_limit = 99'000 + (MAX_STANDARD_TX_WEIGHT - GetTransactionWeight(CTransaction{tx})) / WITNESS_SCALE_FACTOR;
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(payload_at_limit, 1);
-    BOOST_REQUIRE_EQUAL(GetTransactionWeight(CTransaction{tx}), MAX_STANDARD_TX_WEIGHT);
-    check(MAX_OP_RETURN_RELAY);
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(payload_at_limit + 1, 1);
-    check(MAX_OP_RETURN_RELAY, "tx-size");
-    check(2 * MAX_OP_RETURN_RELAY, "tx-size");
-
-    // Relaxing the budget does not admit non-push opcodes after OP_RETURN.
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN << OP_DUP;
-    check(MAX_OP_RETURN_RELAY, "scriptpubkey");
-    tx.vout[0] = CTxOut{COIN, CScript() << OP_0 << std::vector<unsigned char>(32, 1)};
-    check(std::nullopt);
-    check(0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

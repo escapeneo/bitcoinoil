@@ -12,12 +12,12 @@
 
 BOOST_FIXTURE_TEST_SUITE(TestKernel, MWEBTestingSetup)
 
-// Feature rules activate at the deployed mainnet heights and immediately on test networks.
+// BitcoinOil has no MWEB history, so the feature rules apply from the first MWEB block on every network.
 BOOST_AUTO_TEST_CASE(FeatureActivationHeights_Test)
 {
     const auto main_params = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
-    BOOST_REQUIRE_EQUAL(main_params->GetConsensus().mweb_pegout_feature_activation_height, 3'154'440);
-    BOOST_REQUIRE_EQUAL(main_params->GetConsensus().mweb_extradata_feature_activation_height, 3'172'640);
+    BOOST_REQUIRE_EQUAL(main_params->GetConsensus().mweb_pegout_feature_activation_height, 0);
+    BOOST_REQUIRE_EQUAL(main_params->GetConsensus().mweb_extradata_feature_activation_height, 0);
 
     const auto testnet_params = CreateChainParams(*m_node.args, CBaseChainParams::TESTNET);
     BOOST_REQUIRE_EQUAL(testnet_params->GetConsensus().mweb_pegout_feature_activation_height, 0);

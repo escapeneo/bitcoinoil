@@ -421,7 +421,8 @@ BOOST_AUTO_TEST_CASE(pegout_datacarrier_size_boundary)
 {
     const auto funding = FundMWEB();
     BOOST_REQUIRE(m_pool.m_max_datacarrier_bytes.has_value());
-    BOOST_REQUIRE_GT(*m_pool.m_max_datacarrier_bytes, MWEB::MAX_PEGOUT_OP_RETURN_RELAY);
+    // BitcoinOil keeps the 83-byte main-chain default, equal to the peg-out limit.
+    BOOST_REQUIRE_GE(*m_pool.m_max_datacarrier_bytes, MWEB::MAX_PEGOUT_OP_RETURN_RELAY);
     const auto limit = MWEB::MAX_PEGOUT_OP_RETURN_RELAY;
     const CScript at_limit = CScript() << OP_RETURN << std::vector<uint8_t>(limit - 3, 1);
     const CScript too_large = CScript() << OP_RETURN << std::vector<uint8_t>(limit - 2, 1);
@@ -460,7 +461,8 @@ BOOST_AUTO_TEST_CASE(mainchain_datacarriers_with_spendable_pegout)
     tx.vout.emplace_back(0, CScript() << OP_RETURN << std::vector<uint8_t>(1'000, 2));
     tx = FundCanonical(tx);
     RequireContextFreeValid(tx);
-    Accept(tx, CANONICAL_FEE + MWEB_FEE);
+    // BitcoinOil keeps one 83-byte OP_RETURN per transaction; Litecoin accepts this one.
+    Reject(tx, TxValidationResult::TX_NOT_STANDARD, "datacarrier");
 }
 
 // Two data-carrier peg-outs are nonstandard even when they are carried by different kernels of an aggregate.

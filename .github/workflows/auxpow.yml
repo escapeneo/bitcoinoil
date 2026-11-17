@@ -11,7 +11,7 @@ permissions:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
         with:
@@ -21,6 +21,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdextrautils python3 libevent-dev libboost-dev libboost-test-dev libboost-system-dev libboost-filesystem-dev libsqlite3-dev qtbase5-dev qttools5-dev qttools5-dev-tools libqrencode-dev
+      - name: Build the pinned libfmt that MWEB needs
+        run: |
+          sudo apt-get install -y cmake curl
+          contrib/mweb/build_libfmt.sh "$RUNNER_TEMP/fmt"
+          echo "PKG_CONFIG_PATH=$RUNNER_TEMP/fmt/lib/pkgconfig" >> "$GITHUB_ENV"
       - name: Configure and build daemon, CLI, Qt and unit tests
         run: |
           ./autogen.sh
@@ -56,6 +61,15 @@ jobs:
         run: |
           for t in p2p_compactblocks.py p2p_compactblocks_hb.py p2p_compactblocks_blocksonly.py p2p_mutated_blocks.py p2p_invalid_block.py p2p_unrequested_blocks.py p2p_sendheaders.py p2p_segwit.py; do
             python3 test/functional/$t
+          done
+      - name: MWEB functional tests
+        run: |
+          # mweb_node_compatibility and mweb_wallet_upgrade need Litecoin release binaries and are left out.
+          for t in test/functional/mweb_*.py test/functional/wallet_btco_defaults.py; do
+            case "$t" in *mweb_node_compatibility.py|*mweb_wallet_upgrade.py) continue;; esac
+            echo "::group::$t"
+            python3 "$t" --descriptors
+            echo "::endgroup::"
           done
       - name: Qt wallet regression without a display
         run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/activation_regtest.py --binary=src/qt/bitcoinoil-qt --height=120 --tmpdir=/tmp/btco-auxpow-qt
