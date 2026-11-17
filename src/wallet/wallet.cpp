@@ -366,7 +366,9 @@ private:
     void AddScriptPubKeys(const DescriptorScriptPubKeyMan* desc_spkm, int32_t last_range_end = 0)
     {
         for (const auto& script_pub_key : desc_spkm->GetScriptPubKeys(last_range_end)) {
-            m_filter_set.emplace(script_pub_key.begin(), script_pub_key.end());
+            if (script_pub_key.IsMWEB()) continue;
+            const CScript& script{script_pub_key.GetScript()};
+            m_filter_set.emplace(script.begin(), script.end());
         }
     }
 };
@@ -1304,7 +1306,7 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const std::optional<MWEB::Wa
             // Break caches since we have changed the state
             desc_tx->MarkDirty();
             batch.WriteTx(*desc_tx);
-            MarkInputsDirty(desc_tx->tx);
+            MarkInputsDirty(desc_tx->tx, desc_tx->mweb_wtx_info);
             for (unsigned int i = 0; i < desc_tx->tx->vout.size(); ++i) {
                 COutPoint outpoint(desc_tx->GetHash(), i);
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(outpoint);
@@ -1594,7 +1596,7 @@ void CWallet::SyncMWEBBlock(const CBlock& block, const uint256& block_hash, int 
         );
 
         if (update_mempool_status) {
-            transactionRemovedFromMempool(tx, MemPoolRemovalReason::BLOCK, 0 /* mempool_sequence */);
+            transactionRemovedFromMempool(tx, MemPoolRemovalReason::BLOCK);
         }
     }
 
@@ -4625,7 +4627,7 @@ std::optional<MigrationData> CWallet::GetDescriptorsForLegacy(bilingual_str& err
         const StealthAddress& address = std::get<StealthAddress>(destination);
         if (legacy_spkm->IsMine(address) == ISMINE_SPENDABLE) {
             mweb_addresses.insert(address);
-        } else if (entry.purpose == "receive") {
+        } else if (entry.purpose == AddressPurpose::RECEIVE) {
             error = strprintf(_("Error: MWEB receiving address %s cannot be matched to the wallet's scan and spend keys"), EncodeDestination(destination));
             return std::nullopt;
         }

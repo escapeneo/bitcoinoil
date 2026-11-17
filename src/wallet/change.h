@@ -40,16 +40,16 @@ struct ChangePosition
     ChangePosition(MWEBChangePosition mweb_pos) : position(std::make_optional(std::move(mweb_pos))) {}
     ChangePosition(PegoutChangePosition pegout_pos) : position(std::make_optional(std::move(pegout_pos))) {}
 
-    bool operator==(const size_t i) const noexcept { return IsLTC() && ToLTC() == i; }
+    bool operator==(const size_t i) const noexcept { return IsBTC() && ToBTC() == i; }
     bool operator==(const mw::Hash& id) const noexcept { return IsMWEB() && ToMWEB().hash == id; }
 
     void SetNull() noexcept { position = std::nullopt; }
     bool IsNull() const noexcept { return !position.has_value(); }
 
-    bool IsLTC() const noexcept { return position.has_value() && std::holds_alternative<size_t>(*position); }
-    size_t ToLTC() const noexcept
+    bool IsBTC() const noexcept { return position.has_value() && std::holds_alternative<size_t>(*position); }
+    size_t ToBTC() const noexcept
     {
-        assert(IsLTC());
+        assert(IsBTC());
         return std::get<size_t>(*position);
     }
     bool IsMWEB() const noexcept { return position.has_value() && std::holds_alternative<MWEBChangePosition>(*position); }
@@ -77,7 +77,7 @@ struct ChangeBuilder
     static ChangeBuilder New(const CWallet& wallet, const CCoinControl& coin_control, const CRecipients& recipients, const std::optional<int>& change_position);
 
     ChangeParams BuildMWEBParams(const CoinSelectionParams& coin_selection_params) const;
-    ChangeParams BuildLTCParams(const CWallet& wallet, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const;
+    ChangeParams BuildBTCParams(const CWallet& wallet, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const;
     ChangeParams BuildPegoutParams(const CWallet& wallet, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const;
     std::optional<ChangeParams> BuildParams(const CWallet& wallet, const CCoinControl& coin_control, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const;
 
@@ -88,7 +88,7 @@ struct ChangeBuilder
 
 private:
     enum class ChangePlacement {
-        LTC,
+        BTC,
         MWEB,
         PEGOUT,
     };

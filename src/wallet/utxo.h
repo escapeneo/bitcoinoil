@@ -134,7 +134,7 @@ struct AnyWalletUTXO
 
     bool IsMWEB() const noexcept { return std::holds_alternative<MwebWalletUTXO>(m_output); }
 
-    CWalletUTXO& GetLTC() noexcept
+    CWalletUTXO& GetBTC() noexcept
     {
         assert(!IsMWEB());
         return std::get<CWalletUTXO>(m_output);

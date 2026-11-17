@@ -2,7 +2,7 @@
 
 #include <script/address.h>
 #include <wallet/txrecord.h>
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 #include <wallet/wallet.h>
 #include <optional>
 

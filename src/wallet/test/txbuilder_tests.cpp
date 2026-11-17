@@ -144,7 +144,7 @@ public:
         return coins_by_type;
     }
 
-    std::vector<AnyWalletUTXO> AvailableLTCCoins()
+    std::vector<AnyWalletUTXO> AvailableBTCCoins()
     {
         LOCK(m_wallet.cs_wallet);
         std::vector<AnyWalletUTXO> coins;
@@ -260,8 +260,8 @@ BOOST_AUTO_TEST_CASE(RecipientAmountsExcludeChangeAndPreserveOrder)
     }
 }
 
-// LTC funds one LTC recipient; automatic LTC change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCBuildsLTCTransaction)
+// BTC funds one BTC recipient; automatic BTC change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCBuildsBTCTransaction)
 {
     const auto recipient = NewDestination(OutputType::BECH32);
 
@@ -279,12 +279,12 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCBuildsLTCTransaction)
         [&recipient](const CTxOut& output) { return GenericAddress(output.scriptPubKey) == recipient; });
     BOOST_REQUIRE(recipient_output != tx.vout.cend());
     BOOST_CHECK_EQUAL(recipient_output->nValue, 2 * COIN);
-    BOOST_REQUIRE(tx_result->change_pos.IsLTC());
+    BOOST_REQUIRE(tx_result->change_pos.IsBTC());
     BOOST_CHECK(tx.mweb_tx.IsNull());
 }
 
-// LTC funds one MWEB recipient; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCBuildsPegin)
+// BTC funds one MWEB recipient; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCBuildsPegin)
 {
     const auto recipient = NewDestination(OutputType::MWEB);
 
@@ -356,8 +356,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBBuildsMWEBTransaction)
     BOOST_CHECK(tx.mweb_tx.GetPegOutCoins().empty());
 }
 
-// MWEB funds one LTC recipient; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBBuildsPegout)
+// MWEB funds one BTC recipient; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromMWEBBuildsPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
@@ -394,13 +394,13 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBBuildsPegout)
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one LTC recipient; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBBuildsPeginPegout)
+// BTC and MWEB fund one BTC recipient; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCAndMWEBBuildsPeginPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient = NewDestination(OutputType::BECH32);
 
@@ -435,8 +435,8 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBBuildsPeginPegout)
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC funds two LTC recipients; automatic LTC change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCBuildLTCTransaction)
+// BTC funds two BTC recipients; automatic BTC change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromBTCBuildBTCTransaction)
 {
     const auto recipient1 = NewDestination(OutputType::BECH32);
     const auto recipient2 = NewDestination(OutputType::BECH32);
@@ -463,12 +463,12 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCBuildLTCTransaction)
         [&recipient2](const CTxOut& output) { return GenericAddress(output.scriptPubKey) == recipient2; });
     BOOST_REQUIRE(recipient2_output != tx.vout.cend());
     BOOST_CHECK_EQUAL(recipient2_output->nValue, 3 * COIN);
-    BOOST_REQUIRE(tx_result->change_pos.IsLTC());
+    BOOST_REQUIRE(tx_result->change_pos.IsBTC());
     BOOST_CHECK(tx.mweb_tx.IsNull());
 }
 
-// LTC funds two MWEB recipients; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromLTCBuildPegin)
+// BTC funds two MWEB recipients; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromBTCBuildPegin)
 {
     const auto recipient1 = NewDestination(OutputType::MWEB);
     const auto recipient2 = NewDestination(OutputType::MWEB);
@@ -556,8 +556,8 @@ BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromMWEBBuildMWEBTransaction)
     BOOST_CHECK(tx.mweb_tx.GetPegOutCoins().empty());
 }
 
-// MWEB funds two LTC recipients; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromMWEBBuildPegout)
+// MWEB funds two BTC recipients; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromMWEBBuildPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
@@ -600,13 +600,13 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromMWEBBuildPegout)
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + pegouts[1].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund two LTC recipients; automatic MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCAndMWEBBuildPeginPegout)
+// BTC and MWEB fund two BTC recipients; automatic MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromBTCAndMWEBBuildPeginPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient1 = NewDestination(OutputType::BECH32);
     const auto recipient2 = NewDestination(OutputType::BECH32);
@@ -647,11 +647,11 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCAndMWEBBuildPeginPegout)
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + pegouts[1].GetAmount() + mweb_fee);
 }
 
-// LTC funds one recipient on each layer; the LTC payment remains canonical
+// BTC funds one recipient on each layer; the BTC payment remains canonical
 // and the MWEB payment is funded by one peg-in.
-BOOST_AUTO_TEST_CASE(MixedRecipientsFromLTCBuildPegin)
+BOOST_AUTO_TEST_CASE(MixedRecipientsFromBTCBuildPegin)
 {
-    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableBTCCoins());
     const CTxDestination ltc_recipient = NewDestination(OutputType::BECH32);
     const CTxDestination mweb_recipient = NewDestination(OutputType::MWEB);
 
@@ -690,7 +690,7 @@ BOOST_AUTO_TEST_CASE(MixedRecipientsFromLTCBuildPegin)
 }
 
 // When either layer can fund a mixed recipient set, automatic policy prefers
-// MWEB: the LTC payment is a pegout and change remains on MWEB.
+// MWEB: the BTC payment is a pegout and change remains on MWEB.
 BOOST_AUTO_TEST_CASE(MixedRecipientsPreferMWEBFundedPegout)
 {
     const CTxDestination source = NewDestination(OutputType::MWEB);
@@ -729,13 +729,13 @@ BOOST_AUTO_TEST_CASE(MixedRecipientsPreferMWEBFundedPegout)
 }
 
 // Neither layer alone is used when both are explicitly selected for a mixed
-// recipient set; LTC enters MWEB and the LTC recipient is paid by pegout.
+// recipient set; BTC enters MWEB and the BTC recipient is paid by pegout.
 BOOST_AUTO_TEST_CASE(MixedRecipientsFromCombinedInputsBuildPeginPegout)
 {
     const CTxDestination source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableBTCCoins());
     const AnyWalletUTXO mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const CTxDestination ltc_recipient = NewDestination(OutputType::BECH32);
     const CTxDestination mweb_recipient = NewDestination(OutputType::MWEB);
@@ -773,9 +773,9 @@ BOOST_AUTO_TEST_CASE(MixedRecipientsFromCombinedInputsBuildPeginPegout)
 
 // A custom MWEB change address applies to a mixed public recipient list and
 // remains identifiable independently of MWEB output ordering.
-BOOST_AUTO_TEST_CASE(MixedRecipientsFromLTCUseCustomMWEBChange)
+BOOST_AUTO_TEST_CASE(MixedRecipientsFromBTCUseCustomMWEBChange)
 {
-    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableBTCCoins());
     const CTxDestination ltc_recipient = NewDestination(OutputType::BECH32);
     const CTxDestination mweb_recipient = NewDestination(OutputType::MWEB);
     const CTxDestination mweb_change = NewDestination(OutputType::MWEB);
@@ -803,10 +803,10 @@ BOOST_AUTO_TEST_CASE(MixedRecipientsFromLTCUseCustomMWEBChange)
     BOOST_CHECK_GT(*change_output->amount, 0);
 }
 
-// LTC funds one LTC recipient; no change; the recipient pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCSubtractsFeeWithoutChange)
+// BTC funds one BTC recipient; no change; the recipient pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCSubtractsFeeWithoutChange)
 {
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto recipient = NewDestination(OutputType::BECH32);
     const CAmount amount = ltc_coin.GetValue();
 
@@ -826,10 +826,10 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCSubtractsFeeWithoutChange)
     BOOST_CHECK(tx.mweb_tx.IsNull());
 }
 
-// LTC funds one MWEB recipient; no change; the recipient pays the fee.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCSubtractsFeeWithoutChange)
+// BTC funds one MWEB recipient; no change; the recipient pays the fee.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCSubtractsFeeWithoutChange)
 {
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto recipient = NewDestination(OutputType::MWEB);
     const CAmount amount = ltc_coin.GetValue();
 
@@ -893,8 +893,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBSubtractsFeeWithoutChange)
     BOOST_CHECK_EQUAL(mweb_coin.GetValue(), *tx.mweb_tx.outputs[0].amount + mweb_fee);
 }
 
-// MWEB funds one LTC recipient; no change; the recipient pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBSubtractsFeeWithoutChange)
+// MWEB funds one BTC recipient; no change; the recipient pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromMWEBSubtractsFeeWithoutChange)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
@@ -927,13 +927,13 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBSubtractsFeeWithoutChange)
     BOOST_CHECK_EQUAL(mweb_coin.GetValue(), pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one LTC recipient; no change; the recipient pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBSubtractsFeeWithoutChange)
+// BTC and MWEB fund one BTC recipient; no change; the recipient pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCAndMWEBSubtractsFeeWithoutChange)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient = NewDestination(OutputType::BECH32);
     const CAmount amount = ltc_coin.GetValue() + mweb_coin.GetValue();
@@ -970,10 +970,10 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBSubtractsFeeWithoutChange)
         pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC funds two LTC recipients; no change; the recipients split the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCSplitFeeWithoutChange)
+// BTC funds two BTC recipients; no change; the recipients split the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromBTCSplitFeeWithoutChange)
 {
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto recipient1 = NewDestination(OutputType::BECH32);
     const auto recipient2 = NewDestination(OutputType::BECH32);
     const CAmount amount1 = 5 * COIN;
@@ -1000,10 +1000,10 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCSplitFeeWithoutChange)
     BOOST_CHECK(tx.mweb_tx.IsNull());
 }
 
-// LTC funds two MWEB recipients; no change; the recipients split the fee.
-BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromLTCSplitFeeWithoutChange)
+// BTC funds two MWEB recipients; no change; the recipients split the fee.
+BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromBTCSplitFeeWithoutChange)
 {
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto recipient1 = NewDestination(OutputType::MWEB);
     const auto recipient2 = NewDestination(OutputType::MWEB);
     const CAmount amount1 = 5 * COIN;
@@ -1089,8 +1089,8 @@ BOOST_AUTO_TEST_CASE(MultipleMWEBRecipientsFromMWEBSplitFeeWithoutChange)
         *tx.mweb_tx.outputs[0].amount + *tx.mweb_tx.outputs[1].amount + mweb_fee);
 }
 
-// MWEB funds two LTC recipients; no change; the recipients split the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromMWEBSplitFeeWithoutChange)
+// MWEB funds two BTC recipients; no change; the recipients split the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromMWEBSplitFeeWithoutChange)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
@@ -1132,13 +1132,13 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromMWEBSplitFeeWithoutChange)
         pegouts[0].GetAmount() + pegouts[1].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund two LTC recipients; no change; the recipients split the fee.
-BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCAndMWEBSplitFeeWithoutChange)
+// BTC and MWEB fund two BTC recipients; no change; the recipients split the fee.
+BOOST_AUTO_TEST_CASE(MultipleBTCRecipientsFromBTCAndMWEBSplitFeeWithoutChange)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient1 = NewDestination(OutputType::BECH32);
     const auto recipient2 = NewDestination(OutputType::BECH32);
@@ -1182,8 +1182,8 @@ BOOST_AUTO_TEST_CASE(MultipleLTCRecipientsFromLTCAndMWEBSplitFeeWithoutChange)
         pegouts[0].GetAmount() + pegouts[1].GetAmount() + mweb_fee);
 }
 
-// LTC funds one LTC recipient; custom LTC change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCWithCustomLTCChangeBuildsLTCTransaction)
+// BTC funds one BTC recipient; custom BTC change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCWithCustomBTCChangeBuildsBTCTransaction)
 {
     const auto recipient = NewDestination(OutputType::BECH32);
     const auto change = NewDestination(OutputType::BECH32);
@@ -1197,8 +1197,8 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCWithCustomLTCChangeBuildsLTCTransa
     const auto& tx = tx_result->tx;
     BOOST_REQUIRE_EQUAL(tx.vin.size(), 1U);
     BOOST_REQUIRE_EQUAL(tx.vout.size(), 2U);
-    BOOST_REQUIRE(tx_result->change_pos.IsLTC());
-    const size_t change_pos = tx_result->change_pos.ToLTC();
+    BOOST_REQUIRE(tx_result->change_pos.IsBTC());
+    const size_t change_pos = tx_result->change_pos.ToBTC();
     BOOST_REQUIRE_LT(change_pos, tx.vout.size());
     BOOST_CHECK(GenericAddress(tx.vout[change_pos].scriptPubKey) == change);
     const size_t recipient_pos = change_pos == 0 ? 1 : 0;
@@ -1208,8 +1208,8 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCWithCustomLTCChangeBuildsLTCTransa
     BOOST_CHECK(tx.mweb_tx.IsNull());
 }
 
-// LTC funds one MWEB recipient; custom MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCWithCustomMWEBChangeBuildsPegin)
+// BTC funds one MWEB recipient; custom MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCWithCustomMWEBChangeBuildsPegin)
 {
     const auto recipient = NewDestination(OutputType::MWEB);
     const auto change = NewDestination(OutputType::MWEB);
@@ -1280,8 +1280,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBWithCustomMWEBChangeBuildsMWEBTr
         *tx.mweb_tx.outputs[0].amount + *tx.mweb_tx.outputs[1].amount + mweb_fee);
 }
 
-// MWEB funds one LTC recipient; custom MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBWithCustomMWEBChangeBuildsPegout)
+// MWEB funds one BTC recipient; custom MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromMWEBWithCustomMWEBChangeBuildsPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
@@ -1317,13 +1317,13 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBWithCustomMWEBChangeBuildsPegout)
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one LTC recipient; custom MWEB change; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBWithCustomMWEBChangeBuildsPeginPegout)
+// BTC and MWEB fund one BTC recipient; custom MWEB change; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCAndMWEBWithCustomMWEBChangeBuildsPeginPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient = NewDestination(OutputType::BECH32);
     const auto change = NewDestination(OutputType::MWEB);
@@ -1357,13 +1357,13 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBWithCustomMWEBChangeBuildsP
         *tx.mweb_tx.outputs[0].amount + pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one LTC recipient; uneconomic MWEB change is omitted; the sender pays the fee.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBDropsUneconomicChange)
+// BTC and MWEB fund one BTC recipient; uneconomic MWEB change is omitted; the sender pays the fee.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCAndMWEBDropsUneconomicChange)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient = NewDestination(OutputType::BECH32);
     const CAmount amount = ltc_coin.GetValue() + mweb_coin.GetValue() - 49'000;
@@ -1409,7 +1409,7 @@ BOOST_AUTO_TEST_CASE(MixedInputsRejectNegativePegin)
     const auto ltc_source = NewDestination(OutputType::BECH32);
     AddTx({{ltc_source, 30'000, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     BOOST_REQUIRE_EQUAL(ltc_coin.GetValue(), 30'000);
     const auto recipient = NewDestination(OutputType::BECH32);
@@ -1436,7 +1436,7 @@ BOOST_AUTO_TEST_CASE(MixedInputsRejectDustPegin)
     const auto ltc_source = NewDestination(OutputType::BECH32);
     AddTx({{ltc_source, 32'800, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     BOOST_REQUIRE_EQUAL(ltc_coin.GetValue(), 32'800);
     const auto recipient = NewDestination(OutputType::BECH32);
@@ -1463,7 +1463,7 @@ BOOST_AUTO_TEST_CASE(MixedInputsBuildSmallValidPegin)
     const auto ltc_source = NewDestination(OutputType::BECH32);
     AddTx({{ltc_source, 40'000, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     BOOST_REQUIRE_EQUAL(ltc_coin.GetValue(), 40'000);
     const auto recipient = NewDestination(OutputType::BECH32);
@@ -1502,13 +1502,13 @@ BOOST_AUTO_TEST_CASE(MixedInputsBuildSmallValidPegin)
         pegouts[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one LTC recipient; fractional layer fees round independently.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBAtFractionalFeeRateBuildsPeginPegout)
+// BTC and MWEB fund one BTC recipient; fractional layer fees round independently.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCAndMWEBAtFractionalFeeRateBuildsPeginPegout)
 {
     const auto source = NewDestination(OutputType::MWEB);
     AddTx({{source, 5 * COIN, false}}, {}, std::nullopt);
 
-    const auto ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const auto ltc_coin = SmallestCoin(AvailableBTCCoins());
     const auto mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const auto recipient = NewDestination(OutputType::BECH32);
 
@@ -1551,13 +1551,13 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCAndMWEBAtFractionalFeeRateBuildsPe
         ltc_coin.GetValue() - pegins[0].GetAmount() + mweb_fee);
 }
 
-// LTC and MWEB fund one MWEB recipient; no change; the recipient pays the fee.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCAndMWEBSubtractsFeeWithoutChange)
+// BTC and MWEB fund one MWEB recipient; no change; the recipient pays the fee.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCAndMWEBSubtractsFeeWithoutChange)
 {
     const CTxDestination existing_mweb_addr = NewDestination(OutputType::MWEB);
     AddTx({{existing_mweb_addr, 5 * COIN, false}}, {}, std::nullopt);
 
-    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableBTCCoins());
     const AnyWalletUTXO mweb_coin = SmallestCoin(AvailableCoinsByType(OutputType::MWEB));
     const CTxDestination recipient_addr = NewDestination(OutputType::MWEB);
 
@@ -1582,8 +1582,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCAndMWEBSubtractsFeeWithoutChange)
     BOOST_CHECK_EQUAL(mweb_coin.GetValue() + pegin_amount, recipient_amount + mweb_fee);
 }
 
-// LTC funds one MWEB recipient; custom LTC change; builds a peg-in/pegout.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCWithCustomLTCChangeBuildsPeginPegout)
+// BTC funds one MWEB recipient; custom BTC change; builds a peg-in/pegout.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCWithCustomBTCChangeBuildsPeginPegout)
 {
     const CTxDestination recipient_addr = NewDestination(OutputType::MWEB);
     const CTxDestination ltc_change = NewDestination(OutputType::BECH32);
@@ -1613,8 +1613,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCWithCustomLTCChangeBuildsPeginPeg
     BOOST_CHECK_GT(*tx.mweb_tx.GetPeginAmount(), tx.mweb_tx.outputs[0].amount.value_or(0) + pegouts[0].GetAmount());
 }
 
-// MWEB funds one MWEB recipient; custom LTC change; builds a pegout.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBWithCustomLTCChangeBuildsPegout)
+// MWEB funds one MWEB recipient; custom BTC change; builds a pegout.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBWithCustomBTCChangeBuildsPegout)
 {
     const CTxDestination existing_mweb_addr = NewDestination(OutputType::MWEB);
     AddTx({{existing_mweb_addr, 5 * COIN, false}}, {}, std::nullopt);
@@ -1641,10 +1641,10 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromMWEBWithCustomLTCChangeBuildsPegout)
     BOOST_CHECK_EQUAL(tx_result->change_pos.ToPegout().idx, 0U);
 }
 
-// A selected LTC input funds one MWEB recipient and builds a peg-in.
-BOOST_AUTO_TEST_CASE(SelectedLTCInputForSingleMWEBRecipientBuildsPegin)
+// A selected BTC input funds one MWEB recipient and builds a peg-in.
+BOOST_AUTO_TEST_CASE(SelectedBTCInputForSingleMWEBRecipientBuildsPegin)
 {
-    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableLTCCoins());
+    const AnyWalletUTXO ltc_coin = SmallestCoin(AvailableBTCCoins());
     const CTxDestination recipient_addr = NewDestination(OutputType::MWEB);
 
     auto tx_result = BuildTx({{recipient_addr, 5 * COIN, false}}, {ltc_coin}, std::nullopt, true);
@@ -1661,8 +1661,8 @@ BOOST_AUTO_TEST_CASE(SelectedLTCInputForSingleMWEBRecipientBuildsPegin)
     BOOST_CHECK(GenericAddress(*tx.mweb_tx.outputs[0].address) == recipient_addr);
 }
 
-// LTC and MWEB fund one MWEB recipient; custom LTC change; builds a peg-in/pegout.
-BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCAndMWEBWithCustomLTCChangeBuildsPeginPegout)
+// BTC and MWEB fund one MWEB recipient; custom BTC change; builds a peg-in/pegout.
+BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromBTCAndMWEBWithCustomBTCChangeBuildsPeginPegout)
 {
     const CTxDestination existing_mweb_addr = NewDestination(OutputType::MWEB);
     AddTx({{existing_mweb_addr, 1 * COIN, false}}, {}, std::nullopt);
@@ -1693,8 +1693,8 @@ BOOST_AUTO_TEST_CASE(SingleMWEBRecipientFromLTCAndMWEBWithCustomLTCChangeBuildsP
     BOOST_CHECK_EQUAL(tx.vout.back().nValue, *tx.mweb_tx.GetPeginAmount());
 }
 
-// MWEB funds one LTC recipient; custom LTC change; builds two pegouts.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBWithCustomLTCChangeBuildsPegout)
+// MWEB funds one BTC recipient; custom BTC change; builds two pegouts.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromMWEBWithCustomBTCChangeBuildsPegout)
 {
     const CTxDestination existing_mweb_addr = NewDestination(OutputType::MWEB);
     AddTx({{existing_mweb_addr, 5 * COIN, false}}, {}, std::nullopt);
@@ -1719,8 +1719,8 @@ BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromMWEBWithCustomLTCChangeBuildsPegout)
     BOOST_CHECK_EQUAL(tx_result->change_pos.ToPegout().idx, 1U);
 }
 
-// LTC funds one LTC recipient; custom MWEB change; builds a peg-in/pegout.
-BOOST_AUTO_TEST_CASE(SingleLTCRecipientFromLTCWithCustomMWEBChangeBuildsPeginPegout)
+// BTC funds one BTC recipient; custom MWEB change; builds a peg-in/pegout.
+BOOST_AUTO_TEST_CASE(SingleBTCRecipientFromBTCWithCustomMWEBChangeBuildsPeginPegout)
 {
     const CTxDestination recipient_addr = NewDestination(OutputType::BECH32);
     const CTxDestination mweb_change = NewDestination(OutputType::MWEB);
@@ -1928,7 +1928,7 @@ BOOST_AUTO_TEST_CASE(MWEBChangeReservationsFollowBuildOutcome)
     reservation.ReturnDestination();
     const int32_t initial_index = WITH_LOCK(internal->cs_desc_man, return internal->GetWalletDescriptor().next_index);
 
-    const auto source = SmallestCoin(AvailableLTCCoins());
+    const auto source = SmallestCoin(AvailableBTCCoins());
     const auto recipient = StealthAddress::Random();
     CCoinControl control;
     control.Select(source.GetID());
@@ -1956,7 +1956,7 @@ BOOST_AUTO_TEST_CASE(MWEBChangeReservationsFollowBuildOutcome)
 BOOST_AUTO_TEST_CASE(MWEBChangeRequiresInternalDescriptorOnlyWhenNeeded)
 {
     LOCK(m_wallet.cs_wallet);
-    const auto source = SmallestCoin(AvailableLTCCoins());
+    const auto source = SmallestCoin(AvailableBTCCoins());
     const auto recipient = StealthAddress::Random();
     auto* internal = m_wallet.GetScriptPubKeyMan(OutputType::MWEB, true);
     BOOST_REQUIRE(internal);

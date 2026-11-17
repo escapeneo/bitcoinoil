@@ -90,7 +90,7 @@ public:
         }
     }
 
-    CTxDestination NewLTCAddress(CWallet& wallet)
+    CTxDestination NewBTCAddress(CWallet& wallet)
     {
         const auto destination = wallet.GetNewDestination(OutputType::BECH32, "");
         BOOST_REQUIRE(destination);
@@ -423,8 +423,8 @@ BOOST_AUTO_TEST_CASE(HogExPegoutMappingMatchesLiveProcessingAndRescan)
     BOOST_REQUIRE(funding_coin != mweb_outputs.end());
 
     const ChainTip scan_start = Tip();
-    const CTxDestination recipient = NewLTCAddress(m_live_wallet);
-    BOOST_CHECK(NewLTCAddress(m_rescan_wallet) == recipient);
+    const CTxDestination recipient = NewBTCAddress(m_live_wallet);
+    BOOST_CHECK(NewBTCAddress(m_rescan_wallet) == recipient);
     BOOST_CHECK(m_live_wallet.IsMine(recipient) == ISMINE_SPENDABLE);
     const BuiltTx pegout = SendFromSender(recipient, PEGOUT_AMOUNT, {*funding_coin});
     const CWalletTx pegout_wtx(pegout.tx, TxStateInactive{}, std::nullopt);

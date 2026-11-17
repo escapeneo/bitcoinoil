@@ -2011,11 +2011,11 @@ std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScriptPubKe
     return spks;
 }
 
-std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScriptPubKeyMan::GetNotMineScriptPubKeys() const
+std::unordered_set<CScript, SaltedSipHasher> LegacyScriptPubKeyMan::GetNotMineScriptPubKeys() const
 {
     LOCK(cs_KeyStore);
-    std::unordered_set<GenericAddress, SaltedGenericAddressHasher> spks;
-    for (const GenericAddress& script : setWatchOnly) {
+    std::unordered_set<CScript, SaltedSipHasher> spks;
+    for (const CScript& script : setWatchOnly) {
         if (IsMine(script) == ISMINE_NO) spks.insert(script);
     }
     return spks;

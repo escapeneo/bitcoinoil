@@ -73,7 +73,7 @@ public:
 
     const std::vector<CRecipient>& All() const noexcept { return m_vec; }
 
-    std::vector<CRecipient> LTC() const noexcept
+    std::vector<CRecipient> BTC() const noexcept
     {
         std::vector<CRecipient> ltc_recipients;
         std::copy_if(cbegin(), cend(), std::back_inserter(ltc_recipients), [](const CRecipient& r) { return !r.IsMWEB(); });

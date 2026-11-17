@@ -40,8 +40,8 @@ private:
     // Attempts to select inputs from the available coins provided.
     // 
     // Homogeneous recipient sets prefer inputs from the recipients' layer,
-    // then cross the extension boundary only when necessary. Mixed LTC/MWEB
-    // recipient sets prefer an MWEB-funded pegout, then an LTC-funded peg-in,
+    // then cross the extension boundary only when necessary. Mixed BTC/MWEB
+    // recipient sets prefer an MWEB-funded pegout, then an BTC-funded peg-in,
     // and finally a transaction combining both input layers.
     util::Result<SelectionResult> SelectInputCoins(const CoinsResult& available_coins) EXCLUSIVE_LOCKS_REQUIRED(m_wallet.cs_wallet);
     
@@ -59,15 +59,15 @@ private:
 
     TxType GetTxType() const noexcept { return m_selection_params.m_tx_type; }
 
-    // Returns the sum of fees paid on the LTC side and the MWEB side.
-    // fee_paid = (sum(LTC inputs) - sum(LTC outputs)) + sum(MWEB kernel fees)
+    // Returns the sum of fees paid on the BTC side and the MWEB side.
+    // fee_paid = (sum(BTC inputs) - sum(BTC outputs)) + sum(MWEB kernel fees)
     CAmount GetFeePaid() const;
 
     // The effective fee rate.
     const CFeeRate& GetFeeRate() const noexcept { return m_selection_params.m_effective_feerate; }
 
-    // The fee to be paid on the LTC side
-    util::Result<CAmount> CalcLTCFee() const EXCLUSIVE_LOCKS_REQUIRED(m_wallet.cs_wallet);
+    // The fee to be paid on the BTC side
+    util::Result<CAmount> CalcBTCFee() const EXCLUSIVE_LOCKS_REQUIRED(m_wallet.cs_wallet);
 
     // The fee to be paid on the MWEB side.
     // This includes all MWEB inputs, outputs, and kernels, as well as any HogEx outputs for pegouts.

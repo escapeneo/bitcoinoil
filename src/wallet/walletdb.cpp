@@ -939,7 +939,7 @@ ReadKeyValue(CWallet* pwallet, DataStream& ssKey, CDataStream& ssValue,
             wss.m_descriptor_crypt_keys.insert(std::make_pair(std::make_pair(desc_id, pubkey.GetID()), std::make_pair(pubkey, privkey)));
             wss.fIsEncrypted = true;
         } else if (strType == DBKeys::LOCKED_UTXO) {
-            CDataStream legacy_key{ssKey};
+            DataStream legacy_key{ssKey};
             try {
                 SerializableOutputIndex output_idx;
                 ssKey >> output_idx;

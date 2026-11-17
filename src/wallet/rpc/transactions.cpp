@@ -591,7 +591,7 @@ RPCHelpMan listwallettransactions()
     return RPCHelpMan{"listwallettransactions",
                 "\nReturns the list of transactions as they would be displayed in the GUI.\n",
                 {
-                    {"txid", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "The transaction id"},
+                    {"txid", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The transaction id"},
                 },
                 RPCResult{
                     RPCResult::Type::ARR, "", "",

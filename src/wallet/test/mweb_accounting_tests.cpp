@@ -102,14 +102,14 @@ public:
         return Keychain()->DeriveAddress(mw::CHANGE_INDEX);
     }
 
-    CTxDestination NewLTCAddress()
+    CTxDestination NewBTCAddress()
     {
         const auto destination = m_wallet.GetNewDestination(OutputType::BECH32, "");
         BOOST_REQUIRE(destination);
         return *destination;
     }
 
-    CTxDestination NewExternalLTCAddress()
+    CTxDestination NewExternalBTCAddress()
     {
         CKey key;
         key.MakeNewKey(true);
@@ -146,11 +146,11 @@ public:
         return output;
     }
 
-    COutPoint AddLTCFunding(CAmount amount)
+    COutPoint AddBTCFunding(CAmount amount)
     {
         CMutableTransaction funding;
         funding.nLockTime = ++m_next_lock_time;
-        funding.vout.emplace_back(amount, GetScriptForDestination(NewLTCAddress()));
+        funding.vout.emplace_back(amount, GetScriptForDestination(NewBTCAddress()));
         CWalletTx& wtx = AddWalletTx(std::move(funding), Confirmed(6));
         return COutPoint{wtx.GetHash(), 0};
     }
@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE(PeginTracksTransparentDebitAndMWEBCredit)
     static constexpr CAmount PEGIN_AMOUNT{9'000'000};
     static constexpr CAmount RECEIVE_AMOUNT{8'000'000};
     static constexpr CAmount TOTAL_FEE{2'000'000};
-    const COutPoint source = AddLTCFunding(INPUT_AMOUNT);
+    const COutPoint source = AddBTCFunding(INPUT_AMOUNT);
     const StealthAddress recipient = NewMWEBAddress();
     const test::Tx mweb_tx = test::TxBuilder()
         .AddPeginKernel(PEGIN_AMOUNT, 0)
@@ -527,7 +527,7 @@ BOOST_AUTO_TEST_CASE(PegoutTracksDestinationChangeFeeAndComponentID)
     static constexpr CAmount FEE{1'000'000};
     const test::TxOutput source = AddMWEBFunding(INPUT_AMOUNT);
     const StealthAddress change_address = MWEBChangeAddress();
-    const CTxDestination recipient = NewExternalLTCAddress();
+    const CTxDestination recipient = NewExternalBTCAddress();
 
     const test::Tx mweb_tx = test::TxBuilder()
         .AddInput(source)
@@ -571,8 +571,8 @@ BOOST_AUTO_TEST_CASE(CombinedPeginPegoutDoesNotDoubleCountBridgeOutput)
     static constexpr CAmount PEGIN_AMOUNT{9'000'000};
     static constexpr CAmount PEGOUT_AMOUNT{7'000'000};
     static constexpr CAmount TOTAL_FEE{3'000'000};
-    const COutPoint source = AddLTCFunding(INPUT_AMOUNT);
-    const CTxDestination recipient = NewExternalLTCAddress();
+    const COutPoint source = AddBTCFunding(INPUT_AMOUNT);
+    const CTxDestination recipient = NewExternalBTCAddress();
     const test::Tx mweb_tx = test::TxBuilder()
         .AddPeginKernel(PEGIN_AMOUNT, 0)
         .AddPegoutKernel(PEGOUT_AMOUNT, 1'000'000)
@@ -727,7 +727,7 @@ BOOST_AUTO_TEST_CASE(WatchOnlyPegoutRespectsHistoryAndAccountingFilters)
 BOOST_AUTO_TEST_CASE(HogExSuppressesOnlyKnownPegoutDuplicates)
 {
     static constexpr CAmount PEGOUT_AMOUNT{5'000'000};
-    const CTxDestination receive_address = NewLTCAddress();
+    const CTxDestination receive_address = NewBTCAddress();
     const CScript receive_script = GetScriptForDestination(receive_address);
     const test::Tx original_mweb_tx = test::TxBuilder()
         .AddPeginKernel(PEGOUT_AMOUNT, 0)
@@ -794,11 +794,11 @@ BOOST_AUTO_TEST_CASE(PartialReceiveUpgradeDoesNotDoubleCountAccountingOrHistory)
 // Mixed history components are stable and sort as transparent, MWEB, then pegout.
 BOOST_AUTO_TEST_CASE(MixedReceiveComponentsHaveStableIDsAndOrdering)
 {
-    static constexpr CAmount LTC_AMOUNT{2'000'000};
+    static constexpr CAmount BTC_AMOUNT{2'000'000};
     static constexpr CAmount MWEB_AMOUNT{3'000'000};
     static constexpr CAmount PEGOUT_AMOUNT{5'000'000};
-    const CTxDestination ltc_address = NewLTCAddress();
-    const CTxDestination pegout_address = NewLTCAddress();
+    const CTxDestination ltc_address = NewBTCAddress();
+    const CTxDestination pegout_address = NewBTCAddress();
     const StealthAddress mweb_address = NewMWEBAddress();
     const test::Tx mweb_tx = test::TxBuilder()
         .AddPeginKernel(MWEB_AMOUNT + PEGOUT_AMOUNT, 0)
@@ -808,7 +808,7 @@ BOOST_AUTO_TEST_CASE(MixedReceiveComponentsHaveStableIDsAndOrdering)
     SaveMWEBOutput(mweb_tx.GetOutputs().front(), mweb_address, /*owned=*/true);
 
     CMutableTransaction tx = WithPegoutScript(mweb_tx, GetScriptForDestination(pegout_address));
-    tx.vout.emplace_back(LTC_AMOUNT, GetScriptForDestination(ltc_address));
+    tx.vout.emplace_back(BTC_AMOUNT, GetScriptForDestination(ltc_address));
     CWalletTx& wtx = AddWalletTx(std::move(tx), Confirmed(6));
     const auto pegouts = wtx.GetMWEBPegouts();
     BOOST_REQUIRE_EQUAL(pegouts.size(), 1U);

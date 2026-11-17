@@ -383,10 +383,10 @@ BOOST_AUTO_TEST_CASE(KnownWinnerConflictsKnownPegoutLoser)
 BOOST_AUTO_TEST_CASE(KnownMixedLayerWinnerConflictsPegoutLoser)
 {
     static constexpr CAmount MWEB_AMOUNT{4 * COIN};
-    static constexpr CAmount LTC_AMOUNT{2 * COIN};
+    static constexpr CAmount BTC_AMOUNT{2 * COIN};
     static constexpr CAmount PAYMENT_AMOUNT{5 * COIN};
     const Funding mweb_funding = FundReceiver(MWEB_AMOUNT);
-    const TransparentFunding ltc_funding = FundTransparentReceiver(LTC_AMOUNT);
+    const TransparentFunding ltc_funding = FundTransparentReceiver(BTC_AMOUNT);
 
     const CTxDestination pegout_address = *m_funder.GetNewDestination(OutputType::BECH32, "");
     const Spend loser = BuildSpend(mweb_funding.output_id, pegout_address, 2 * COIN);
@@ -402,7 +402,7 @@ BOOST_AUTO_TEST_CASE(KnownMixedLayerWinnerConflictsPegoutLoser)
     BOOST_REQUIRE(winner_wtx.state<TxStateConfirmed>());
     ExpectConflict(m_live_wallet, loser_wtx, block.GetHash(), winner.tx->GetHash());
     BOOST_CHECK_EQUAL(CachedTxGetCredit(m_live_wallet, winner_wtx, ISMINE_SPENDABLE), winner.change);
-    BOOST_CHECK_EQUAL(CachedTxGetDebit(m_live_wallet, winner_wtx, ISMINE_SPENDABLE), MWEB_AMOUNT + LTC_AMOUNT);
+    BOOST_CHECK_EQUAL(CachedTxGetDebit(m_live_wallet, winner_wtx, ISMINE_SPENDABLE), MWEB_AMOUNT + BTC_AMOUNT);
     BOOST_CHECK_EQUAL(CachedTxGetChange(m_live_wallet, winner_wtx), winner.change);
     BOOST_CHECK_EQUAL(CachedTxGetFee(m_live_wallet, winner_wtx, ISMINE_SPENDABLE), winner.fee);
     BOOST_CHECK_EQUAL(CachedTxGetAvailableCredit(m_live_wallet, winner_wtx, ISMINE_SPENDABLE), winner.change);

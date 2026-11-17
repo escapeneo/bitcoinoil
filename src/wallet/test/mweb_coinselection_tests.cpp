@@ -73,14 +73,14 @@ public:
         return std::get<StealthAddress>(*destination);
     }
 
-    CTxDestination NewLTCAddress()
+    CTxDestination NewBTCAddress()
     {
         const auto destination = m_wallet.GetNewDestination(OutputType::BECH32, "");
         BOOST_REQUIRE(destination);
         return *destination;
     }
 
-    static CTxDestination NewExternalLTCAddress()
+    static CTxDestination NewExternalBTCAddress()
     {
         CKey key;
         key.MakeNewKey(true);
@@ -113,11 +113,11 @@ public:
         m_wallet.MarkDirty();
     }
 
-    COutPoint AddLTCReceive(CAmount amount, const TxState& state)
+    COutPoint AddBTCReceive(CAmount amount, const TxState& state)
     {
         CMutableTransaction tx;
         tx.nLockTime = ++m_next_lock_time;
-        tx.vout.emplace_back(amount, GetScriptForDestination(NewLTCAddress()));
+        tx.vout.emplace_back(amount, GetScriptForDestination(NewBTCAddress()));
         const CTransactionRef tx_ref = MakeTransactionRef(std::move(tx));
         BOOST_REQUIRE(m_wallet.AddToWallet(tx_ref, std::nullopt, state));
         m_wallet.MarkDirty();
@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(CoinControlFiltersMWEBAvailability)
 {
     const mw::Hash shallow = AddMWEBReceive(20'000, Confirmed(1));
     const mw::Hash deep = AddMWEBReceive(30'000, Confirmed(6));
-    const COutPoint ltc = AddLTCReceive(40'000, Confirmed(6));
+    const COutPoint ltc = AddBTCReceive(40'000, Confirmed(6));
 
     CCoinControl minimum_depth;
     minimum_depth.m_min_depth = 2;
@@ -319,13 +319,13 @@ BOOST_AUTO_TEST_CASE(ListCoinsRetainsLockedMWEBOutputs)
     BOOST_CHECK(listed_ids == std::set<AnyOutputID>({unlocked, locked}));
 }
 
-// Pure base-layer transactions cannot select MWEB, while pure MWEB and pegout transactions cannot select LTC.
+// Pure base-layer transactions cannot select MWEB, while pure MWEB and pegout transactions cannot select BTC.
 BOOST_AUTO_TEST_CASE(TransactionTypeRestrictsInputLayer)
 {
     const mw::Hash mweb = AddMWEBReceive(60'000, Confirmed(6));
-    const COutPoint ltc = AddLTCReceive(50'000, Confirmed(6));
+    const COutPoint ltc = AddBTCReceive(50'000, Confirmed(6));
 
-    const std::optional<SelectionResult> ltc_to_ltc = Select(50'000, TxType::LTC_TO_LTC);
+    const std::optional<SelectionResult> ltc_to_ltc = Select(50'000, TxType::BTC_TO_BTC);
     BOOST_REQUIRE(ltc_to_ltc);
     BOOST_CHECK(InputIDs(*ltc_to_ltc) == std::set<AnyOutputID>{ltc});
 
@@ -338,30 +338,30 @@ BOOST_AUTO_TEST_CASE(TransactionTypeRestrictsInputLayer)
     BOOST_CHECK(InputIDs(*pegout) == std::set<AnyOutputID>{mweb});
 }
 
-// Automatic policy spends on the recipient's layer when both LTC and MWEB can fund the payment.
+// Automatic policy spends on the recipient's layer when both BTC and MWEB can fund the payment.
 BOOST_AUTO_TEST_CASE(RecipientLayerDeterminesPreferredCoins)
 {
     AddMWEBReceive(5 * COIN, Confirmed(6));
-    AddLTCReceive(5 * COIN, Confirmed(6));
+    AddBTCReceive(5 * COIN, Confirmed(6));
 
     const util::Result<CreatedTransactionResult> mweb_payment = BuildTo(StealthAddress::Random(), 1 * COIN);
     BOOST_REQUIRE(mweb_payment);
     BOOST_CHECK(mweb_payment->tx.vin.empty());
     BOOST_REQUIRE_EQUAL(mweb_payment->tx.mweb_tx.inputs.size(), 1U);
 
-    const util::Result<CreatedTransactionResult> ltc_payment = BuildTo(NewExternalLTCAddress(), 1 * COIN);
+    const util::Result<CreatedTransactionResult> ltc_payment = BuildTo(NewExternalBTCAddress(), 1 * COIN);
     BOOST_REQUIRE(ltc_payment);
     BOOST_REQUIRE_EQUAL(ltc_payment->tx.vin.size(), 1U);
     BOOST_CHECK(ltc_payment->tx.mweb_tx.inputs.empty());
 }
 
-// Automatic policy combines layers only after neither LTC nor MWEB can fund a base-layer payment alone.
+// Automatic policy combines layers only after neither BTC nor MWEB can fund a base-layer payment alone.
 BOOST_AUTO_TEST_CASE(RecipientPolicyFallsBackToCombinedPeginPegout)
 {
     AddMWEBReceive(3 * COIN, Confirmed(6));
-    AddLTCReceive(3 * COIN, Confirmed(6));
+    AddBTCReceive(3 * COIN, Confirmed(6));
 
-    const util::Result<CreatedTransactionResult> payment = BuildTo(NewExternalLTCAddress(), 5 * COIN);
+    const util::Result<CreatedTransactionResult> payment = BuildTo(NewExternalBTCAddress(), 5 * COIN);
     BOOST_REQUIRE(payment);
     BOOST_REQUIRE_EQUAL(payment->tx.vin.size(), 1U);
     BOOST_REQUIRE_EQUAL(payment->tx.mweb_tx.inputs.size(), 1U);
@@ -398,10 +398,10 @@ BOOST_AUTO_TEST_CASE(UnsafeIncomingMWEBRequiresExplicitOptIn)
     BOOST_CHECK(InputIDs(*selected) == std::set<AnyOutputID>{unsafe});
 }
 
-// Selection keeps LTC and MWEB separate when one layer can fund the target, and mixes only as a fallback.
+// Selection keeps BTC and MWEB separate when one layer can fund the target, and mixes only as a fallback.
 BOOST_AUTO_TEST_CASE(SelectionMixesLayersOnlyWhenNecessary)
 {
-    const COutPoint ltc = AddLTCReceive(60'000, Confirmed(6));
+    const COutPoint ltc = AddBTCReceive(60'000, Confirmed(6));
     const mw::Hash mweb = AddMWEBReceive(40'000, Confirmed(6));
 
     const std::optional<SelectionResult> single_layer = Attempt(50'000, TxType::PEGIN_PEGOUT, /*allow_mixed=*/true);
@@ -456,7 +456,7 @@ BOOST_AUTO_TEST_CASE(ManualMWEBSelectionHonorsCoinControlPolicy)
     BOOST_CHECK(exact->GetAlgo() == SelectionAlgorithm::MANUAL);
     BOOST_CHECK(InputIDs(*exact) == std::set<AnyOutputID>{selected_id});
     BOOST_CHECK(!Select(50'000, TxType::MWEB_TO_MWEB, selected_only));
-    BOOST_CHECK(!Select(30'000, TxType::LTC_TO_LTC, selected_only));
+    BOOST_CHECK(!Select(30'000, TxType::BTC_TO_BTC, selected_only));
 
     CCoinControl supplemented = selected_only;
     supplemented.m_allow_other_inputs = true;

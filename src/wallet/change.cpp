@@ -61,7 +61,7 @@ ChangeParams ChangeBuilder::BuildMWEBParams(const CoinSelectionParams& coin_sele
     return mweb_change_params;
 }
 
-ChangeParams ChangeBuilder::BuildLTCParams(const CWallet& wallet, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const
+ChangeParams ChangeBuilder::BuildBTCParams(const CWallet& wallet, const CoinSelectionParams& coin_selection_params, const CRecipients& recipients) const
 {
     CTxOut change_prototype_txout(0, this->script_or_address.GetScript());
     const uint32_t change_output_size = GetSerializeSize(change_prototype_txout);
@@ -104,7 +104,7 @@ ChangeParams ChangeBuilder::BuildPegoutParams(const CWallet& wallet, const CoinS
     change_params.m_cost_of_change = coin_selection_params.m_discard_feerate.GetFee(change_spend_size, 0) + change_params.m_change_fee;
     change_params.m_min_change_target = GenerateChangeTarget(std::floor(recipients.Sum() / recipients.size()), change_params.m_change_fee, coin_selection_params.rng_fast);
 
-    // Pegout change becomes a normal LTC UTXO, so its viability is the same as other LTC change.
+    // Pegout change becomes a normal BTC UTXO, so its viability is the same as other BTC change.
     const auto dust = GetDustThreshold(change_prototype_txout, coin_selection_params.m_discard_feerate);
     const auto change_spend_fee = coin_selection_params.m_discard_feerate.GetFee(change_spend_size, 0);
     change_params.min_viable_change = std::max(change_spend_fee + 1, dust);
@@ -119,15 +119,15 @@ std::optional<ChangeParams> ChangeBuilder::BuildParams(const CWallet& wallet, co
         return {};
     }
 
-    if ((*change_placement == ChangePlacement::LTC || *change_placement == ChangePlacement::PEGOUT) && script_or_address.IsMWEB()) {
+    if ((*change_placement == ChangePlacement::BTC || *change_placement == ChangePlacement::PEGOUT) && script_or_address.IsMWEB()) {
         return {};
     }
 
     switch (*change_placement) {
     case ChangePlacement::MWEB:
         return BuildMWEBParams(coin_selection_params);
-    case ChangePlacement::LTC:
-        return BuildLTCParams(wallet, coin_selection_params, recipients);
+    case ChangePlacement::BTC:
+        return BuildBTCParams(wallet, coin_selection_params, recipients);
     case ChangePlacement::PEGOUT:
         return BuildPegoutParams(wallet, coin_selection_params, recipients);
     }
@@ -154,12 +154,12 @@ std::optional<ChangeBuilder::ChangePlacement> ChangeBuilder::GetChangePlacement(
     const bool change_is_mweb = std::holds_alternative<StealthAddress>(dest_change);
 
     switch (tx_type) {
-    case TxType::LTC_TO_LTC:
-        return change_is_set && change_is_mweb ? std::nullopt : std::make_optional(ChangePlacement::LTC);
+    case TxType::BTC_TO_BTC:
+        return change_is_set && change_is_mweb ? std::nullopt : std::make_optional(ChangePlacement::BTC);
     case TxType::MWEB_TO_MWEB:
         return change_is_set && !change_is_mweb ? std::nullopt : std::make_optional(ChangePlacement::MWEB);
     case TxType::PEGIN:
-        return change_is_set && !change_is_mweb ? std::make_optional(ChangePlacement::LTC) : std::make_optional(ChangePlacement::MWEB);
+        return change_is_set && !change_is_mweb ? std::make_optional(ChangePlacement::BTC) : std::make_optional(ChangePlacement::MWEB);
     case TxType::PEGOUT:
     case TxType::PEGIN_PEGOUT:
         return change_is_set && !change_is_mweb ? std::make_optional(ChangePlacement::PEGOUT) : std::make_optional(ChangePlacement::MWEB);

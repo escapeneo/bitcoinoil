@@ -63,7 +63,7 @@ static feebumper::Result PreconditionChecks(const CWallet& wallet, const CWallet
 }
 
 //! Check if the user provided a valid feeRate
-static feebumper::Result CheckFeeRate(const CWallet& wallet, const CFeeRate& newFeerate, const int64_t maxTxSize, CAmount old_fee, std::vector<bilingual_str>& errors)
+static feebumper::Result CheckFeeRate(const CWallet& wallet, const CWalletTx& wtx, const CFeeRate& newFeerate, const int64_t maxTxSize, CAmount old_fee, std::vector<bilingual_str>& errors)
 {
     // check that fee rate is higher than mempool's minimum fee
     // (no point in bumping fee if we know that the new tx won't be accepted to the mempool)
@@ -233,7 +233,8 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
     }
 
     // Calculate the old output amount.
-    CAmount output_value =    for (const AnyOutputID& output_id : wtx.GetOutputIDs(OutputIdMode::TX_OUTPUTS)) {
+    CAmount output_value = 0;
+    for (const AnyOutputID& output_id : wtx.GetOutputIDs(OutputIdMode::TX_OUTPUTS)) {
         output_value += wallet.GetValue(wtx, output_id);
     }
 
@@ -285,7 +286,7 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
         }
         temp_mtx.vout = txouts;
         const int64_t maxTxSize{CalculateMaximumSignedTxSize(CTransaction(temp_mtx), &wallet, &new_coin_control).vsize};
-        Result res = CheckFeeRate(wallet, *new_coin_control.m_feerate, maxTxSize, old_fee, errors);
+        Result res = CheckFeeRate(wallet, wtx, *new_coin_control.m_feerate, maxTxSize, old_fee, errors);
         if (res != Result::OK) {
             return res;
         }
@@ -339,8 +340,10 @@ bool SignTransaction(CWallet& wallet, CMutableTransaction& mtx) {
         wallet.FillPSBT(psbtx, complete, SIGHASH_ALL, false /* sign */, true /* bip32derivs */);
         const TransactionError err = wallet.FillPSBT(psbtx, complete, SIGHASH_ALL, true /* sign */, false  /* bip32derivs */);
         if (err != TransactionError::OK) return false;
-        complete = FinalizeAndExtractPSBT(psbtx, mtx);
-        return complete;
+        auto finalized{FinalizePSBT(psbtx)};
+        if (!finalized) return false;
+        mtx = *finalized;
+        return true;
     } else {
         return wallet.SignTransaction(mtx);
     }

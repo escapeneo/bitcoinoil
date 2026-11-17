@@ -152,10 +152,9 @@ static const std::map<std::string,WalletFlags> WALLET_FLAG_MAP{
     {"external_signer", WALLET_FLAG_EXTERNAL_SIGNER}
 };
 
-extern const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS;
 
 /** Address book data */
-class CAddressBookData
+struct CAddressBookData
 {
     /**
      * Address label which is always nullopt for change addresses. For sending
@@ -209,13 +208,6 @@ inline std::optional<AddressPurpose> PurposeFromString(std::string_view s)
     else if (s == "refund") return AddressPurpose::REFUND;
     return {};
 }
-
-struct CRecipient
-{
-    CScript scriptPubKey;
-    CAmount nAmount;
-    bool fSubtractFeeFromAmount;
-};
 
 class WalletRescanReserver; //forward declarations for ScanForWalletTransactions/RescanFromTime
 /**

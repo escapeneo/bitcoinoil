@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <util/system.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
@@ -37,11 +38,11 @@ static bool IsFrozenMWEBOutput(const mw::Hash& output_id)
     return std::find(frozen_outputs.begin(), frozen_outputs.end(), uint256(output_id.vec())) != frozen_outputs.end();
 }
 
-int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoint, const SigningProvider* provider, const CCoinControl* coin_control)
+int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoint, const SigningProvider* provider, bool can_grind_r, const CCoinControl* coin_control)
 {
     CMutableTransaction txn;
     txn.vin.push_back(CTxIn(outpoint));
-    if (!provider || !DummySignInput(*provider, txn.vin[0], txout, coin_control)) {
+    if (!provider || !DummySignInput(*provider, txn.vin[0], txout, can_grind_r, coin_control)) {
         return -1;
     }
     return GetVirtualTransactionInputSize(txn.vin[0]);
@@ -50,7 +51,7 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoin
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* wallet, const CCoinControl* coin_control)
 {
     const std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(txout.scriptPubKey);
-    return CalculateMaximumSignedInputSize(txout, COutPoint(), provider.get(), coin_control);
+    return CalculateMaximumSignedInputSize(txout, COutPoint(), provider.get(), wallet->CanGrindR(), coin_control);
 }
 
 // txouts needs to be in the order of tx.vin
@@ -297,7 +298,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
                 CTxOut txout = wtx.tx->GetOutput(output_id).GetTxOut();
                 std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(txout.scriptPubKey);
 
-                int input_bytes = CalculateMaximumSignedInputSize(txout, COutPoint(), provider.get(), coinControl);
+                int input_bytes = CalculateMaximumSignedInputSize(txout, COutPoint(), provider.get(), wallet.CanGrindR(), coinControl);
                 // Because CalculateMaximumSignedInputSize just uses ProduceSignature and makes a dummy signature,
                 // it is safe to assume that this input is solvable if input_bytes is greater -1.
                 bool solvable = input_bytes > -1;
@@ -649,7 +650,7 @@ std::optional<SelectionResult> SelectCoins(const CWallet& wallet, CoinsResult& a
         }
 
         if (input_bytes == -1) {
-            input_bytes = CalculateMaximumSignedInputSize(txout, outpoint, &coin_control.m_external_provider, &coin_control);
+            input_bytes = CalculateMaximumSignedInputSize(txout, outpoint, &coin_control.m_external_provider, wallet.CanGrindR(), &coin_control);
         }
 
         // If available, override calculated size with coin control specified size

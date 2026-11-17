@@ -1,3 +1,4 @@
+#include <util/system.h>
 #include <wallet/txbuilder.h>
 
 #include <consensus/validation.h>
@@ -84,7 +85,7 @@ SelectedInputTypes GetSelectedInputTypes(const CCoinControl& coin_control)
     return selected;
 }
 
-bool SelectionHasLTCInput(const SelectionResult& result)
+bool SelectionHasBTCInput(const SelectionResult& result)
 {
     return std::any_of(result.GetInputSet().cbegin(), result.GetInputSet().cend(), [](const AnyWalletUTXO& coin) {
         return !coin.IsMWEB();
@@ -197,7 +198,7 @@ util::Result<CreatedTransactionResult> TxBuilder::Build(const std::optional<int3
     // Add selected inputs
     AddInputs(selected_coins);
 
-    // Use a height-based locktime to discourage fee sniping. Skip this for MWEB_TO_MWEB and PEGOUT transactions, since they don't have a LTC transaction.
+    // Use a height-based locktime to discourage fee sniping. Skip this for MWEB_TO_MWEB and PEGOUT transactions, since they don't have a BTC transaction.
     if (!nLockTime.has_value() && !m_tx.vin.empty()) {
         DiscourageFeeSniping(m_tx, m_selection_params.rng_fast, m_wallet.chain(), m_wallet.GetLastBlockHash(), m_wallet.GetLastBlockHeight());
     }
@@ -212,7 +213,7 @@ util::Result<CreatedTransactionResult> TxBuilder::Build(const std::optional<int3
     std::vector<CAmount> recipient_amounts = GetRecipientAmounts();
 
     // Update MWEB fee
-    if (GetTxType() != TxType::LTC_TO_LTC) {
+    if (GetTxType() != TxType::BTC_TO_BTC) {
         m_tx.mweb_tx.SetFee(CalcMWEBFee());
     }
 
@@ -291,7 +292,7 @@ std::vector<CAmount> TxBuilder::GetRecipientAmounts() const
     size_t ltc_index{0};
     size_t mweb_index{0};
     // AddOutputs preserves recipient order within each layer. MWEB and peg-out
-    // change are appended; ordinary LTC change can be inserted anywhere.
+    // change are appended; ordinary BTC change can be inserted anywhere.
     for (const CRecipient& recipient : m_recipients.All()) {
         if (recipient.IsMWEB()) {
             amounts.push_back(m_tx.mweb_tx.outputs.at(mweb_index++).amount.value());
@@ -309,7 +310,7 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
 {
     const SelectedInputTypes selected_inputs = GetSelectedInputTypes(m_coin_control);
     const bool has_mweb_recipient = !m_recipients.MWEB().empty();
-    const bool has_ltc_recipient = !m_recipients.LTC().empty();
+    const bool has_ltc_recipient = !m_recipients.BTC().empty();
     const bool has_mixed_recipients = has_mweb_recipient && has_ltc_recipient;
     const bool change_is_set = !std::holds_alternative<CNoDestination>(m_coin_control.destChange);
     const bool change_is_mweb = std::holds_alternative<StealthAddress>(m_coin_control.destChange);
@@ -317,7 +318,7 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
 
     auto selected_inputs_compatible = [&](const TxType& tx_type) {
         switch (tx_type) {
-        case TxType::LTC_TO_LTC:
+        case TxType::BTC_TO_BTC:
             return !selected_inputs.mweb;
         case TxType::MWEB_TO_MWEB:
         case TxType::PEGOUT:
@@ -333,21 +334,21 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
 
     auto selection_result_matches_type = [has_mixed_recipients](const TxType& tx_type, const SelectionResult& result) {
         switch (tx_type) {
-        case TxType::LTC_TO_LTC:
+        case TxType::BTC_TO_BTC:
             return !SelectionHasMWEBInput(result);
         case TxType::MWEB_TO_MWEB:
         case TxType::PEGOUT:
-            return !SelectionHasLTCInput(result);
+            return !SelectionHasBTCInput(result);
         case TxType::PEGIN:
-            // For mixed recipients, reserve PEGIN for LTC-only funding so the
+            // For mixed recipients, reserve PEGIN for BTC-only funding so the
             // final fallback can represent combined inputs as a peg-in/pegout.
-            // Homogeneous MWEB payments may still supplement LTC with MWEB.
+            // Homogeneous MWEB payments may still supplement BTC with MWEB.
             if (has_mixed_recipients && SelectionHasMWEBInput(result)) {
                 return false;
             }
-            return SelectionHasLTCInput(result);
+            return SelectionHasBTCInput(result);
         case TxType::PEGIN_PEGOUT:
-            return SelectionHasLTCInput(result);
+            return SelectionHasBTCInput(result);
         }
 
         assert(false);
@@ -388,7 +389,7 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
     } else if (has_mweb_recipient) {
         candidate_types = {TxType::MWEB_TO_MWEB, TxType::PEGIN};
     } else {
-        candidate_types = {TxType::LTC_TO_LTC, TxType::PEGOUT, TxType::PEGIN_PEGOUT};
+        candidate_types = {TxType::BTC_TO_BTC, TxType::PEGOUT, TxType::PEGIN_PEGOUT};
     }
 
     for (const TxType tx_type : candidate_types) {
@@ -458,7 +459,7 @@ std::optional<util::Error> TxBuilder::AddOutputs(const SelectionResult& selectio
         }
     }
 
-    util::Result<CAmount> ltc_fee_result = CalcLTCFee();
+    util::Result<CAmount> ltc_fee_result = CalcBTCFee();
     if (!ltc_fee_result) {
         return util::Error{ErrorString(ltc_fee_result)};
     }
@@ -555,12 +556,12 @@ std::optional<util::Error> TxBuilder::AddChangeOutput(const SelectionResult& sel
                 if (m_change.change_position.IsNull()) {
                     // Insert change txn at random position:
                     m_change.change_position = m_selection_params.rng_fast.randrange(m_tx.vout.size() + 1);
-                } else if (m_change.change_position.IsLTC() && m_change.change_position.ToLTC() > m_tx.vout.size()) {
+                } else if (m_change.change_position.IsBTC() && m_change.change_position.ToBTC() > m_tx.vout.size()) {
                     return util::Error{_("Transaction change output index out of range")};
                 }
     
-                if (m_change.change_position.IsLTC()) {
-                    m_tx.vout.insert(m_tx.vout.begin() + m_change.change_position.ToLTC(), newTxOut);
+                if (m_change.change_position.IsBTC()) {
+                    m_tx.vout.insert(m_tx.vout.begin() + m_change.change_position.ToBTC(), newTxOut);
                 }
             }
         }
@@ -592,10 +593,10 @@ std::optional<util::Error> TxBuilder::UpdatePeginOutput()
         // Balance the MWEB side when there is no change output to absorb the difference.
         pegin_amount = amounts.GetRequiredPegin(CalcMWEBFee());
     } else {
-        // Peg in the selected LTC value left after ordinary LTC recipients and
+        // Peg in the selected BTC value left after ordinary BTC recipients and
         // the fee. amounts.ltc_outputs includes the previous peg-in amount
         // when this method is called again after fee subtraction.
-        const util::Result<CAmount> ltc_fee_result = CalcLTCFee();
+        const util::Result<CAmount> ltc_fee_result = CalcBTCFee();
         if (!ltc_fee_result) {
             return util::Error{ErrorString(ltc_fee_result)};
         }
@@ -617,8 +618,8 @@ std::optional<util::Error> TxBuilder::UpdatePeginOutput()
 
 void TxBuilder::GrowChangeBy(const CAmount growth_amount)
 {
-    if (m_change.GetPosition().IsLTC()) {
-        auto& change = m_tx.vout.at(m_change.GetPosition().ToLTC());
+    if (m_change.GetPosition().IsBTC()) {
+        auto& change = m_tx.vout.at(m_change.GetPosition().ToBTC());
         change.nValue += growth_amount;
     } else if (m_change.GetPosition().IsMWEB()) {
         const size_t change_idx = m_change.GetPosition().ToMWEB().idx;
@@ -650,10 +651,10 @@ std::optional<util::Error> TxBuilder::SubtractFeeFromOutputs(const CAmount fee_t
     const size_t outputs_to_subtract_fee_from = m_recipients.NumOutputsToSubtractFeeFrom();
     bool fFirst = true;
 
-    // Subtract fee from LTC outputs
+    // Subtract fee from BTC outputs
     if (m_tx.mweb_tx.GetPegouts().empty()) {
         size_t i = 0;
-        for (const auto& recipient : m_recipients.LTC()) {
+        for (const auto& recipient : m_recipients.BTC()) {
             ChangePosition change_pos = m_change.GetPosition();
             if (change_pos == i) {
                 i++;
@@ -726,7 +727,7 @@ std::optional<util::Error> TxBuilder::SubtractFeeFromOutputs(const CAmount fee_t
 
 std::optional<util::Error> TxBuilder::SignMWEBTx()
 {
-    if (GetTxType() == TxType::LTC_TO_LTC) {
+    if (GetTxType() == TxType::BTC_TO_BTC) {
         return std::nullopt;
     }
 
@@ -789,10 +790,10 @@ CAmount TxBuilder::CalcSelectionTarget(const TxType& tx_type) const
         return recipients_sum;
     }
 
-    const std::vector<CRecipient> ltc_recipients = m_recipients.LTC();
+    const std::vector<CRecipient> ltc_recipients = m_recipients.BTC();
     const std::vector<CRecipient> mweb_recipients = m_recipients.MWEB();
 
-    // Fee rounding happens independently on the LTC and MWEB sides, so keep
+    // Fee rounding happens independently on the BTC and MWEB sides, so keep
     // those byte counts separate just as the final fee calculation does.
     const auto get_layered_fee = [this](size_t ltc_bytes, size_t mweb_bytes, size_t mweb_weight) {
         return GetFeeRate().GetFee(ltc_bytes, 0) + GetFeeRate().GetFee(mweb_bytes, mweb_weight);
@@ -824,7 +825,7 @@ CAmount TxBuilder::CalcSelectionTarget(const TxType& tx_type) const
         return recipients_sum + get_layered_fee(0, 0, standard_mweb_weight);
     }
     case TxType::PEGIN: {
-        // LTC recipients remain ordinary outputs in a peg-in transaction.
+        // BTC recipients remain ordinary outputs in a peg-in transaction.
         // Replace the one-output overhead estimate with the actual canonical
         // output count when the public recipient list spans both layers.
         const size_t mixed_pegin_ltc_bytes = pegin_ltc_bytes + ltc_recipient_bytes +
@@ -844,7 +845,7 @@ CAmount TxBuilder::CalcSelectionTarget(const TxType& tx_type) const
     }
     case TxType::PEGIN_PEGOUT: {
         // Include enough fee to pay for:
-        // * LTC tx with a pegin output
+        // * BTC tx with a pegin output
         // * Hogex pegin input
         // * Hogex pegout output(s)
         // * MWEB recipient outputs
@@ -858,7 +859,7 @@ CAmount TxBuilder::CalcSelectionTarget(const TxType& tx_type) const
 
         return recipients_sum + get_layered_fee(pegin_ltc_bytes, ltc_recipient_bytes, pegout_mweb_weight);
     }
-    case TxType::LTC_TO_LTC: {
+    case TxType::BTC_TO_BTC: {
         const size_t ltc_bytes = get_ltc_tx_overhead(ltc_recipients.size()) + ltc_recipient_bytes;
         return recipients_sum + get_layered_fee(ltc_bytes, 0, 0);
     }
@@ -872,8 +873,8 @@ CAmount TxBuilder::GetFeePaid() const
     return GetTransactionAmounts(m_selected_coins, m_tx).GetFeePaid();
 }
 
-// Calculate the portion of the fee that should be paid on the LTC side.
-util::Result<CAmount> TxBuilder::CalcLTCFee() const
+// Calculate the portion of the fee that should be paid on the BTC side.
+util::Result<CAmount> TxBuilder::CalcBTCFee() const
 {
     const TxType tx_type = GetTxType();
     if (tx_type == TxType::MWEB_TO_MWEB || tx_type == TxType::PEGOUT) {

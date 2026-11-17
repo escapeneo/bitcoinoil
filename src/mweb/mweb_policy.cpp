@@ -15,7 +15,7 @@ static constexpr size_t MAX_STANDARD_MWEB_TX_INPUTS = mw::MAX_NUM_INPUTS / 50;
 bool Policy::IsStandardTx(const CTransaction& tx, std::string& reason)
 {
     // MWEB: To help avoid mempool bugs, we don't yet allow transaction aggregation
-    // for transactions with canonical LTC data.
+    // for transactions with canonical BTC data.
     if (!tx.IsMWEBOnly()) {
         std::set<mw::Hash> pegin_kernels;
         for (const CTxOut& txout : tx.vout) {

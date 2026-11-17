@@ -18,7 +18,6 @@ using namespace wallet;
 namespace {
 mw::Hash ParseMWEBOutputID(const UniValue& value)
 {
-    RPCTypeCheckArgument(value, UniValue::VSTR);
     const std::string output_id = value.get_str();
     if (output_id.size() != 64 || !IsHex(output_id)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, mweb_out must be a 64-character hexadecimal string");

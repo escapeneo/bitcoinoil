@@ -21,7 +21,6 @@ namespace wallet {
 namespace {
 mw::Hash ParseMWEBOutputID(const UniValue& value)
 {
-    RPCTypeCheckArgument(value, UniValue::VSTR);
     const std::string output_id = value.get_str();
     if (output_id.size() != 64 || !IsHex(output_id)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, mweb_out must be a 64-character hexadecimal string");
@@ -632,8 +631,8 @@ RPCHelpMan listunspent()
         include_unsafe = request.params[3].get_bool();
     }
 
-    CoinFilterParams filter_coins;
-    filter_coins.min_amount = 0;
+    // include_immature_coinbase is accepted but has no effect with the MWEB coin listing.
+    struct { CAmount min_amount{0}; CAmount max_amount{MAX_MONEY}; CAmount min_sum_amount{MAX_MONEY}; uint64_t max_count{0}; bool include_immature_coinbase{false}; } filter_coins;
 
     if (!request.params[4].isNull()) {
         const UniValue& options = request.params[4].get_obj();
@@ -678,7 +677,7 @@ RPCHelpMan listunspent()
         cctl.m_max_depth = nMaxDepth;
         cctl.m_include_unsafe_inputs = include_unsafe;
         LOCK(pwallet->cs_wallet);
-        vecOutputs = AvailableCoinsListUnspent(*pwallet, &cctl, filter_coins).All();
+        vecOutputs = AvailableCoinsListUnspent(*pwallet, &cctl, filter_coins.min_amount, filter_coins.max_amount, filter_coins.min_sum_amount, filter_coins.max_count).All();
     }
 
     LOCK(pwallet->cs_wallet);

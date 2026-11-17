@@ -22,9 +22,9 @@
 <<<<<<< btco
 #include <wallet/types.h>
 ||||||| core24
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 =======
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 #include <wallet/txrecord.h>
 >>>>>>> litecoin24x
 

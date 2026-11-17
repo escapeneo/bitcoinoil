@@ -184,7 +184,7 @@ public:
         return StealthAddress::Random();
     }
 
-    static CTxDestination NewExternalLTCAddress()
+    static CTxDestination NewExternalBTCAddress()
     {
         CKey key;
         key.MakeNewKey(/*fCompressed=*/true);
@@ -229,7 +229,7 @@ public:
         }
     }
 
-    AnyWalletUTXO SmallestLTCCoin()
+    AnyWalletUTXO SmallestBTCCoin()
     {
         LOCK(m_wallet.cs_wallet);
         std::vector<AnyWalletUTXO> coins;
@@ -339,7 +339,7 @@ public:
 
 BOOST_FIXTURE_TEST_SUITE(mweb_raw_tests, MWEBRawTestingSetup)
 
-// A raw MWEB recipient draft is funded from LTC, then both transaction layers
+// A raw MWEB recipient draft is funded from BTC, then both transaction layers
 // are finalized by CWallet::SignTransaction. The canonical signature must
 // commit to the peg-in script after its placeholder kernel ID is rewritten.
 BOOST_AUTO_TEST_CASE(PeginDraftFundingAndRawSigningAreEndToEnd)
@@ -467,7 +467,7 @@ BOOST_AUTO_TEST_CASE(PegoutDraftRawFundingBoundaryIsAtomic)
     static constexpr CAmount SOURCE_AMOUNT{5 * COIN};
     static constexpr CAmount RECIPIENT_AMOUNT{1 * COIN};
     const AnyWalletUTXO source = AddMWEBFunds(SOURCE_AMOUNT);
-    const CTxDestination recipient = NewExternalLTCAddress();
+    const CTxDestination recipient = NewExternalBTCAddress();
 
     TransactionDraft draft;
     draft.tx.nLockTime = 456;
@@ -516,20 +516,20 @@ BOOST_AUTO_TEST_CASE(PegoutDraftRawFundingBoundaryIsAtomic)
 // outputs followed by MWEB outputs for fee-subtraction indexes.
 BOOST_AUTO_TEST_CASE(BuildRecipientsFlattensFeeSubtractionIndexes)
 {
-    static constexpr CAmount LTC_RECIPIENT_AMOUNT{1 * COIN};
+    static constexpr CAmount BTC_RECIPIENT_AMOUNT{1 * COIN};
     static constexpr CAmount MWEB_RECIPIENT_AMOUNT{2 * COIN};
-    const CTxDestination ltc_recipient = NewExternalLTCAddress();
+    const CTxDestination ltc_recipient = NewExternalBTCAddress();
     const StealthAddress mweb_recipient = NewExternalMWEBAddress();
 
     TransactionDraft draft;
-    draft.tx.vout.emplace_back(LTC_RECIPIENT_AMOUNT, GetScriptForDestination(ltc_recipient));
+    draft.tx.vout.emplace_back(BTC_RECIPIENT_AMOUNT, GetScriptForDestination(ltc_recipient));
     draft.tx.mweb_tx.outputs.push_back(MWEBOutput(mweb_recipient, MWEB_RECIPIENT_AMOUNT));
 
     const std::vector<CRecipient> recipients = draft.BuildRecipients(/*subtract_fee_from_outputs=*/{1});
 
     BOOST_REQUIRE_EQUAL(recipients.size(), 2U);
     BOOST_CHECK(!recipients[0].IsMWEB());
-    BOOST_CHECK_EQUAL(recipients[0].nAmount, LTC_RECIPIENT_AMOUNT);
+    BOOST_CHECK_EQUAL(recipients[0].nAmount, BTC_RECIPIENT_AMOUNT);
     BOOST_CHECK(!recipients[0].fSubtractFeeFromAmount);
     BOOST_CHECK(recipients[1].IsMWEB());
     BOOST_CHECK_EQUAL(recipients[1].nAmount, MWEB_RECIPIENT_AMOUNT);
@@ -544,9 +544,9 @@ BOOST_AUTO_TEST_CASE(RPCFeeSubtractionFollowsRecipientOrder)
 {
     const std::vector<CRecipient> recipients{
         {NewExternalMWEBAddress(), COIN, false},
-        {NewExternalLTCAddress(), 2 * COIN, false},
+        {NewExternalBTCAddress(), 2 * COIN, false},
         {NewExternalMWEBAddress(), 3 * COIN, false},
-        {NewExternalLTCAddress(), 4 * COIN, false},
+        {NewExternalBTCAddress(), 4 * COIN, false},
     };
     std::array<size_t, 4> order{0, 1, 2, 3};
     do {
@@ -575,7 +575,7 @@ BOOST_AUTO_TEST_CASE(RPCFeeSubtractionFollowsRecipientOrder)
 BOOST_AUTO_TEST_CASE(RPCDataOutputKeepsItsRecipientIndex)
 {
     const CRecipient mweb{NewExternalMWEBAddress(), COIN, false};
-    const CRecipient ltc{NewExternalLTCAddress(), 2 * COIN, false};
+    const CRecipient ltc{NewExternalBTCAddress(), 2 * COIN, false};
     for (bool as_object : {false, true}) {
         UniValue data(UniValue::VOBJ);
         data.pushKV("data", "010203");
@@ -612,9 +612,9 @@ BOOST_AUTO_TEST_CASE(RPCDataOutputKeepsItsRecipientIndex)
 BOOST_AUTO_TEST_CASE(RPCMixedFundingChargesOnlySelectedRecipients)
 {
     const AnyWalletUTXO mweb_source = AddMWEBFunds(5 * COIN);
-    const AnyWalletUTXO ltc_source = SmallestLTCCoin();
+    const AnyWalletUTXO ltc_source = SmallestBTCCoin();
     const GenericAddress mweb_recipient{NewExternalMWEBAddress()};
-    const GenericAddress ltc_recipient{NewExternalLTCAddress()};
+    const GenericAddress ltc_recipient{NewExternalBTCAddress()};
 
     for (int input_layer : {0, 1, 2}) {
         std::vector<AnyOutputID> inputs;
@@ -750,7 +750,7 @@ BOOST_AUTO_TEST_CASE(RPCRejectsInvalidMWEBInputsAndDuplicateOutputs)
     ExpectRPCError([&] { TransactionDraft::FromRPC({}, duplicate_data, {}, false); },
         RPC_INVALID_PARAMETER, "Invalid parameter, duplicate key: data");
     UniValue multiple_keys(UniValue::VARR);
-    multiple_keys.push_back(RPCOutputs({recipient, {NewExternalLTCAddress(), COIN, false}}, true));
+    multiple_keys.push_back(RPCOutputs({recipient, {NewExternalBTCAddress(), COIN, false}}, true));
     ExpectRPCError([&] { TransactionDraft::FromRPC({}, multiple_keys, {}, false); },
         RPC_INVALID_PARAMETER, "Invalid parameter, key-value pair must contain exactly one key");
 }
@@ -761,10 +761,10 @@ BOOST_AUTO_TEST_CASE(RPCRejectsInvalidMWEBInputsAndDuplicateOutputs)
 BOOST_AUTO_TEST_CASE(RPCCustomChangeDoesNotShiftFeeSubtraction)
 {
     const AnyWalletUTXO mweb_source = AddMWEBFunds(5 * COIN);
-    const AnyWalletUTXO ltc_source = SmallestLTCCoin();
+    const AnyWalletUTXO ltc_source = SmallestBTCCoin();
     const std::vector<CRecipient> requested{
         {NewExternalMWEBAddress(), COIN, false},
-        {NewExternalLTCAddress(), COIN, false},
+        {NewExternalBTCAddress(), COIN, false},
     };
     for (const AnyWalletUTXO& source : {ltc_source, mweb_source}) {
         for (OutputType change_type : {OutputType::BECH32, OutputType::MWEB}) {
@@ -799,10 +799,10 @@ BOOST_AUTO_TEST_CASE(RPCCustomChangeDoesNotShiftFeeSubtraction)
 // retry keeps the original fee payer and applies the requested coin locks.
 BOOST_AUTO_TEST_CASE(RPCFundingFailurePreservesRecipientsForRetry)
 {
-    const AnyWalletUTXO source = SmallestLTCCoin();
+    const AnyWalletUTXO source = SmallestBTCCoin();
     const std::vector<CRecipient> requested{
         {NewExternalMWEBAddress(), COIN, false},
-        {NewExternalLTCAddress(), 2 * COIN, false},
+        {NewExternalBTCAddress(), 2 * COIN, false},
     };
     auto too_small = requested;
     too_small[0].nAmount = 1;
@@ -849,10 +849,10 @@ BOOST_AUTO_TEST_CASE(RPCFundingFailurePreservesRecipientsForRetry)
 // Transparent raw-hex funding retains its original output-index convention.
 BOOST_AUTO_TEST_CASE(TransparentRawHexFundingKeepsRecipientIndexes)
 {
-    const AnyWalletUTXO source = SmallestLTCCoin();
+    const AnyWalletUTXO source = SmallestBTCCoin();
     const std::vector<CRecipient> recipients{
-        {NewExternalLTCAddress(), COIN, false},
-        {NewExternalLTCAddress(), 2 * COIN, false},
+        {NewExternalBTCAddress(), COIN, false},
+        {NewExternalBTCAddress(), 2 * COIN, false},
     };
     const auto rpc_draft = TransactionDraft::FromRPC(RPCInputs({source.GetID()}), RPCOutputs(recipients), 123, false);
     for (int position : {0, 1, 2}) {
@@ -873,7 +873,7 @@ BOOST_AUTO_TEST_CASE(TransparentRawHexFundingKeepsRecipientIndexes)
 // no change and deducts the complete layered fee from that recipient.
 BOOST_AUTO_TEST_CASE(MWEBRecipientPaysRawDraftFundingFee)
 {
-    const AnyWalletUTXO source = SmallestLTCCoin();
+    const AnyWalletUTXO source = SmallestBTCCoin();
     const CAmount requested_amount = source.GetValue();
     const StealthAddress recipient = NewExternalMWEBAddress();
 
@@ -904,7 +904,7 @@ BOOST_AUTO_TEST_CASE(PresetInputMetadataAndOrderingSurviveMWEBFunding)
 {
     static constexpr CAmount RECIPIENT_AMOUNT{60 * COIN};
     static constexpr uint32_t SEQUENCE{12345};
-    const AnyWalletUTXO preset = SmallestLTCCoin();
+    const AnyWalletUTXO preset = SmallestBTCCoin();
     const CScript original_script_sig = CScript{} << OP_TRUE;
     const StealthAddress recipient = NewExternalMWEBAddress();
 
