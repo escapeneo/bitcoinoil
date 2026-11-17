@@ -476,7 +476,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
             ++nConsecutiveFailed;
             if (nConsecutiveFailed > MAX_CONSECUTIVE_FAILURES && nBlockWeight >
-                    nBlockMaxWeight - 4000) {
+                    m_options.nBlockMaxWeight - 4000) {
                 break;
             }
             continue;

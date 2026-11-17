@@ -1370,14 +1370,8 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
     if (has_signal) {
         version_bits.pushKV("bit", chainman.GetConsensus().vDeployments[id].bit);
     }
-    bool fHeightBased = chainman.GetConsensus().vDeployments[id].nStartTime == 0 && chainman.GetConsensus().vDeployments[id].nTimeout == 0;
-    if (fHeightBased) {
-        version_bits.pushKV("start_height", chainman.GetConsensus().vDeployments[id].nStartHeight);
-        version_bits.pushKV("timeout_height", chainman.GetConsensus().vDeployments[id].nTimeoutHeight);
-    } else {
-        version_bits.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
-        version_bits.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
-    }
+    version_bits.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
+    version_bits.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
 
     // BIP9 status
     version_bits.pushKV("status", get_state_name(current_state));
@@ -1407,12 +1401,12 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
     }
 
     UniValue rv(UniValue::VOBJ);
-    rv.pushKV("type", fHeightBased ? "bip8" : "bip9");
+    rv.pushKV("type", "bip9");
     if (ThresholdState::ACTIVE == next_state) {
         rv.pushKV("height", chainman.m_versionbitscache.StateSinceHeight(blockindex, chainman.GetConsensus(), id));
     }
     rv.pushKV("active", ThresholdState::ACTIVE == next_state);
-    rv.pushKV(fHeightBased ? "bip8" : "bip9", version_bits);
+    rv.pushKV("bip9", version_bits);
 
     softforks.pushKV(DeploymentName(id), rv);
 }
@@ -2654,7 +2648,11 @@ static RPCHelpMan scanblocks()
         GCSFilter::ElementSet needle_set;
         for (const UniValue& scanobject : request.params[1].get_array().getValues()) {
             FlatSigningProvider provider;
-            std::vector<CScript> scripts = EvalDescriptorStringOrObject(scanobject, provider);
+            // Block filters only cover main-chain scripts, so MWEB addresses are skipped.
+            std::vector<CScript> scripts;
+            for (const GenericAddress& address : EvalDescriptorStringOrObject(scanobject, provider)) {
+                if (!address.IsMWEB()) scripts.push_back(address.GetScript());
+            }
             for (const CScript& script : scripts) {
                 needle_set.emplace(script.begin(), script.end());
             }

@@ -32,10 +32,10 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
 
 
 /** Normalize univalue-represented inputs and add them to the transaction */
-void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, bool rbf);
+void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, bool rbf, bool allow_mweb = false);
 
 /** Normalize univalue-represented outputs and add them to the transaction */
-void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in);
+void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in, bool allow_mweb = false);
 
 /** Create a transaction from univalue parameters */
 CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf, bool allow_mweb = true);

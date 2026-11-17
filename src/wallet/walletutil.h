@@ -6,12 +6,8 @@
 #define BITCOINOIL_WALLET_WALLETUTIL_H
 
 #include <script/descriptor.h>
-<<<<<<< btco
 #include <util/fs.h>
-||||||| core24
-=======
 #include <uint256.h>
->>>>>>> litecoin24x
 
 #include <vector>
 

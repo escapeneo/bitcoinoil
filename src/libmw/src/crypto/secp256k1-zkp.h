@@ -1,11 +1,15 @@
 #pragma once
 
-#include <secp256k1.h>
-#include <secp256k1_aggsig.h>
-#include <secp256k1_bulletproofs.h>
-#include <secp256k1_commitment.h>
-#include <secp256k1_generator.h>
-#include <secp256k1_schnorrsig.h>
+// BitcoinOil: MWEB uses Litecoin's copy of libsecp256k1 (src/secp256k1-zkp),
+// with every symbol renamed, so that BitcoinOil's own libsecp256k1 is untouched.
+// Only files that include this header see that copy.
+#include <mweb_zkp_prefix.h>
+#include <secp256k1-zkp/include/secp256k1.h>
+#include <secp256k1-zkp/include/secp256k1_aggsig.h>
+#include <secp256k1-zkp/include/secp256k1_bulletproofs.h>
+#include <secp256k1-zkp/include/secp256k1_commitment.h>
+#include <secp256k1-zkp/include/secp256k1_generator.h>
+#include <secp256k1-zkp/include/secp256k1_schnorrsig.h>
 
 // SEE: https://github.com/mimblewimble/rust-secp256k1-zkp/blob/304ef7264a0dd9ef4efaaa0e28480cb030c18265/src/constants.rs#L138-L188
 static const secp256k1_pubkey GENERATOR_J_PUB = { {

@@ -9,7 +9,6 @@
 #include <tinyformat.h>
 #include <util/strencodings.h>
 #include <crypto/common.h>
-#include <crypto/scrypt.h>
 
 void CBlockHeader::SetAuxpow (std::unique_ptr<CAuxPow> apow)
 {
@@ -22,13 +21,6 @@ void CBlockHeader::SetAuxpow (std::unique_ptr<CAuxPow> apow)
         auxpow.reset();
         SetAuxpowVersion(false);
     }
-}
-
-PoWHash CBlockHeader::GetPoWHash() const
-{
-    PoWHash thash;
-    scrypt_1024_1_1_256((char*)this, (char*)thash.begin());
-    return thash;
 }
 
 std::string CBlock::ToString() const

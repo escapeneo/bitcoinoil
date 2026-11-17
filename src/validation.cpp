@@ -2582,7 +2582,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     std::vector<PrecomputedTransactionData> txsdata(block.vtx.size());
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && parallel_script_checks ? &scriptcheckqueue : nullptr);
 
-    CCheckQueueControl<CScriptCheck> control(fScriptChecks && g_parallel_script_checks ? &scriptcheckqueue : nullptr);
 
     std::vector<int> prevheights;
     CAmount nFees = 0;
@@ -2908,7 +2907,7 @@ bool Chainstate::FlushStateToDisk(
     // Compact only history whose block/undo data has already been pruned. A
     // connect/disconnect can flush before UpdateTip(), so wait until the live
     // chain, cache and durable tip agree before constructing a historical view.
-    if (fPruneMode && m_blockman.m_have_pruned && m_chain.Tip() &&
+    if (m_blockman.IsPruneMode() && m_blockman.m_have_pruned && m_chain.Tip() &&
             CoinsDB().GetBestBlock() == m_chain.Tip()->GetBlockHash() &&
             CoinsTip().GetBestBlock() == m_chain.Tip()->GetBlockHash()) {
         CBlockIndex* horizon = m_chain.Tip();
@@ -4904,7 +4903,7 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
         // MWEB undo produced here is only needed transiently while applying state.
         CBlockUndo blockundo;
         BlockValidationState state;
-        if (!MWEB::Node::ConnectBlock(block, m_params.GetConsensus(), m_chainman, pindex->pprev, blockundo, *inputs.GetMWEBCacheView(), state)) {
+        if (!MWEB::Node::ConnectBlock(block, m_chainman.GetParams().GetConsensus(), m_chainman, pindex->pprev, blockundo, *inputs.GetMWEBCacheView(), state)) {
             return error("ReplayBlock(): MWEB ConnectBlock failed at %d, hash=%s (%s)", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
         }
     }

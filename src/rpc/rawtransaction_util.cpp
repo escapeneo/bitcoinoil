@@ -21,7 +21,7 @@
 #include <util/strencodings.h>
 #include <util/translation.h>
 
-void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optional<bool> rbf)
+void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optional<bool> rbf, bool allow_mweb)
 {
     UniValue inputs;
     if (inputs_in.isNull()) {
@@ -91,7 +91,7 @@ void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optio
     }
 }
 
-void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
+void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in, bool allow_mweb)
 {
     if (outputs_in.isNull()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, output argument must be non-null");
@@ -176,7 +176,7 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
     }
 }
 
-CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf)
+CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf, bool allow_mweb)
 {
     CMutableTransaction rawTx;
 
@@ -187,8 +187,8 @@ CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniVal
         rawTx.nLockTime = nLockTime;
     }
 
-    AddInputs(rawTx, inputs_in, rbf);
-    AddOutputs(rawTx, outputs_in);
+    AddInputs(rawTx, inputs_in, rbf, allow_mweb);
+    AddOutputs(rawTx, outputs_in, allow_mweb);
 
     if (rbf.has_value() && rbf.value() && rawTx.vin.size() > 0 && !SignalsOptInRBF(CTransaction(rawTx))) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter combination: Sequence number(s) contradict replaceable option");

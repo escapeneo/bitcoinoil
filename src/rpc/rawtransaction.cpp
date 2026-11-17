@@ -155,7 +155,7 @@ static std::vector<RPCArg> CreateTxDoc(bool allow_mweb = false)
                     {
                         {"txid", RPCArg::Type::STR_HEX, allow_mweb ? RPCArg::Optional::OMITTED : RPCArg::Optional::NO, "The transaction id for a transparent input"},
                         {"vout", RPCArg::Type::NUM, allow_mweb ? RPCArg::Optional::OMITTED : RPCArg::Optional::NO, "The output number for a transparent input"},
-                        {"mweb_out", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The MWEB output id", "", {}, /*hidden=*/!allow_mweb},
+                        {"mweb_out", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The MWEB output id", RPCArgOptions{.hidden = !allow_mweb}},
                         {"sequence", RPCArg::Type::NUM, RPCArg::DefaultHint{"depends on the value of the 'replaceable' and 'locktime' arguments"}, "The sequence number for a transparent input"},
                     },
                 },

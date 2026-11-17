@@ -1,4 +1,4 @@
-packages:=
+packages:=libfmt
 
 boost_packages = boost
 

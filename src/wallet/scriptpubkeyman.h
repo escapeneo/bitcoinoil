@@ -265,19 +265,13 @@ public:
     virtual uint256 GetID() const { return uint256(); }
 
     /** Returns a set of all the scriptPubKeys that this ScriptPubKeyMan watches */
-<<<<<<< btco
-    virtual std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const { return {}; };
-||||||| core24
-    virtual const std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const { return {}; };
-=======
-    virtual const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const { return {}; };
+    virtual std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const { return {}; };
 
     // Creates an MWEB KeyChain from the appropriate keychain paths.
     virtual void LoadMWEBKeychain() { }
 
     // Returns the active MWEB keychain, if any.
     const mw::Keychain::Ptr& GetMWEBKeychain() const noexcept { return m_mwebKeychain; }
->>>>>>> litecoin24x
 
     /** Prepends the wallet name in logging output to ease debugging in multi-wallet use cases */
     template<typename... Params>
@@ -558,19 +552,13 @@ public:
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
 
     std::set<CKeyID> GetKeys() const override;
-<<<<<<< btco
-    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
+    std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const override;
 
     /**
      * Retrieves scripts that were imported by bugs into the legacy spkm and are
      * simply invalid, such as a sh(sh(pkh())) script, or not watched.
      */
     std::unordered_set<CScript, SaltedSipHasher> GetNotMineScriptPubKeys() const;
-||||||| core24
-    const std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
-=======
-    const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const override;
->>>>>>> litecoin24x
 
     /** Get the DescriptorScriptPubKeyMans (with private keys) that have the same scriptPubKeys as this LegacyScriptPubKeyMan.
      * Also preserve owned MWEB addresses supplied by the wallet's address book.
@@ -749,19 +737,11 @@ public:
     void WriteDescriptor();
     void SetWalletDescriptorNextIndex(int32_t next_index);
 
-<<<<<<< btco
     WalletDescriptor GetWalletDescriptor() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
-    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
-    std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys(int32_t minimum_index) const;
-    int32_t GetEndRange() const;
-||||||| core24
-    const WalletDescriptor GetWalletDescriptor() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
-    const std::unordered_set<CScript, SaltedSipHasher> GetScriptPubKeys() const override;
-=======
-    const WalletDescriptor GetWalletDescriptor() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
     bool IsMWEBInternal() const;
-    const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const override;
->>>>>>> litecoin24x
+    std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys() const override;
+    std::unordered_set<GenericAddress, SaltedGenericAddressHasher> GetScriptPubKeys(int32_t minimum_index) const;
+    int32_t GetEndRange() const;
 
     bool GetDescriptorString(std::string& out, const bool priv) const;
 

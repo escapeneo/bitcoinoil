@@ -1,4 +1,5 @@
 #include <mw/file/File.h>
+#include <util/fs_helpers.h> // FileCommit (BitcoinOil: Core 25 location)
 #include <logging.h>
 #include <util/system.h>
 

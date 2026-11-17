@@ -25,7 +25,8 @@ static constexpr unsigned int DEFAULT_MEMPOOL_EXPIRY_HOURS{336};
 /** Default for -mempoolfullrbf, if the transaction replaceability signaling is ignored */
 static constexpr bool DEFAULT_MEMPOOL_FULL_RBF{false};
 /** Default for -mempoolreplacement, if opt-in RBF is enabled */
-static constexpr bool DEFAULT_ENABLE_REPLACEMENT{false};
+// BitcoinOil keeps opt-in RBF on by default; Litecoin turns it off.
+static constexpr bool DEFAULT_ENABLE_REPLACEMENT{true};
 
 namespace kernel {
 /**

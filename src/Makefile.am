@@ -24,20 +24,17 @@ check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
-<<<<<<< btco
-BITCOINOIL_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
-||||||| core24
-BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
-=======
-UNIVALUE_INCLUDES=-I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
 SECP256K1_INCLUDES=-I$(srcdir)/secp256k1/include
 LIBMW_INCLUDES=-I$(srcdir)/libmw/include -I$(srcdir)/libmw/deps/caches/include -I$(srcdir)/libmw/deps/mio/include -I$(srcdir)/libmw/deps/crypto/include $(BOOST_CPPFLAGS) $(LIBFMT_CFLAGS)
-BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) $(SECP256K1_INCLUDES) $(UNIVALUE_INCLUDES) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(LIBMW_INCLUDES)
->>>>>>> litecoin24x
+BITCOINOIL_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS) $(LIBMW_INCLUDES) $(LIBFMT_CFLAGS)
 
 LIBBITCOINOIL_NODE=libbitcoinoil_node.a
 LIBBITCOINOIL_COMMON=libbitcoinoil_common.a
-LIBBITCOINOIL_CONSENSUS=libbitcoinoil_consensus.a
+# MWEB: libbitcoinoil_mwzkp.a is Litecoin's libsecp256k1 with the zkp modules,
+# built with every symbol renamed (mweb_zkp_prefix.h). It always follows the
+# consensus library, which is its only user.
+LIBBITCOINOIL_MWZKP=libbitcoinoil_mwzkp.a
+LIBBITCOINOIL_CONSENSUS=libbitcoinoil_consensus.a $(LIBBITCOINOIL_MWZKP)
 LIBBITCOINOIL_CLI=libbitcoinoil_cli.a
 LIBBITCOINOIL_UTIL=libbitcoinoil_util.a
 LIBBITCOINOIL_CRYPTO_BASE=crypto/libbitcoinoil_crypto_base.la
@@ -365,15 +362,11 @@ BITCOINOIL_CORE_H = \
   wallet/spend.h \
   wallet/sqlite.h \
   wallet/transaction.h \
-<<<<<<< btco
   wallet/types.h \
-||||||| core24
-=======
   wallet/txbuilder.h \
   wallet/txlist.h \
   wallet/txrecord.h \
   wallet/utxo.h \
->>>>>>> litecoin24x
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/wallettool.h \
@@ -573,16 +566,8 @@ libbitcoinoil_wallet_tool_a_SOURCES = \
   $(BITCOINOIL_CORE_H)
 #
 
-<<<<<<< btco
 # crypto #
-crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
-||||||| core24
-# crypto primitives library
-crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
-=======
-# crypto primitives library
-crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS) $(SSL_CFLAGS) $(BITCOIN_INCLUDES)
->>>>>>> litecoin24x
+crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES)
 
 # Specify -static in both CXXFLAGS and LDFLAGS so libtool will only build a
 # static version of this library. We don't need a dynamic version, and a dynamic
@@ -611,9 +596,6 @@ crypto_libbitcoinoil_crypto_base_la_SOURCES = \
   crypto/muhash.cpp \
   crypto/ripemd160.cpp \
   crypto/ripemd160.h \
-  crypto/scrypt.cpp \
-  crypto/scrypt-sse2.cpp \
-  crypto/scrypt.h \
   crypto/sha1.cpp \
   crypto/sha1.h \
   crypto/sha256.cpp \
@@ -670,7 +652,7 @@ crypto_libbitcoinoil_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
 # consensus #
 libbitcoinoil_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES)
 libbitcoinoil_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-LIBBITCOIN_CONSENSUS_BASE_SOURCES = \
+LIBBITCOINOIL_CONSENSUS_BASE_SOURCES = \
   arith_uint256.cpp \
   arith_uint256.h \
   consensus/amount.h \
@@ -707,15 +689,8 @@ LIBBITCOIN_CONSENSUS_BASE_SOURCES = \
   version.h
 #
 
-<<<<<<< btco
-# common #
-libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
-||||||| core24
-# common: shared between bitcoinoild, and bitcoinoil-qt and non-server tools
-libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-=======
 libbitcoinoil_consensus_a_SOURCES = \
-  $(LIBBITCOIN_CONSENSUS_BASE_SOURCES) \
+  $(LIBBITCOINOIL_CONSENSUS_BASE_SOURCES) \
   libmw/src/crypto/Bulletproofs.cpp \
   libmw/src/crypto/ConversionUtil.cpp \
   libmw/src/crypto/KeyDerivation.cpp \
@@ -734,9 +709,22 @@ libbitcoinoil_consensus_a_SOURCES = \
   libmw/src/models/tx/TransactionValidation.cpp \
   libmw/src/models/tx/TxBody.cpp
 
-# common: shared between bitcoinoild, and bitcoinoil-qt and non-server tools
-libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
->>>>>>> litecoin24x
+# MWEB: private copy of libsecp256k1 (see LIBBITCOINOIL_MWZKP above)
+libbitcoinoil_mwzkp_a_CPPFLAGS = -UHAVE_CONFIG_H -include $(srcdir)/mweb_zkp_prefix.h \
+  -iquote $(srcdir)/secp256k1-zkp/src -iquote $(srcdir)/secp256k1-zkp \
+  -I$(srcdir)/secp256k1-zkp -I$(srcdir)/secp256k1-zkp/include -I$(srcdir)/secp256k1-zkp/src \
+  -DECMULT_WINDOW_SIZE=15 -DECMULT_GEN_PREC_BITS=4 \
+  -DENABLE_MODULE_RECOVERY -DENABLE_MODULE_EXTRAKEYS -DENABLE_MODULE_SCHNORRSIG \
+  -DENABLE_MODULE_GENERATOR -DENABLE_MODULE_COMMITMENT -DENABLE_MODULE_BULLETPROOF -DENABLE_MODULE_AGGSIG
+libbitcoinoil_mwzkp_a_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -Wno-unused-function
+libbitcoinoil_mwzkp_a_SOURCES = \
+  mweb_zkp_prefix.h \
+  secp256k1-zkp/src/secp256k1.c \
+  secp256k1-zkp/src/precomputed_ecmult.c \
+  secp256k1-zkp/src/precomputed_ecmult_gen.c
+
+# common #
+libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
 libbitcoinoil_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoinoil_common_a_SOURCES = \
   auxpow.cpp \
@@ -780,13 +768,7 @@ libbitcoinoil_common_a_SOURCES = \
   policy/policy.cpp \
   protocol.cpp \
   psbt.cpp \
-<<<<<<< btco
-||||||| core24
-  rpc/rawtransaction_util.cpp \
-=======
   psbt_merge.cpp \
-  rpc/rawtransaction_util.cpp \
->>>>>>> litecoin24x
   rpc/external_signer.cpp \
   rpc/rawtransaction_util.cpp \
   rpc/request.cpp \
@@ -814,19 +796,7 @@ libbitcoinoil_util_a_SOURCES = \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
-<<<<<<< btco
-||||||| core24
-  fs.cpp \
-  interfaces/echo.cpp \
-  interfaces/handler.cpp \
-  interfaces/init.cpp \
-=======
-  fs.cpp \
-  interfaces/echo.cpp \
-  interfaces/handler.cpp \
-  interfaces/init.cpp \
   libmw/src/file/File.cpp \
->>>>>>> litecoin24x
   logging.cpp \
   random.cpp \
   randomenv.cpp \
@@ -944,26 +914,11 @@ endif
 
 bitcoinoil_tx_LDADD = \
   $(LIBUNIVALUE) \
-<<<<<<< btco
   $(LIBBITCOINOIL_COMMON) \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBBITCOINOIL_CONSENSUS) \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1)
-||||||| core24
-  $(LIBBITCOIN_COMMON) \
-  $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBSECP256K1)
-=======
-  $(LIBBITCOIN_COMMON) \
-  $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBSECP256K1) \
-  $(CRYPTO_LIBS)
->>>>>>> litecoin24x
 #
 
 # bitcoinoil-wallet binary #
@@ -1004,20 +959,9 @@ bitcoinoil_util_LDADD = \
   $(LIBBITCOINOIL_COMMON) \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBUNIVALUE) \
-<<<<<<< btco
   $(LIBBITCOINOIL_CONSENSUS) \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1)
-||||||| core24
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBSECP256K1)
-=======
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBSECP256K1) \
-  $(CRYPTO_LIBS)
->>>>>>> litecoin24x
 #
 
 # bitcoinoil-chainstate binary #
@@ -1025,26 +969,12 @@ bitcoinoil_chainstate_SOURCES = bitcoinoil-chainstate.cpp
 bitcoinoil_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
 bitcoinoil_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
-<<<<<<< btco
 bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS) $(LIBTOOL_APP_LDFLAGS) -static
 bitcoinoil_chainstate_LDADD = $(LIBBITCOINOILKERNEL)
 
 # libtool is unable to calculate this indirect dependency, presumably because it's a subproject.
 # libsecp256k1 only needs to be linked in when libbitcoinoilkernel is static.
 bitcoinoil_chainstate_LDADD += $(LIBSECP256K1)
-||||||| core24
-# $(LIBTOOL_APP_LDFLAGS) deliberately omitted here so that we can test linking
-# bitcoinoil-chainstate against libbitcoinoilkernel as a shared or static library by
-# setting --{en,dis}able-shared.
-bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
-bitcoinoil_chainstate_LDADD = $(LIBBITCOINKERNEL)
-=======
-# $(LIBTOOL_APP_LDFLAGS) deliberately omitted here so that we can test linking
-# bitcoinoil-chainstate against libbitcoinoilkernel as a shared or static library by
-# setting --{en,dis}able-shared.
-bitcoinoil_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS)
-bitcoinoil_chainstate_LDADD = $(LIBBITCOINKERNEL) $(CRYPTO_LIBS)
->>>>>>> litecoin24x
 #
 
 # bitcoinoilkernel library #
@@ -1163,20 +1093,12 @@ include_HEADERS = script/bitcoinoilconsensus.h
 libbitcoinoilconsensus_la_SOURCES = \
   support/cleanse.cpp \
   $(crypto_libbitcoinoil_crypto_base_la_SOURCES) \
-  $(LIBBITCOIN_CONSENSUS_BASE_SOURCES) \
+  $(LIBBITCOINOIL_CONSENSUS_BASE_SOURCES) \
   libmw/src/models/tx/Transaction.cpp
 
 libbitcoinoilconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-<<<<<<< btco
 libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
 libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL
-||||||| core24
-libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
-=======
-libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1) $(CRYPTO_LIBS)
-libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj $(SECP256K1_INCLUDES) -DBUILD_BITCOIN_INTERNAL $(SSL_CFLAGS) $(UNIVALUE_INCLUDES) $(LIBMW_INCLUDES)
->>>>>>> litecoin24x
 libbitcoinoilconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif
