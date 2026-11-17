@@ -32,7 +32,7 @@ public:
     CWallet m_wallet;
 
     MWEBCoinSelectionTestingSetup()
-        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=432"}),
+        : TestChain100Setup(CBaseChainParams::REGTEST, {"-mwebheight=101"}),
           m_wallet(m_node.chain.get(), "", CreateMockWalletDatabase())
     {
         m_wallet.LoadWallet();

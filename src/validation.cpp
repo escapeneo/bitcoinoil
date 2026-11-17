@@ -846,6 +846,18 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "hogex");
 	}
 
+    // BitcoinOil: until the next block can carry MWEB data, a peg-in output is
+    // an ordinary future-witness output that anyone could spend once mined.
+    if (!DeploymentActiveAfter(m_active_chainstate.m_chain.Tip(), m_active_chainstate.m_chainman, Consensus::DEPLOYMENT_MWEB)) {
+        bool has_mweb = tx.HasMWEBTx();
+        for (const CTxOut& txout : tx.vout) {
+            if (txout.scriptPubKey.IsMWEBPegin()) has_mweb = true;
+        }
+        if (has_mweb) {
+            return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "mweb-not-active");
+        }
+    }
+
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
     if (m_pool.m_require_standard && !IsStandardTx(tx, m_pool.m_max_datacarrier_bytes, m_pool.m_permit_bare_multisig, m_pool.m_dust_relay_feerate, reason)) {

@@ -1,6 +1,7 @@
 #include <util/system.h>
 #include <wallet/txbuilder.h>
 
+#include <chainparams.h>
 #include <consensus/validation.h>
 #include <mw/wallet/sign.h>
 #include <mweb/mweb_wallet.h>
@@ -213,6 +214,12 @@ util::Result<CreatedTransactionResult> TxBuilder::Build(const std::optional<int3
     std::vector<CAmount> recipient_amounts = GetRecipientAmounts();
 
     // Update MWEB fee
+    // BitcoinOil: a peg-in mined before MWEB activates is an unprotected output,
+    // so refuse to build MWEB transactions until the next block can carry them.
+    if (GetTxType() != TxType::BTC_TO_BTC && m_wallet.GetLastBlockHeight() + 1 < Params().GetConsensus().MWEBHeight) {
+        return util::Error{_("MWEB is not active yet")};
+    }
+
     if (GetTxType() != TxType::BTC_TO_BTC) {
         m_tx.mweb_tx.SetFee(CalcMWEBFee());
     }

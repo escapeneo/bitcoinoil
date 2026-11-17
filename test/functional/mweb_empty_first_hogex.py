@@ -9,7 +9,7 @@ lets the first MWEB block carry an empty HogEx instead."""
 from decimal import Decimal
 
 from test_framework.test_framework import BitcoinOilTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 ACTIVATION = 432
 
@@ -33,8 +33,14 @@ class MWEBEmptyFirstHogExTest(BitcoinOilTestFramework):
     def run_test(self):
         node, peer = self.nodes
 
+        self.log.info("The wallet refuses MWEB transactions while a peg-in could still be mined unprotected")
+        self.generate(node, ACTIVATION - 2)
+        mweb_addr = node.getnewaddress(address_type='mweb')
+        assert_raises_rpc_error(-6, "MWEB is not active yet", node.sendtoaddress, mweb_addr, 1)
+        assert_equal(node.getrawmempool(), [])
+
         self.log.info("Mine up to the last block before activation, with an empty mempool")
-        self.generate(node, ACTIVATION - 1)
+        self.generate(node, 1)
         assert_equal(node.getrawmempool(), [])
         block, last = self.hogex(node, ACTIVATION - 1)
         assert_equal(len(block['tx']), 1)
