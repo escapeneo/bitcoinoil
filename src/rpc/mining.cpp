@@ -767,8 +767,14 @@ static RPCHelpMan getblocktemplate()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"signet\"]})");
     }
 
-    // GBT must be called with 'segwit' and 'mweb' set in the rules
-    if (setClientRules.count("segwit") != 1 || setClientRules.count("mweb") != 1) {
+    // GBT must be called with 'segwit' set in the rules
+    if (setClientRules.count("segwit") != 1) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
+    }
+
+    // BitcoinOil: 'mweb' is only required once the next block must carry an
+    // extension block, so miners that predate MWEB keep working until activation.
+    if (DeploymentActiveAfter(WITH_LOCK(cs_main, return chainman.ActiveChain().Tip()), chainman, Consensus::DEPLOYMENT_MWEB) && setClientRules.count("mweb") != 1) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit & mweb rule set (call with {\"rules\": [\"mweb\", \"segwit\"]})");
     }
 
@@ -861,6 +867,7 @@ static RPCHelpMan getblocktemplate()
     UniValue aRules(UniValue::VARR);
     aRules.push_back("csv");
     if (!fPreSegWit) aRules.push_back("!segwit");
+    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_MWEB)) aRules.push_back("mweb");
     if (consensusParams.signet_blocks) aRules.push_back("!signet");
 
     UniValue vbavailable(UniValue::VOBJ);

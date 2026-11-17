@@ -14,6 +14,7 @@ import logging
 import os
 import random
 import re
+import socket
 import time
 import unittest
 
@@ -314,6 +315,13 @@ class PortSeed:
     n = None
 
 
+def get_unused_port():
+    """Return an unused TCP port on the IPv4 localhost interface."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
 def get_rpc_proxy(url: str, node_number: int, *, timeout: int=None, coveragedir: str=None) -> coverage.AuthServiceProxyWrapper:
     """
     Args:
@@ -388,6 +396,10 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
             f.write("{}=1\n".format(chain_name_conf_arg))
         if chain_name_conf_section:
             f.write("[{}]\n".format(chain_name_conf_section))
+        if chain == "regtest":
+            # BitcoinOil: MWEB is off unless given a height; the MWEB tests expect
+            # Litecoin's regtest activation height.
+            f.write("mwebheight=432\n")
         f.write("port=" + str(p2p_port(n)) + "\n")
         f.write("rpcport=" + str(rpc_port(n)) + "\n")
         # Disable server-side timeouts to avoid intermittent issues
@@ -554,6 +566,15 @@ def modinv(a, n):
     if t1 < 0:
         t1 += n
     return t1
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle Decimal types."""
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super().default(o)
+
 
 class TestFrameworkUtil(unittest.TestCase):
     def test_modinv(self):
