@@ -58,17 +58,13 @@ util::Result<CTxDestination> LegacyScriptPubKeyMan::GetNewDestination(const Outp
     }
     assert(type != OutputType::BECH32M);
 
-<<<<<<< btco
-    // Fill-up keypool if needed
-    TopUp();
-
-||||||| core24
-=======
     if (type == OutputType::MWEB && !IsHDEnabled()) {
         return util::Error{_("Error: MWEB addresses require an HD wallet")};
     }
 
->>>>>>> litecoin24x
+    // Fill-up keypool if needed
+    TopUp();
+
     LOCK(cs_KeyStore);
 
     // Generate a new key that is added to wallet
@@ -367,16 +363,10 @@ util::Result<CTxDestination> LegacyScriptPubKeyMan::GetReservedDestination(const
         return util::Error{_("Error: Keypool ran out, please call keypoolrefill first")};
     }
 
-<<<<<<< btco
     // Fill-up keypool if needed
     TopUp();
 
-    if (!ReserveKeyFromKeyPool(index, keypool, internal)) {
-||||||| core24
-    if (!ReserveKeyFromKeyPool(index, keypool, internal)) {
-=======
     if (!ReserveKeyFromKeyPool(index, keypool, purpose)) {
->>>>>>> litecoin24x
         return util::Error{_("Error: Keypool ran out, please call keypoolrefill first")};
     }
 
@@ -712,16 +702,8 @@ bool LegacyScriptPubKeyMan::CanProvide(const GenericAddress& dest_addr, Signatur
         // or solving information, even if not able to sign fully.
         return true;
     } else {
-<<<<<<< btco
         // If, given the stuff in sigdata, we could make a valid signature, then we can provide for this script
-        ProduceSignature(*this, DUMMY_SIGNATURE_CREATOR, script, sigdata);
-||||||| core24
-        // If, given the stuff in sigdata, we could make a valid sigature, then we can provide for this script
-        ProduceSignature(*this, DUMMY_SIGNATURE_CREATOR, script, sigdata);
-=======
-        // If, given the stuff in sigdata, we could make a valid sigature, then we can provide for this script
         ProduceSignature(*this, DUMMY_SIGNATURE_CREATOR, dest_addr.GetScript(), sigdata);
->>>>>>> litecoin24x
         if (!sigdata.signatures.empty()) {
             // If we could make signatures, make sure we have a private key to actually make a signature
             bool has_privkeys = false;
@@ -1620,14 +1602,8 @@ void LegacyScriptPubKeyMan::ReturnDestination(int64_t nIndex, const KeyPurpose p
 bool LegacyScriptPubKeyMan::GetKeyFromPool(CPubKey& result, const OutputType type)
 {
     assert(type != OutputType::BECH32M);
-<<<<<<< btco
-    if (!CanGetAddresses(/*internal=*/ false)) {
-||||||| core24
-    if (!CanGetAddresses(internal)) {
-=======
-    KeyPurpose purpose = GetPurpose(type, internal);
-	if (!CanGetAddresses(purpose)) {
->>>>>>> litecoin24x
+    KeyPurpose purpose = GetPurpose(type, /*internal=*/false);
+    if (!CanGetAddresses(purpose)) {
         return false;
     }
 
@@ -1635,22 +1611,10 @@ bool LegacyScriptPubKeyMan::GetKeyFromPool(CPubKey& result, const OutputType typ
     {
         LOCK(cs_KeyStore);
         int64_t nIndex;
-<<<<<<< btco
-        if (!ReserveKeyFromKeyPool(nIndex, keypool, /*fRequestedInternal=*/ false) && !m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-||||||| core24
-        if (!ReserveKeyFromKeyPool(nIndex, keypool, internal) && !m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-=======
         if (!ReserveKeyFromKeyPool(nIndex, keypool, purpose) && !m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
->>>>>>> litecoin24x
             if (m_storage.IsLocked()) return false;
             WalletBatch batch(m_storage.GetDatabase());
-<<<<<<< btco
-            result = GenerateNewKey(batch, m_hd_chain, /*internal=*/ false);
-||||||| core24
-            result = GenerateNewKey(batch, m_hd_chain, internal);
-=======
             result = GenerateNewKey(batch, m_hd_chain, purpose);
->>>>>>> litecoin24x
             return true;
         }
         KeepDestination(nIndex, type);
@@ -1953,13 +1917,7 @@ std::set<CKeyID> LegacyScriptPubKeyMan::GetKeys() const
     return set_address;
 }
 
-<<<<<<< btco
-std::unordered_set<CScript, SaltedSipHasher> LegacyScriptPubKeyMan::GetScriptPubKeys() const
-||||||| core24
-const std::unordered_set<CScript, SaltedSipHasher> LegacyScriptPubKeyMan::GetScriptPubKeys() const
-=======
-const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScriptPubKeyMan::GetScriptPubKeys() const
->>>>>>> litecoin24x
+std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScriptPubKeyMan::GetScriptPubKeys() const
 {
     LOCK(cs_KeyStore);
     std::unordered_set<GenericAddress, SaltedGenericAddressHasher> spks;
@@ -2053,23 +2011,17 @@ const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScrip
     return spks;
 }
 
-<<<<<<< btco
-std::unordered_set<CScript, SaltedSipHasher> LegacyScriptPubKeyMan::GetNotMineScriptPubKeys() const
+std::unordered_set<GenericAddress, SaltedGenericAddressHasher> LegacyScriptPubKeyMan::GetNotMineScriptPubKeys() const
 {
     LOCK(cs_KeyStore);
-    std::unordered_set<CScript, SaltedSipHasher> spks;
-    for (const CScript& script : setWatchOnly) {
+    std::unordered_set<GenericAddress, SaltedGenericAddressHasher> spks;
+    for (const GenericAddress& script : setWatchOnly) {
         if (IsMine(script) == ISMINE_NO) spks.insert(script);
     }
     return spks;
 }
 
-std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
-||||||| core24
-std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
-=======
 std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor(const std::set<StealthAddress>& mweb_addresses)
->>>>>>> litecoin24x
 {
     LOCK(cs_KeyStore);
     if (m_storage.IsLocked()) {
@@ -2206,14 +2158,7 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor(const st
             WalletDescriptor w_desc(std::move(desc), 0, 0, chain_counter, 0);
 
             // Make the DescriptorScriptPubKeyMan and get the scriptPubKeys
-<<<<<<< btco
             auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-||||||| core24
-            auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc));
-=======
-            auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc));
-
->>>>>>> litecoin24x
             desc_spk_man->AddDescriptorKey(master_key.key, master_key.key.GetPubKey());
             desc_spk_man->TopUp();
             auto desc_spks = desc_spk_man->GetScriptPubKeys();
@@ -2500,19 +2445,8 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
         }
 
         CTxDestination dest;
-<<<<<<< btco
-        if (!ExtractDestination(scripts_temp[0], dest)) {
-            return util::Error{_("Error: Cannot extract destination from the generated scriptpubkey")}; // shouldn't happen
-||||||| core24
-        std::optional<OutputType> out_script_type = m_wallet_descriptor.descriptor->GetOutputType();
-        if (out_script_type && out_script_type == type) {
-            ExtractDestination(scripts_temp[0], dest);
-        } else {
-            throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Stored type does not match type of newly generated address");
-=======
         if (!addresses_temp[0].ExtractDestination(dest)) {
             return util::Error{_("Error: Cannot extract destination from the generated scriptpubkey")}; // shouldn't happen
->>>>>>> litecoin24x
         }
         m_wallet_descriptor.next_index++;
         WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
@@ -3257,11 +3191,6 @@ void DescriptorScriptPubKeyMan::WriteDescriptor()
     }
 }
 
-<<<<<<< btco
-WalletDescriptor DescriptorScriptPubKeyMan::GetWalletDescriptor() const
-||||||| core24
-const WalletDescriptor DescriptorScriptPubKeyMan::GetWalletDescriptor() const
-=======
 void DescriptorScriptPubKeyMan::SetWalletDescriptorNextIndex(int32_t next_index)
 {
     LOCK(cs_desc_man);
@@ -3276,45 +3205,30 @@ void DescriptorScriptPubKeyMan::SetWalletDescriptorNextIndex(int32_t next_index)
     }
 }
 
-const WalletDescriptor DescriptorScriptPubKeyMan::GetWalletDescriptor() const
->>>>>>> litecoin24x
+WalletDescriptor DescriptorScriptPubKeyMan::GetWalletDescriptor() const
 {
     return m_wallet_descriptor;
 }
 
-<<<<<<< btco
-std::unordered_set<CScript, SaltedSipHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys() const
-{
-    return GetScriptPubKeys(0);
-}
-
-std::unordered_set<CScript, SaltedSipHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys(int32_t minimum_index) const
-||||||| core24
-const std::unordered_set<CScript, SaltedSipHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys() const
-=======
 bool DescriptorScriptPubKeyMan::IsMWEBInternal() const
->>>>>>> litecoin24x
 {
     LOCK(cs_desc_man);
     return m_wallet_descriptor.mweb_internal;
 }
 
-<<<<<<< btco
-    for (auto const& [script_pub_key, index] : m_map_script_pub_keys) {
-        if (index >= minimum_index) script_pub_keys.insert(script_pub_key);
-||||||| core24
-    for (auto const& script_pub_key: m_map_script_pub_keys) {
-        script_pub_keys.insert(script_pub_key.first);
-=======
-const std::unordered_set<GenericAddress, SaltedGenericAddressHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys() const
+std::unordered_set<GenericAddress, SaltedGenericAddressHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys() const
+{
+    return GetScriptPubKeys(0);
+}
+
+std::unordered_set<GenericAddress, SaltedGenericAddressHasher> DescriptorScriptPubKeyMan::GetScriptPubKeys(int32_t minimum_index) const
 {
     LOCK(cs_desc_man);
     std::unordered_set<GenericAddress, SaltedGenericAddressHasher> script_pub_keys;
     script_pub_keys.reserve(m_map_addresses.size());
 
-    for (auto const& script_pub_key : m_map_addresses) {
-        script_pub_keys.insert(script_pub_key.first);
->>>>>>> litecoin24x
+    for (auto const& [script_pub_key, index] : m_map_addresses) {
+        if (index >= minimum_index) script_pub_keys.insert(script_pub_key);
     }
     return script_pub_keys;
 }

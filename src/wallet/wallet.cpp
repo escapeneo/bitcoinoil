@@ -46,13 +46,9 @@
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
 #include <wallet/external_signer_scriptpubkeyman.h>
-<<<<<<< btco
 #include <wallet/fees.h>
-||||||| core24
-=======
 #include <wallet/psbt_filler.h>
 #include <wallet/reserve.h>
->>>>>>> litecoin24x
 
 #include <univalue.h>
 
@@ -532,9 +528,8 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
     return wallet;
 }
 
-CWallet::CWallet(interfaces::Chain* chain, const std::string& name, const ArgsManager& args, std::unique_ptr<WalletDatabase> database)
-    : m_args(args),
-      m_chain(chain),
+CWallet::CWallet(interfaces::Chain* chain, const std::string& name, std::unique_ptr<WalletDatabase> database)
+    : m_chain(chain),
       m_name(name),
       m_database(std::move(database))
 {
@@ -731,20 +726,8 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
 bool CWallet::HasWalletSpend(const CWalletTx& wtx) const
 {
     AssertLockHeld(cs_wallet);
-<<<<<<< btco
-    const uint256& txid = tx->GetHash();
-    for (unsigned int i = 0; i < tx->vout.size(); ++i) {
-        if (IsSpent(COutPoint(txid, i))) {
-||||||| core24
-    const uint256& txid = tx->GetHash();
-    for (unsigned int i = 0; i < tx->vout.size(); ++i) {
-        auto iter = mapTxSpends.find(COutPoint(txid, i));
-        if (iter != mapTxSpends.end()) {
-=======
     for (const AnyOutputID& output_id : wtx.GetOutputIDs()) {
-        auto iter = mapTxSpends.find(output_id);
-        if (iter != mapTxSpends.end()) {
->>>>>>> litecoin24x
+        if (IsSpent(output_id)) {
             return true;
         }
     }
@@ -1810,23 +1793,13 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             wtx.MarkDirty();
             batch.WriteTx(wtx);
             NotifyTransactionChanged(wtx.GetHash(), CT_UPDATED);
-<<<<<<< btco
             // Iterate over all its outputs, and mark transactions in the wallet that spend them abandoned too.
             // States are not permanent, so these transactions can become unabandoned if they are re-added to the
             // mempool, or confirmed in a block, or conflicted.
             // Note: If the reorged coinbase is re-added to the main chain, the descendants that have not had their
             // states change will remain abandoned and will require manual broadcast if the user wants them.
-            for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
-                std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(COutPoint(now, i));
-||||||| core24
-            // Iterate over all its outputs, and mark transactions in the wallet that spend them abandoned too
-            for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
-                std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(COutPoint(now, i));
-=======
-            // Iterate over all its outputs, and mark transactions in the wallet that spend them abandoned too
             for (const AnyOutputID& output_id : wtx.GetOutputIDs()) {
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(output_id);
->>>>>>> litecoin24x
                 for (TxSpends::const_iterator iter = range.first; iter != range.second; ++iter) {
                     if (!done.count(iter->second)) {
                         todo.insert(iter->second);
@@ -2005,16 +1978,8 @@ void CWallet::blockConnected(const interfaces::BlockInfo& block)
     m_last_block_processed_height = block.height;
     m_last_block_processed = block.hash;
     for (size_t index = 0; index < block.data->vtx.size(); index++) {
-<<<<<<< btco
-        SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)});
-        transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
-||||||| core24
-        SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)});
-        transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK, 0 /* mempool_sequence */);
-=======
         SyncTransaction(block.data->vtx[index], std::nullopt, TxStateConfirmed{block.hash, block.height, static_cast<int>(index)});
-        transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK, 0 /* mempool_sequence */);
->>>>>>> litecoin24x
+        transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
     }
 
     if (!block.data->mweb_block.IsNull()) {
@@ -2467,7 +2432,10 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
     ScanResult result;
 
     std::unique_ptr<FastWalletRescanFilter> fast_rescan_filter;
-    if (!IsLegacy() && chain().hasBlockFilterIndex(BlockFilterType::BASIC)) fast_rescan_filter = std::make_unique<FastWalletRescanFilter>(*this);
+    // MWEB: BIP158 block filters do not cover extension block outputs, so a filter
+    // miss says nothing about MWEB coins. Fast rescan is disabled until it can
+    // account for them.
+    // if (!IsLegacy() && chain().hasBlockFilterIndex(BlockFilterType::BASIC)) fast_rescan_filter = std::make_unique<FastWalletRescanFilter>(*this);
 
     WalletLogPrintf("Rescan started from block %s... (%s)\n", start_block.ToString(),
                     fast_rescan_filter ? "fast variant using block filters" : "slow variant inspecting all blocks");
@@ -2521,7 +2489,6 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
         uint256 next_block_hash;
         chain().findBlock(block_hash, FoundBlock().inActiveChain(block_still_active).nextBlock(FoundBlock().inActiveChain(next_block).hash(next_block_hash)));
 
-<<<<<<< btco
         if (fetch_block) {
             // Read block data
             CBlock block;
@@ -2537,49 +2504,16 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
                     break;
                 }
                 for (size_t posInBlock = 0; posInBlock < block.vtx.size(); ++posInBlock) {
-                    SyncTransaction(block.vtx[posInBlock], TxStateConfirmed{block_hash, block_height, static_cast<int>(posInBlock)}, fUpdate, /*rescanning_old_block=*/true);
+                    SyncTransaction(block.vtx[posInBlock], std::nullopt, TxStateConfirmed{block_hash, block_height, static_cast<int>(posInBlock)}, fUpdate, /*rescanning_old_block=*/true);
                 }
+
+                if (!block.mweb_block.IsNull()) {
+                    SyncMWEBBlock(block, block_hash, block_height, fUpdate, /*rescanning_old_block=*/true, /*update_mempool_status=*/false);
+                }
+
                 // scan succeeded, record block as most recent successfully scanned
                 result.last_scanned_block = block_hash;
                 result.last_scanned_height = block_height;
-||||||| core24
-        if (!block.IsNull()) {
-            LOCK(cs_wallet);
-            if (!block_still_active) {
-                // Abort scan if current block is no longer active, to prevent
-                // marking transactions as coming from the wrong block.
-                result.last_failed_block = block_hash;
-                result.status = ScanResult::FAILURE;
-                break;
-            }
-            for (size_t posInBlock = 0; posInBlock < block.vtx.size(); ++posInBlock) {
-                SyncTransaction(block.vtx[posInBlock], TxStateConfirmed{block_hash, block_height, static_cast<int>(posInBlock)}, fUpdate, /*rescanning_old_block=*/true);
-            }
-            // scan succeeded, record block as most recent successfully scanned
-            result.last_scanned_block = block_hash;
-            result.last_scanned_height = block_height;
-=======
-        if (!block.IsNull()) {
-            LOCK(cs_wallet);
-            if (!block_still_active) {
-                // Abort scan if current block is no longer active, to prevent
-                // marking transactions as coming from the wrong block.
-                result.last_failed_block = block_hash;
-                result.status = ScanResult::FAILURE;
-                break;
-            }
-            for (size_t posInBlock = 0; posInBlock < block.vtx.size(); ++posInBlock) {
-                SyncTransaction(block.vtx[posInBlock], std::nullopt, TxStateConfirmed{block_hash, block_height, static_cast<int>(posInBlock)}, fUpdate, /*rescanning_old_block=*/true);
-            }
-
-            if (!block.mweb_block.IsNull()) {
-                SyncMWEBBlock(block, block_hash, block_height, fUpdate, /*rescanning_old_block=*/true, /*update_mempool_status=*/false);
-            }
-
-            // scan succeeded, record block as most recent successfully scanned
-            result.last_scanned_block = block_hash;
-            result.last_scanned_height = block_height;
->>>>>>> litecoin24x
 
                 if (save_progress && next_interval) {
                     CBlockLocator loc = m_chain->getActiveChainLocator(block_hash);
@@ -3359,85 +3293,6 @@ std::set<std::string> CWallet::ListAddrBookLabels(const std::optional<AddressPur
     return label_set;
 }
 
-<<<<<<< btco
-util::Result<CTxDestination> ReserveDestination::GetReservedDestination(bool internal)
-{
-    m_spk_man = pwallet->GetScriptPubKeyMan(type, internal);
-    if (!m_spk_man) {
-        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(type))};
-    }
-
-    if (nIndex == -1) {
-        CKeyPool keypool;
-        int64_t index;
-        auto op_address = m_spk_man->GetReservedDestination(type, internal, index, keypool);
-        if (!op_address) return op_address;
-        nIndex = index;
-        address = *op_address;
-        fInternal = keypool.fInternal;
-    }
-    return address;
-}
-
-void ReserveDestination::KeepDestination()
-{
-    if (nIndex != -1) {
-        m_spk_man->KeepDestination(nIndex, type);
-    }
-    nIndex = -1;
-    address = CNoDestination();
-}
-
-void ReserveDestination::ReturnDestination()
-{
-    if (nIndex != -1) {
-        m_spk_man->ReturnDestination(nIndex, fInternal, address);
-    }
-    nIndex = -1;
-    address = CNoDestination();
-}
-
-||||||| core24
-util::Result<CTxDestination> ReserveDestination::GetReservedDestination(bool internal)
-{
-    m_spk_man = pwallet->GetScriptPubKeyMan(type, internal);
-    if (!m_spk_man) {
-        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(type))};
-    }
-
-    if (nIndex == -1)
-    {
-        m_spk_man->TopUp();
-
-        CKeyPool keypool;
-        auto op_address = m_spk_man->GetReservedDestination(type, internal, nIndex, keypool);
-        if (!op_address) return op_address;
-        address = *op_address;
-        fInternal = keypool.fInternal;
-    }
-    return address;
-}
-
-void ReserveDestination::KeepDestination()
-{
-    if (nIndex != -1) {
-        m_spk_man->KeepDestination(nIndex, type);
-    }
-    nIndex = -1;
-    address = CNoDestination();
-}
-
-void ReserveDestination::ReturnDestination()
-{
-    if (nIndex != -1) {
-        m_spk_man->ReturnDestination(nIndex, fInternal, address);
-    }
-    nIndex = -1;
-    address = CNoDestination();
-}
-
-=======
->>>>>>> litecoin24x
 bool CWallet::DisplayAddress(const CTxDestination& dest)
 {
     GenericAddress address(dest);
@@ -3937,19 +3792,9 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
             warnings.push_back(strprintf(_("%s is set very high! Fees this large could be paid on a single transaction."), "-maxtxfee"));
         }
 
-<<<<<<< btco
-        if (chain && CFeeRate{max_fee.value(), 1000} < chain->relayMinFee()) {
+        if (chain && CFeeRate{max_fee.value(), 1000, 0} < chain->relayMinFee()) {
             error = strprintf(_("Invalid amount for %s=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
                 "-maxtxfee", args.GetArg("-maxtxfee", ""), chain->relayMinFee().ToString());
-||||||| core24
-        if (chain && CFeeRate{max_fee.value(), 1000} < chain->relayMinFee()) {
-            error = strprintf(_("Invalid amount for -maxtxfee=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
-                args.GetArg("-maxtxfee", ""), chain->relayMinFee().ToString());
-=======
-        if (chain && CFeeRate{max_fee.value(), 1000, 0} < chain->relayMinFee()) {
-            error = strprintf(_("Invalid amount for -maxtxfee=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
-                args.GetArg("-maxtxfee", ""), chain->relayMinFee().ToString());
->>>>>>> litecoin24x
             return nullptr;
         }
 
@@ -4429,11 +4274,6 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const s
 
     for (bool internal : {false, true}) {
         for (OutputType t : OUTPUT_TYPES) {
-<<<<<<< btco
-            auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, m_keypool_size));
-||||||| core24
-            auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this));
-=======
             // MWEB: We don't want to have to create a new MWEB keychain when migrating,
             // since that would require extra work when identifying outputs belonging to the wallet.
             // So, if migration already built an MWEB descriptor (with the correct counter),
@@ -4478,8 +4318,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const s
                 }
             }
 
-            auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this));
->>>>>>> litecoin24x
+            auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, m_keypool_size));
             if (IsCrypted()) {
                 if (IsLocked()) {
                     throw std::runtime_error(std::string(__func__) + ": Wallet is locked, cannot setup new descriptors");
@@ -4686,16 +4525,8 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
         if (!internal) {
             for (const auto& script : script_pub_keys) {
                 CTxDestination dest;
-<<<<<<< btco
-                if (ExtractDestination(script, dest)) {
-                    SetAddressBook(dest, label, AddressPurpose::RECEIVE);
-||||||| core24
-                if (ExtractDestination(script, dest)) {
-                    SetAddressBook(dest, label, "receive");
-=======
                 if (script.ExtractDestination(dest)) {
-                    SetAddressBook(dest, label, "receive");
->>>>>>> litecoin24x
+                    SetAddressBook(dest, label, AddressPurpose::RECEIVE);
                 }
             }
         }
@@ -5110,43 +4941,12 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
     bilingual_str error;
     std::vector<bilingual_str> warnings;
 
-<<<<<<< btco
     // If the wallet is still loaded, unload it so that nothing else tries to use it while we're changing it
     if (auto wallet = GetWallet(context, wallet_name)) {
         if (!RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings)) {
             return util::Error{_("Unable to unload the wallet before migrating")};
         }
         UnloadWallet(std::move(wallet));
-||||||| core24
-    // Make a backup of the DB
-    std::string wallet_name = wallet->GetName();
-    fs::path this_wallet_dir = fs::absolute(fs::PathFromString(wallet->GetDatabase().Filename())).parent_path();
-    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name, GetTime()));
-    fs::path backup_path = this_wallet_dir / backup_filename;
-    if (!wallet->BackupWallet(fs::PathToString(backup_path))) {
-        return util::Error{_("Error: Unable to make a backup of your wallet")};
-    }
-    res.backup_path = backup_path;
-
-    // Unload the wallet so that nothing else tries to use it while we're changing it
-    if (!RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings)) {
-        return util::Error{_("Unable to unload the wallet before migrating")};
-=======
-    // Make a backup of the DB
-    std::string wallet_name = wallet->GetName();
-    const fs::path original_wallet_file = fs::absolute(fs::PathFromString(wallet->GetDatabase().Filename()));
-    fs::path this_wallet_dir = original_wallet_file.parent_path();
-    fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name, GetTime()));
-    fs::path backup_path = this_wallet_dir / backup_filename;
-    if (!wallet->BackupWallet(fs::PathToString(backup_path))) {
-        return util::Error{_("Error: Unable to make a backup of your wallet")};
-    }
-    res.backup_path = backup_path;
-
-    // Unload the wallet so that nothing else tries to use it while we're changing it
-    if (!RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings)) {
-        return util::Error{_("Unable to unload the wallet before migrating")};
->>>>>>> litecoin24x
     }
 
     // Load the wallet but only in the context of this function.
@@ -5173,7 +4973,8 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
     }
 
     // Make a backup of the DB
-    fs::path this_wallet_dir = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename())).parent_path();
+    const fs::path original_wallet_file = fs::absolute(fs::PathFromString(local_wallet->GetDatabase().Filename()));
+    fs::path this_wallet_dir = original_wallet_file.parent_path();
     fs::path backup_filename = fs::PathFromString(strprintf("%s-%d.legacy.bak", wallet_name, GetTime()));
     fs::path backup_path = this_wallet_dir / backup_filename;
     if (!local_wallet->BackupWallet(fs::PathToString(backup_path))) {

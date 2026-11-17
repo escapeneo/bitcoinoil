@@ -85,34 +85,12 @@ static feebumper::Result CheckFeeRate(const CWallet& wallet, const CFeeRate& new
 
     CFeeRate incrementalRelayFee = std::max(wallet.chain().relayIncrementalFee(), CFeeRate(WALLET_INCREMENTAL_RELAY_FEE));
 
-<<<<<<< btco
-||||||| core24
-    // Given old total fee and transaction size, calculate the old feeRate
-    const int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
-    CFeeRate nOldFeeRate(old_fee, txSize);
-=======
-    // Given old total fee and transaction size, calculate the old feeRate
-    const int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
-    CFeeRate nOldFeeRate(old_fee, txSize, mweb_weight);
->>>>>>> litecoin24x
     // Min total fee is old fee + relay fee
-<<<<<<< btco
-    CAmount minTotalFee = old_fee + incrementalRelayFee.GetFee(maxTxSize);
-||||||| core24
-    CAmount minTotalFee = nOldFeeRate.GetFee(maxTxSize) + incrementalRelayFee.GetFee(maxTxSize);
-=======
-    CAmount minTotalFee = nOldFeeRate.GetFee(maxTxSize, mweb_weight) + incrementalRelayFee.GetFee(maxTxSize, 0);
->>>>>>> litecoin24x
+    CAmount minTotalFee = old_fee + incrementalRelayFee.GetFee(maxTxSize, 0);
 
     if (new_total_fee < minTotalFee) {
         errors.push_back(strprintf(Untranslated("Insufficient total fee %s, must be at least %s (oldFee %s + incrementalFee %s)"),
-<<<<<<< btco
-            FormatMoney(new_total_fee), FormatMoney(minTotalFee), FormatMoney(old_fee), FormatMoney(incrementalRelayFee.GetFee(maxTxSize))));
-||||||| core24
-            FormatMoney(new_total_fee), FormatMoney(minTotalFee), FormatMoney(nOldFeeRate.GetFee(maxTxSize)), FormatMoney(incrementalRelayFee.GetFee(maxTxSize))));
-=======
-            FormatMoney(new_total_fee), FormatMoney(minTotalFee), FormatMoney(nOldFeeRate.GetFee(maxTxSize, mweb_weight)), FormatMoney(incrementalRelayFee.GetFee(maxTxSize, 0))));
->>>>>>> litecoin24x
+            FormatMoney(new_total_fee), FormatMoney(minTotalFee), FormatMoney(old_fee), FormatMoney(incrementalRelayFee.GetFee(maxTxSize, 0))));
         return feebumper::Result::INVALID_PARAMETER;
     }
 
@@ -255,10 +233,8 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
     }
 
     // Calculate the old output amount.
-    CAmount output_value = 0;
-<<<<<<< btco
-    for (const auto& old_output : wtx.tx->vout) {
-        output_value += old_output.nValue;
+    CAmount output_value =    for (const AnyOutputID& output_id : wtx.GetOutputIDs(OutputIdMode::TX_OUTPUTS)) {
+        output_value += wallet.GetValue(wtx, output_id);
     }
 
     old_fee = input_value - output_value;
@@ -268,33 +244,34 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
     // outputs with its contents, otherwise use original outputs.
     std::vector<CRecipient> recipients;
     const auto& txouts = outputs.empty() ? wtx.tx->vout : outputs;
-    for (const auto& output : txouts) {
-        if (!OutputIsChange(wallet, output)) {
-            CRecipient recipient = {output.scriptPubKey, output.nValue, false};
-||||||| core24
-    for (const auto& output : wtx.tx->vout) {
-        if (!OutputIsChange(wallet, output)) {
-            CRecipient recipient = {output.scriptPubKey, output.nValue, false};
-=======
-    for (const AnyOutputID& output_id : wtx.GetOutputIDs(OutputIdMode::TX_OUTPUTS)) {
-        GenericAddress dest_addr;
-        if (!wallet.ExtractOutputAddress(wtx, output_id, dest_addr)) {
-            return Result::INVALID_ADDRESS_OR_KEY;
-        }
+    if (outputs.empty()) {
+        for (const AnyOutputID& output_id : wtx.GetOutputIDs(OutputIdMode::TX_OUTPUTS)) {
+            GenericAddress dest_addr;
+            if (!wallet.ExtractOutputAddress(wtx, output_id, dest_addr)) {
+                return Result::INVALID_ADDRESS_OR_KEY;
+            }
 
-        if (!OutputIsChange(wallet, wtx, output_id)) {
-            CRecipient recipient = {dest_addr, wallet.GetValue(wtx, output_id), false};
->>>>>>> litecoin24x
-            recipients.push_back(recipient);
-        } else {
-            dest_addr.ExtractDestination(new_coin_control.destChange);
+            if (!OutputIsChange(wallet, wtx, output_id)) {
+                CRecipient recipient = {dest_addr, wallet.GetValue(wtx, output_id), false};
+                recipients.push_back(recipient);
+            } else {
+                dest_addr.ExtractDestination(new_coin_control.destChange);
+            }
         }
-<<<<<<< btco
-||||||| core24
-        output_value += output.nValue;
-=======
-        output_value += wallet.GetValue(wtx, output_id);
->>>>>>> litecoin24x
+    } else {
+        if (wtx.tx->HasMWEBTx()) {
+            errors.push_back(Untranslated("Replacing the outputs of a transaction with MWEB data is not supported"));
+            return Result::MISC_ERROR;
+        }
+        for (const auto& output : outputs) {
+            const GenericAddress dest_addr{output.scriptPubKey};
+            if (!ScriptIsChange(wallet, output.scriptPubKey)) {
+                CRecipient recipient = {dest_addr, output.nValue, false};
+                recipients.push_back(recipient);
+            } else {
+                dest_addr.ExtractDestination(new_coin_control.destChange);
+            }
+        }
     }
 
     if (coin_control.m_feerate) {

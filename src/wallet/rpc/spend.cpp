@@ -86,23 +86,6 @@ static int GetRPCChangePos(const CMutableTransaction& tx, const ChangePosition& 
         return -1;
     }
 
-<<<<<<< btco
-    // First fill transaction with our data without signing,
-    // so external signers are not asked to sign more than once.
-    bool complete;
-    pwallet->FillPSBT(psbtx, complete, SIGHASH_DEFAULT, /*sign=*/false, /*bip32derivs=*/true);
-    const TransactionError err{pwallet->FillPSBT(psbtx, complete, SIGHASH_DEFAULT, /*sign=*/true, /*bip32derivs=*/false)};
-    if (err != TransactionError::OK) {
-        throw JSONRPCTransactionError(err);
-||||||| core24
-    // First fill transaction with our data without signing,
-    // so external signers are not asked sign more than once.
-    bool complete;
-    pwallet->FillPSBT(psbtx, complete, SIGHASH_DEFAULT, false, true);
-    const TransactionError err{pwallet->FillPSBT(psbtx, complete, SIGHASH_DEFAULT, true, false)};
-    if (err != TransactionError::OK) {
-        throw JSONRPCTransactionError(err);
-=======
     size_t position{0};
     if (change_pos.IsBTC()) {
         position = change_pos.ToBTC();
@@ -110,7 +93,6 @@ static int GetRPCChangePos(const CMutableTransaction& tx, const ChangePosition& 
         position = tx.vout.size() + change_pos.ToMWEB().idx;
     } else {
         return -1;
->>>>>>> litecoin24x
     }
 
     if (position > static_cast<size_t>(std::numeric_limits<int>::max())) {
@@ -256,16 +238,8 @@ UniValue SendMoney(CWallet& wallet, const CCoinControl &coin_control, std::vecto
     if (!res) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, util::ErrorString(res).original);
     }
-<<<<<<< btco
-    const CTransactionRef& tx = res->tx;
-    wallet.CommitTransaction(tx, std::move(map_value), /*orderForm=*/{});
-||||||| core24
-    const CTransactionRef& tx = res->tx;
-    wallet.CommitTransaction(tx, std::move(map_value), {} /* orderForm */);
-=======
     const CTransactionRef& tx = MakeTransactionRef(res->tx);
-    wallet.CommitTransaction(tx, std::move(map_value), {} /* orderForm */);
->>>>>>> litecoin24x
+    wallet.CommitTransaction(tx, std::move(map_value), /*orderForm=*/{});
     if (verbose) {
         UniValue entry(UniValue::VOBJ);
         entry.pushKV("txid", tx->GetHash().GetHex());
@@ -418,14 +392,8 @@ RPCHelpMan sendtoaddress()
 RPCHelpMan sendmany()
 {
     return RPCHelpMan{"sendmany",
-<<<<<<< btco
-        "Send multiple times. Amounts are double-precision floating point numbers." +
-||||||| core24
-                "\nSend multiple times. Amounts are double-precision floating point numbers." +
-=======
-                "\nSend to multiple BitcoinOil or MWEB addresses in one transaction. Address types may be combined.\n"
-                "Amounts are double-precision floating point numbers." +
->>>>>>> litecoin24x
+        "Send to multiple BitcoinOil or MWEB addresses in one transaction. Address types may be combined.\n"
+        "Amounts are double-precision floating point numbers." +
         HELP_REQUIRING_PASSPHRASE,
                 {
                     {"dummy", RPCArg::Type::STR, RPCArg::Default{"\"\""}, "Must be set to \"\" for backwards compatibility.",
@@ -1415,13 +1383,7 @@ RPCHelpMan sendall()
                         {"include_watching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch-only.\n"
                                               "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,\n"
                                               "e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field."},
-<<<<<<< btco
-                        {"inputs", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "Use exactly the specified inputs to build the transaction. Specifying inputs is incompatible with the send_max, minconf, and maxconf options.",
-||||||| core24
-                        {"inputs", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "Use exactly the specified inputs to build the transaction. Specifying inputs is incompatible with send_max.",
-=======
                         {"inputs", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "Use exactly the specified inputs to build the transaction. Each object must contain either txid and vout, or mweb_out. Specifying inputs is incompatible with send_max.",
->>>>>>> litecoin24x
                             {
                                 {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                                     {
@@ -1556,24 +1518,12 @@ RPCHelpMan sendall()
                     total_input_value += pwallet->GetValue(input.GetID());
                 }
             } else {
-<<<<<<< btco
-                CoinFilterParams coins_params;
-                coins_params.min_amount = 0;
-                for (const COutput& output : AvailableCoins(*pwallet, &coin_control, fee_rate, coins_params).All()) {
-                    CHECK_NONFATAL(output.input_bytes > 0);
-                    if (send_max && fee_rate.GetFee(output.input_bytes) > output.txout.nValue) {
-||||||| core24
-                for (const COutput& output : AvailableCoins(*pwallet, &coin_control, fee_rate, /*nMinimumAmount=*/0).All()) {
-                    CHECK_NONFATAL(output.input_bytes > 0);
-                    if (send_max && fee_rate.GetFee(output.input_bytes) > output.txout.nValue) {
-=======
                 for (const AnyWalletUTXO& output : AvailableCoins(*pwallet, &coin_control, fee_rate, /*nMinimumAmount=*/0).All()) {
                     if (!output.IsMWEB()) {
                         CHECK_NONFATAL(output.GetInputBytes() > 0);
                     }
 
                     if (send_max && !output.IsMWEB() && fee_rate.GetFee(output.GetInputBytes(), 0) > output.GetValue()) {
->>>>>>> litecoin24x
                         continue;
                     }
 
@@ -1827,13 +1777,7 @@ RPCHelpMan walletcreatefundedpsbt()
                 "All existing inputs must either have their previous output transaction be in the wallet\n"
                 "or be in the UTXO set. Solving data must be provided for non-wallet inputs.\n",
                 {
-<<<<<<< btco
-                    {"inputs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Leave empty to add inputs automatically. See add_inputs option.",
-||||||| core24
-                    {"inputs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED_NAMED_ARG, "Leave empty to add inputs automatically. See add_inputs option.",
-=======
-                    {"inputs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED_NAMED_ARG, "Leave empty to add inputs automatically. Each object must contain either txid and vout, or mweb_out. See add_inputs option.",
->>>>>>> litecoin24x
+                    {"inputs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "Leave empty to add inputs automatically. Each object must contain either txid and vout, or mweb_out. See add_inputs option.",
                         {
                             {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
                                 {
@@ -1864,18 +1808,10 @@ RPCHelpMan walletcreatefundedpsbt()
                             {"include_unsafe", RPCArg::Type::BOOL, RPCArg::Default{false}, "Include inputs that are not safe to spend (unconfirmed transactions from outside keys and unconfirmed replacement transactions).\n"
                                                           "Warning: the resulting transaction may become invalid if one of the unsafe inputs disappears.\n"
                                                           "If that happens, you will need to fund the transaction with different inputs and republish it."},
-<<<<<<< btco
                             {"minconf", RPCArg::Type::NUM, RPCArg::Default{0}, "If add_inputs is specified, require inputs with at least this many confirmations."},
                             {"maxconf", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "If add_inputs is specified, require inputs with at most this many confirmations."},
-                            {"changeAddress", RPCArg::Type::STR, RPCArg::DefaultHint{"automatic"}, "The bitcoinoil address to receive the change"},
-                            {"changePosition", RPCArg::Type::NUM, RPCArg::DefaultHint{"random"}, "The index of the change output"},
-||||||| core24
-                            {"changeAddress", RPCArg::Type::STR, RPCArg::DefaultHint{"automatic"}, "The bitcoinoil address to receive the change"},
-                            {"changePosition", RPCArg::Type::NUM, RPCArg::DefaultHint{"random"}, "The index of the change output"},
-=======
                             {"changeAddress", RPCArg::Type::STR, RPCArg::DefaultHint{"automatic"}, "The BitcoinOil or MWEB address to receive the change"},
                             {"changePosition", RPCArg::Type::NUM, RPCArg::DefaultHint{"random"}, "The index of the change output. MWEB change is canonically ordered and may appear at a different position"},
->>>>>>> litecoin24x
                             {"change_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -changetype"}, "The output type to use. Only valid if changeAddress is not specified. Options are \"legacy\", \"p2sh-segwit\", \"bech32\", and \"bech32m\"."},
                             {"includeWatching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch only"},
                             {"lockUnspents", RPCArg::Type::BOOL, RPCArg::Default{false}, "Lock selected unspent outputs"},
@@ -1917,63 +1853,14 @@ RPCHelpMan walletcreatefundedpsbt()
     // the user could have gotten from another RPC command prior to now
     wallet.BlockUntilSyncedToCurrentChain();
 
-<<<<<<< btco
-||||||| core24
-    RPCTypeCheck(request.params, {
-        UniValue::VARR,
-        UniValueType(), // ARR or OBJ, checked later
-        UniValue::VNUM,
-        UniValue::VOBJ,
-        UniValue::VBOOL
-        }, true
-    );
-
-=======
-    RPCTypeCheck(request.params, {
-        UniValue::VARR,
-        UniValueType(), // ARR or OBJ, checked later
-        UniValue::VNUM,
-        UniValue::VOBJ,
-        UniValue::VBOOL,
-        UniValue::VNUM
-        }, true
-    );
-
->>>>>>> litecoin24x
     UniValue options{request.params[3].isNull() ? UniValue::VOBJ : request.params[3]};
 
-<<<<<<< btco
-    CAmount fee;
-    int change_position;
-||||||| core24
-    CAmount fee;
-    int change_position;
-    bool rbf{wallet.m_signal_rbf};
-=======
-    bool rbf{wallet.m_signal_rbf};
->>>>>>> litecoin24x
     const UniValue &replaceable_arg = options["replaceable"];
-<<<<<<< btco
     const bool rbf{replaceable_arg.isNull() ? wallet.m_signal_rbf : replaceable_arg.get_bool()};
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
-    CCoinControl coin_control;
-||||||| core24
-    if (!replaceable_arg.isNull()) {
-        RPCTypeCheckArgument(replaceable_arg, UniValue::VBOOL);
-        rbf = replaceable_arg.isTrue();
-    }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
-    CCoinControl coin_control;
-=======
-    if (!replaceable_arg.isNull()) {
-        RPCTypeCheckArgument(replaceable_arg, UniValue::VBOOL);
-        rbf = replaceable_arg.isTrue();
-    }
 
     TransactionDraft draft = TransactionDraft::FromRPC(request.params[0], request.params[1], request.params[2], rbf);
     SetOptionsInputWeights(request.params[0], options);
 
->>>>>>> litecoin24x
     // Automatically select coins, unless at least one is manually selected. Can
     // be overridden by options.add_inputs.
     bool allow_other_inputs = draft.tx.GetInputs().size() == 0;

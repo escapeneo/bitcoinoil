@@ -9,13 +9,9 @@
 #include <consensus/amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
-<<<<<<< btco
 #include <interfaces/wallet.h>
 #include <logging.h>
-||||||| core24
-=======
 #include <mweb/mweb_wtx_info.h>
->>>>>>> litecoin24x
 #include <outputtype.h>
 #include <policy/feerate.h>
 #include <psbt.h>
@@ -156,128 +152,10 @@ static const std::map<std::string,WalletFlags> WALLET_FLAG_MAP{
     {"external_signer", WALLET_FLAG_EXTERNAL_SIGNER}
 };
 
-<<<<<<< btco
-/** A wrapper to reserve an address from a wallet
- *
- * ReserveDestination is used to reserve an address.
- * It is currently only used inside of CreateTransaction.
- *
- * Instantiating a ReserveDestination does not reserve an address. To do so,
- * GetReservedDestination() needs to be called on the object. Once an address has been
- * reserved, call KeepDestination() on the ReserveDestination object to make sure it is not
- * returned. Call ReturnDestination() to return the address so it can be re-used (for
- * example, if the address was used in a new transaction
- * and that transaction was not completed and needed to be aborted).
- *
- * If an address is reserved and KeepDestination() is not called, then the address will be
- * returned when the ReserveDestination goes out of scope.
- */
-class ReserveDestination
-{
-protected:
-    //! The wallet to reserve from
-    const CWallet* const pwallet;
-    //! The ScriptPubKeyMan to reserve from. Based on type when GetReservedDestination is called
-    ScriptPubKeyMan* m_spk_man{nullptr};
-    OutputType const type;
-    //! The index of the address's key in the keypool
-    int64_t nIndex{-1};
-    //! The destination
-    CTxDestination address;
-    //! Whether this is from the internal (change output) keypool
-    bool fInternal{false};
-
-public:
-    //! Construct a ReserveDestination object. This does NOT reserve an address yet
-    explicit ReserveDestination(CWallet* pwallet, OutputType type)
-      : pwallet(pwallet)
-      , type(type) { }
-
-    ReserveDestination(const ReserveDestination&) = delete;
-    ReserveDestination& operator=(const ReserveDestination&) = delete;
-
-    //! Destructor. If a key has been reserved and not KeepKey'ed, it will be returned to the keypool
-    ~ReserveDestination()
-    {
-        ReturnDestination();
-    }
-
-    //! Reserve an address
-    util::Result<CTxDestination> GetReservedDestination(bool internal);
-    //! Return reserved address
-    void ReturnDestination();
-    //! Keep the address. Do not return its key to the keypool when this object goes out of scope
-    void KeepDestination();
-};
-
-/**
- * Address book data.
- */
-struct CAddressBookData
-||||||| core24
-extern const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS;
-
-/** A wrapper to reserve an address from a wallet
- *
- * ReserveDestination is used to reserve an address.
- * It is currently only used inside of CreateTransaction.
- *
- * Instantiating a ReserveDestination does not reserve an address. To do so,
- * GetReservedDestination() needs to be called on the object. Once an address has been
- * reserved, call KeepDestination() on the ReserveDestination object to make sure it is not
- * returned. Call ReturnDestination() to return the address so it can be re-used (for
- * example, if the address was used in a new transaction
- * and that transaction was not completed and needed to be aborted).
- *
- * If an address is reserved and KeepDestination() is not called, then the address will be
- * returned when the ReserveDestination goes out of scope.
- */
-class ReserveDestination
-{
-protected:
-    //! The wallet to reserve from
-    const CWallet* const pwallet;
-    //! The ScriptPubKeyMan to reserve from. Based on type when GetReservedDestination is called
-    ScriptPubKeyMan* m_spk_man{nullptr};
-    OutputType const type;
-    //! The index of the address's key in the keypool
-    int64_t nIndex{-1};
-    //! The destination
-    CTxDestination address;
-    //! Whether this is from the internal (change output) keypool
-    bool fInternal{false};
-
-public:
-    //! Construct a ReserveDestination object. This does NOT reserve an address yet
-    explicit ReserveDestination(CWallet* pwallet, OutputType type)
-      : pwallet(pwallet)
-      , type(type) { }
-
-    ReserveDestination(const ReserveDestination&) = delete;
-    ReserveDestination& operator=(const ReserveDestination&) = delete;
-
-    //! Destructor. If a key has been reserved and not KeepKey'ed, it will be returned to the keypool
-    ~ReserveDestination()
-    {
-        ReturnDestination();
-    }
-
-    //! Reserve an address
-    util::Result<CTxDestination> GetReservedDestination(bool internal);
-    //! Return reserved address
-    void ReturnDestination();
-    //! Keep the address. Do not return it's key to the keypool when this object goes out of scope
-    void KeepDestination();
-};
-
-/** Address book data */
-class CAddressBookData
-=======
 extern const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS;
 
 /** Address book data */
 class CAddressBookData
->>>>>>> litecoin24x
 {
     /**
      * Address label which is always nullopt for change addresses. For sending
@@ -314,7 +192,6 @@ class CAddressBookData
     void SetLabel(std::string name) { label = std::move(name); }
 };
 
-<<<<<<< btco
 inline std::string PurposeToString(AddressPurpose p)
 {
     switch(p) {
@@ -340,16 +217,6 @@ struct CRecipient
     bool fSubtractFeeFromAmount;
 };
 
-||||||| core24
-struct CRecipient
-{
-    CScript scriptPubKey;
-    CAmount nAmount;
-    bool fSubtractFeeFromAmount;
-};
-
-=======
->>>>>>> litecoin24x
 class WalletRescanReserver; //forward declarations for ScanForWalletTransactions/RescanFromTime
 /**
  * A CWallet maintains a set of transactions and balances, and provides the ability to create new transactions.
@@ -513,24 +380,7 @@ public:
     unsigned int nMasterKeyMaxID = 0;
 
     /** Construct wallet with specified name and database implementation. */
-<<<<<<< btco
-    CWallet(interfaces::Chain* chain, const std::string& name, std::unique_ptr<WalletDatabase> database)
-        : m_chain(chain),
-          m_name(name),
-          m_database(std::move(database))
-    {
-    }
-||||||| core24
-    CWallet(interfaces::Chain* chain, const std::string& name, const ArgsManager& args, std::unique_ptr<WalletDatabase> database)
-        : m_args(args),
-          m_chain(chain),
-          m_name(name),
-          m_database(std::move(database))
-    {
-    }
-=======
-    CWallet(interfaces::Chain* chain, const std::string& name, const ArgsManager& args, std::unique_ptr<WalletDatabase> database);
->>>>>>> litecoin24x
+    CWallet(interfaces::Chain* chain, const std::string& name, std::unique_ptr<WalletDatabase> database);
 
     ~CWallet()
     {
@@ -671,19 +521,9 @@ public:
      * Add the transaction to the wallet, wrapping it up inside a CWalletTx
      * @return the recently added wtx pointer or nullptr if there was a db write error.
      */
-<<<<<<< btco
-    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false);
-    bool LoadToWallet(const uint256& hash, const UpdateWalletTxFn& fill_wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void transactionAddedToMempool(const CTransactionRef& tx) override;
-||||||| core24
-    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false);
-    bool LoadToWallet(const uint256& hash, const UpdateWalletTxFn& fill_wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void transactionAddedToMempool(const CTransactionRef& tx, uint64_t mempool_sequence) override;
-=======
     CWalletTx* AddToWallet(CTransactionRef tx, const std::optional<MWEB::WalletTxInfo>& mweb_wtx_info, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false);
     bool LoadToWallet(const CWalletTx& wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void transactionAddedToMempool(const CTransactionRef& tx, uint64_t mempool_sequence) override;
->>>>>>> litecoin24x
+    void transactionAddedToMempool(const CTransactionRef& tx) override;
     void blockConnected(const interfaces::BlockInfo& block) override;
     void blockDisconnected(const interfaces::BlockInfo& block) override;
     void updatedBlockTip() override;
@@ -1113,12 +953,9 @@ public:
     //! Adds the ScriptPubKeyMans given in MigrationData to this wallet, removes LegacyScriptPubKeyMan,
     //! and where needed, moves tx and address book entries to watchonly_wallet or solvable_wallet
     bool ApplyMigrationData(MigrationData& data, bilingual_str& error) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-<<<<<<< btco
 
     //! Whether the (external) signer performs R-value signature grinding
     bool CanGrindR() const;
-||||||| core24
-=======
 
     // MWEB: BEGIN
     bool CompleteMWEBInputData(CMutableTransaction& tx, const std::map<AnyOutputID, AnyCoin>& coins = {}) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1139,7 +976,6 @@ public:
 
     const std::shared_ptr<MWEB::Wallet>& GetMWWallet() const noexcept { return mweb_wallet; }
     // MWEB: END
->>>>>>> litecoin24x
 };
 
 /**

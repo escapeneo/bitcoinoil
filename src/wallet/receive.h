@@ -6,14 +6,8 @@
 #define BITCOINOIL_WALLET_RECEIVE_H
 
 #include <consensus/amount.h>
-<<<<<<< btco
-||||||| core24
-#include <wallet/ismine.h>
-=======
 #include <mweb/mweb_wallet.h>
 #include <wallet/componentid.h>
-#include <wallet/ismine.h>
->>>>>>> litecoin24x
 #include <wallet/transaction.h>
 #include <wallet/types.h>
 #include <wallet/wallet.h>

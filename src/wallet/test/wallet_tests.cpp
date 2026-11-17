@@ -633,7 +633,6 @@ BOOST_FIXTURE_TEST_CASE(ListCoinsTest, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 2U);
 }
 
-<<<<<<< btco
 void TestCoinsResult(ListCoinsTest& context, OutputType out_type, CAmount amount,
                      std::map<OutputType, size_t>& expected_coins_sizes)
 {
@@ -674,8 +673,6 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTest)
     }
 }
 
-||||||| core24
-=======
 BOOST_AUTO_TEST_CASE(legacy_mweb_keychain_load_caches_scan_secret)
 {
     CWallet wallet(m_node.chain.get(), "", m_args, CreateDummyWalletDatabase());
@@ -832,7 +829,6 @@ BOOST_AUTO_TEST_CASE(legacy_mweb_generated_key_metadata_uses_mweb_index)
     BOOST_CHECK_EQUAL(metadata_it->second.hdKeypath, "x/" + std::to_string(mweb_index));
 }
 
->>>>>>> litecoin24x
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
 {
     {
@@ -1078,15 +1074,12 @@ BOOST_FIXTURE_TEST_CASE(ZapSelectTx, TestChain100Setup)
     TestUnloadWallet(std::move(wallet));
 }
 
-<<<<<<< btco
 class FailCursor : public DatabaseCursor
 {
 public:
     Status Next(DataStream& key, DataStream& value) override { return Status::FAIL; }
 };
 
-||||||| core24
-=======
 BOOST_FIXTURE_TEST_CASE(IsSpentPartialMWEB, TestChain100Setup)
 {
     WalletContext context;
@@ -1341,7 +1334,6 @@ BOOST_AUTO_TEST_CASE(GetMWEBPegoutsReturnsStableComponentIds)
     BOOST_CHECK(pegouts[0].second == kernel_it->GetPegOuts()[0]);
 }
 
->>>>>>> litecoin24x
 /** RAII class that provides access to a FailDatabase. Which fails if needed. */
 class FailBatch : public DatabaseBatch
 {

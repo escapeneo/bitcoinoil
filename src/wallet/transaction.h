@@ -11,14 +11,8 @@
 #include <mweb/mweb_wtx_info.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
-<<<<<<< btco
-#include <wallet/types.h>
-||||||| core24
-#include <wallet/ismine.h>
-=======
 #include <wallet/componentid.h>
-#include <wallet/ismine.h>
->>>>>>> litecoin24x
+#include <wallet/types.h>
 #include <threadsafety.h>
 #include <tinyformat.h>
 #include <util/overloaded.h>
@@ -146,10 +140,6 @@ struct CachableAmount
 
 typedef std::map<std::string, std::string> mapValue_t;
 
-<<<<<<< btco
-
-||||||| core24
-=======
 enum class OutputIdMode {
     //! Return IDs for outputs physically present in CWalletTx::tx.
     TX_OUTPUTS,
@@ -158,7 +148,7 @@ enum class OutputIdMode {
     WALLET_OUTPUTS,
 };
 
->>>>>>> litecoin24x
+
 /** Legacy class used for deserializing vtxPrev for backwards compatibility.
  * vtxPrev was removed in commit 93a18a3650292afbb441a47d1fa1b94aeb0164e3,
  * but old wallet.dat files may still contain vtxPrev vectors of CMerkleTxs.

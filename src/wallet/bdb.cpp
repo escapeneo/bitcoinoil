@@ -518,15 +518,9 @@ bool BerkeleyDatabase::Rewrite(const char* pszSkip)
                             if (ret2 != 0)
                                 fSuccess = false;
                         }
-<<<<<<< btco
                         cursor.reset();
-||||||| core24
-                        db.CloseCursor();
-=======
-                        db.CloseCursor();
                     } else {
                         fSuccess = false;
->>>>>>> litecoin24x
                     }
                     if (fSuccess) {
                         db.Close();

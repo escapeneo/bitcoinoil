@@ -1050,17 +1050,12 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
             const bool contains_mweb_tx_info = ContainsSerializedMWEBTxInfo(ssValue);
             if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr))
             {
-<<<<<<< btco
                 if (wss.unexpected_legacy_entry) {
                     strErr = strprintf("Error: Unexpected legacy entry found in descriptor wallet %s. ", pwallet->GetName());
                     strErr += "The wallet might have been tampered with or created with malicious intent.";
                     pwallet->WalletLogPrintf("%s\n", strErr);
                     return DBErrors::UNEXPECTED_LEGACY_ENTRY;
                 }
-||||||| core24
-=======
-
->>>>>>> litecoin24x
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
                 if (IsKeyType(strType) || strType == DBKeys::DEFAULTKEY ||
@@ -1416,17 +1411,7 @@ DBErrors WalletBatch::FindWalletTxHashes(std::vector<uint256>& tx_hashes)
             if (strType == DBKeys::TX) {
                 uint256 hash;
                 ssKey >> hash;
-<<<<<<< btco
                 tx_hashes.push_back(hash);
-||||||| core24
-                vTxHash.push_back(hash);
-                vWtx.emplace_back(/*tx=*/nullptr, TxStateInactive{});
-                ssValue >> vWtx.back();
-=======
-                vTxHash.push_back(hash);
-                vWtx.emplace_back(/*tx=*/nullptr, TxStateInactive{}, std::nullopt);
-                ssValue >> vWtx.back();
->>>>>>> litecoin24x
             }
         }
     } catch (...) {

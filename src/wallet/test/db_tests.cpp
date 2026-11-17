@@ -5,12 +5,8 @@
 #include <boost/test/unit_test.hpp>
 
 #include <test/util/setup_common.h>
-<<<<<<< btco
 #include <util/fs.h>
-||||||| core24
-=======
 #include <util/translation.h>
->>>>>>> litecoin24x
 #include <wallet/bdb.h>
 
 #include <fstream>

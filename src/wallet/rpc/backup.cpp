@@ -294,19 +294,9 @@ RPCHelpMan importaddress()
             std::vector<unsigned char> data(ParseHex(request.params[0].get_str()));
             CScript redeem_script(data.begin(), data.end());
 
-<<<<<<< btco
-            std::set<CScript> scripts = {redeem_script};
-            pwallet->ImportScripts(scripts, /*timestamp=*/0);
+            pwallet->ImportScripts({redeem_script}, /*timestamp=*/0);
 
-||||||| core24
-            std::set<CScript> scripts = {redeem_script};
-            pwallet->ImportScripts(scripts, 0 /* timestamp */);
-
-=======
-            pwallet->ImportScripts({redeem_script}, 0 /* timestamp */);
-            
             std::set<GenericAddress> scripts = {redeem_script};
->>>>>>> litecoin24x
             if (fP2SH) {
                 scripts.insert(GetScriptForDestination(ScriptHash(redeem_script)));
             }
@@ -1778,14 +1768,8 @@ RPCHelpMan listdescriptors()
                         {RPCResult::Type::NUM, "", "Range start inclusive"},
                         {RPCResult::Type::NUM, "", "Range end inclusive"},
                     }},
-<<<<<<< btco
                     {RPCResult::Type::NUM, "next", /*optional=*/true, "Same as next_index field. Kept for compatibility reason."},
                     {RPCResult::Type::NUM, "next_index", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
-||||||| core24
-                    {RPCResult::Type::NUM, "next", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
-=======
-                    {RPCResult::Type::NUM, "next_index", /*optional=*/true, "The next index to generate addresses from; defined only for ranged descriptors"},
->>>>>>> litecoin24x
                 }},
             }}
         }},
@@ -1868,14 +1852,8 @@ RPCHelpMan listdescriptors()
             // the exported range passes importdescriptors' next_index check.
             range.push_back(std::max(info.range->second - 1, info.next_index));
             spk.pushKV("range", range);
-<<<<<<< btco
             spk.pushKV("next", info.next_index);
             spk.pushKV("next_index", info.next_index);
-||||||| core24
-            spk.pushKV("next", info.next_index);
-=======
-            spk.pushKV("next_index", info.next_index);
->>>>>>> litecoin24x
         }
         descriptors.push_back(spk);
     }
