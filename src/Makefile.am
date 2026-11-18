@@ -1097,8 +1097,9 @@ libbitcoinoilconsensus_la_SOURCES = \
   libmw/src/models/tx/Transaction.cpp
 
 libbitcoinoilconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL
+# MWEB: the consensus sources include libmw, which needs its headers, libfmt and the zkp copy of libsecp256k1.
+libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1) $(LIBBITCOINOIL_MWZKP) $(LIBFMT_LIBS)
+libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LIBMW_INCLUDES) $(LIBFMT_CFLAGS)
 libbitcoinoilconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif
