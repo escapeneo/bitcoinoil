@@ -23,10 +23,17 @@ import time
 H = 150
 
 
+NEW_CLI = None
+
+
 class Node:
     def __init__(self, name, daemon, root, port, extra):
         self.name, self.daemon, self.port = name, daemon, port
         self.cli_bin = os.path.join(os.path.dirname(daemon), "bitcoinoil-cli")
+        if not os.path.exists(self.cli_bin):
+            # The previous release may be built without its client; the RPC
+            # interface used here is the same, so the new client serves both.
+            self.cli_bin = NEW_CLI
         self.dir = os.path.join(root, name)
         os.makedirs(self.dir)
         open(os.path.join(self.dir, "bitcoinoil.conf"), "w").close()
@@ -71,6 +78,8 @@ def main():
     root = opts.tmpdir or tempfile.mkdtemp(prefix="btco-upgrade-")
     os.makedirs(root, exist_ok=True)
     new_args = [f"-mwebheight={H}", f"-asertheight={H}", "-aserthalflife=3600"]
+    global NEW_CLI
+    NEW_CLI = os.path.join(os.path.dirname(os.path.abspath(opts.binary)), "bitcoinoil-cli")
     a = Node("new-a", os.path.abspath(opts.binary), root, 19900, new_args)
     b = Node("new-b", os.path.abspath(opts.binary), root, 19904, new_args)
     old = Node("old", os.path.abspath(opts.old_binary), root, 19908, [])
