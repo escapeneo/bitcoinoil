@@ -2090,6 +2090,7 @@ void PeerManagerImpl::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlock
 {
     SetBestHeight(pindexNew->nHeight);
     SetServiceFlagsIBDCache(!fInitialDownload);
+    SetServiceFlagsMWEBCache(DeploymentActiveAfter(pindexNew, m_chainman, Consensus::DEPLOYMENT_MWEB));
 
     // Don't relay inventory during initial block download.
     if (fInitialDownload) return;
@@ -3657,6 +3658,8 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         {
             m_addrman.SetServices(pfrom.addr, nServices);
         }
+        // The tip may not have changed since start-up, so refresh the MWEB requirement here too.
+        SetServiceFlagsMWEBCache(WITH_LOCK(cs_main, return DeploymentActiveAfter(m_chainman.ActiveChain().Tip(), m_chainman, Consensus::DEPLOYMENT_MWEB)));
         if (pfrom.ExpectServicesFromConn() && !HasAllDesirableServiceFlags(nServices))
         {
             LogPrint(BCLog::NET, "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n", pfrom.GetId(), nServices, GetDesirableServiceFlags(nServices));

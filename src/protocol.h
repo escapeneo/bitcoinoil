@@ -367,6 +367,8 @@ ServiceFlags GetDesirableServiceFlags(ServiceFlags services);
 
 /** Set the current IBD status in order to figure out the desirable service flags */
 void SetServiceFlagsIBDCache(bool status);
+/** Set whether desirable peers must offer NODE_MWEB (true once the next block needs MWEB data). */
+void SetServiceFlagsMWEBCache(bool required);
 
 /**
  * A shortcut for (services & GetDesirableServiceFlags(services))

@@ -134,13 +134,19 @@ bool CMessageHeader::IsCommandValid() const
 }
 
 
+static std::atomic<bool> g_mweb_peers_required{false};
+
+void SetServiceFlagsMWEBCache(bool required) {
+    g_mweb_peers_required = required;
+}
+
 ServiceFlags GetDesirableServiceFlags(ServiceFlags services) {
     if ((services & NODE_NETWORK_LIMITED) && g_initial_block_download_completed) {
-        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
+        return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS | (g_mweb_peers_required ? NODE_MWEB : NODE_NONE));
     }
-    // BitcoinOil: NODE_MWEB is not required here, so upgraded nodes keep
-    // connecting to the existing network before MWEB activates.
-    return ServiceFlags(NODE_NETWORK | NODE_WITNESS);
+    // BitcoinOil: NODE_MWEB is only required once the next block needs MWEB data,
+    // so upgraded nodes keep connecting to the existing network before that.
+    return ServiceFlags(NODE_NETWORK | NODE_WITNESS | (g_mweb_peers_required ? NODE_MWEB : NODE_NONE));
 }
 
 void SetServiceFlagsIBDCache(bool state) {

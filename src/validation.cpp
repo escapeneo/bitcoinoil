@@ -428,6 +428,14 @@ void Chainstate::MaybeUpdateMempoolForReorg(
         if (!CheckMWEBInputsForMempoolReorg(tx, *m_mempool, CoinsTip())) {
             return true;
         }
+        // BitcoinOil: a reorg below the MWEB activation height must not leave
+        // peg-ins behind, where they could be mined as unprotected outputs.
+        if (!DeploymentActiveAfter(m_chain.Tip(), m_chainman, Consensus::DEPLOYMENT_MWEB)) {
+            if (tx.HasMWEBTx()) return true;
+            for (const CTxOut& txout : tx.vout) {
+                if (txout.scriptPubKey.IsMWEBPegin()) return true;
+            }
+        }
 
         const LockPoints& lp = it->GetLockPoints();
         // CheckSequenceLocksAtTip checks if the transaction will be final in the next block to be
@@ -4074,7 +4082,11 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
             // CheckBlock() does context-free validation checks. The only
             // possible failures are consensus failures.
             assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS);
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
+            // BitcoinOil: the first HogEx may have no inputs, and the HogEx marker
+            // is not committed by the block hash. A body whose input-less
+            // transaction lost the marker is a mutation of a possibly valid block.
+            const bool maybe_mutated{tx_state.GetRejectReason() == "bad-txns-vin-empty"};
+            return state.Invalid(maybe_mutated ? BlockValidationResult::BLOCK_MUTATED : BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), tx_state.GetDebugMessage()));
         }
     }

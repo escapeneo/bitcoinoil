@@ -216,8 +216,22 @@ util::Result<CreatedTransactionResult> TxBuilder::Build(const std::optional<int3
     // Update MWEB fee
     // BitcoinOil: a peg-in mined before MWEB activates is an unprotected output,
     // so refuse to build MWEB transactions until the next block can carry them.
-    if (GetTxType() != TxType::BTC_TO_BTC && m_wallet.GetLastBlockHeight() + 1 < Params().GetConsensus().MWEBHeight) {
+    const int mweb_height{Params().GetConsensus().MWEBHeight};
+    if (GetTxType() != TxType::BTC_TO_BTC && m_wallet.GetLastBlockHeight() + 1 < mweb_height) {
         return util::Error{_("MWEB is not active yet")};
+    }
+    if (GetTxType() == TxType::BTC_TO_BTC) {
+        // A peg-in script without its MWEB kernel can never be claimed by the recipient.
+        for (const CTxOut& txout : m_tx.vout) {
+            if (txout.scriptPubKey.IsMWEBPegin()) {
+                return util::Error{_("Cannot pay to an MWEB peg-in script directly")};
+            }
+        }
+    } else if (!nLockTime.has_value() && !m_tx.vin.empty() && mweb_height > 0 && mweb_height < std::numeric_limits<int>::max()
+               && m_tx.nLockTime < uint32_t(mweb_height - 1)) {
+        // Keep a peg-in that is already broadcast out of any block below the
+        // activation height, also after a reorg: it can only be mined from that height on.
+        m_tx.nLockTime = uint32_t(mweb_height - 1);
     }
 
     if (GetTxType() != TxType::BTC_TO_BTC) {

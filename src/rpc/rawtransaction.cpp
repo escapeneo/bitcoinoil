@@ -1993,7 +1993,7 @@ static RPCHelpMan converttopsbt()
     }
 
     // Make a blank psbt
-    PartiallySignedTransaction psbtx(tx, /*version=*/2);
+    PartiallySignedTransaction psbtx(tx);
 
     // Serialize the PSBT
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
