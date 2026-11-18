@@ -231,8 +231,11 @@ public:
         consensus.nAuxpowStartHeight = 0;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
-        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        // Testnet rehearses the mainnet hard fork: ASERT and MWEB activate together.
+        // The height leaves room for coinbase maturity (100 blocks) before the first peg-in.
+        consensus.nAsertHeight = 300;
         consensus.nAsertHalfLife = Consensus::ASERT_HALF_LIFE;
+        consensus.MWEBHeight = 300;
 
         pchMessageStart[0] = 0x27;
         pchMessageStart[1] = 0x7b;
