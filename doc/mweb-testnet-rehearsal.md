@@ -73,6 +73,27 @@ make -C src -j4 bitcoinoild bitcoinoil-cli
 
 Builds through `depends` already include libfmt and need no extra step.
 
+The script needs `cmake`. A distribution package (`libfmt-dev` on Debian and
+Ubuntu) may also compile, but only 7.1.3 is tested and it is the version the
+release binaries use; libfmt 12 is known not to compile.
+
+Check that the right branch was built:
+
+```bash
+src/bitcoinoild --version
+```
+
+It must report `v25.3.0rc1`. If it reports `v25.2.0` or `v25.2.0rc2`, the
+binary comes from the current release and has neither ASERT nor MWEB:
+
+```bash
+git remote add pan0ramix https://github.com/Pan0ramix/bitcoinoil.git
+```
+
+```bash
+git fetch pan0ramix && git checkout -B mweb/port-24x pan0ramix/mweb/port-24x
+```
+
 ## Starting the chain
 
 Two things stop a fresh testnet node from handing out work, and both are
