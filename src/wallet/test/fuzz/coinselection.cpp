@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2022 The BitcoinOil Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -29,10 +29,8 @@ static void GroupCoins(FuzzedDataProvider& fuzzed_data_provider, const std::vect
     auto output_group = OutputGroup(coin_params);
     bool valid_outputgroup{false};
     for (auto& coin : coins) {
-        if (!positive_only || (positive_only && coin.GetEffectiveValue() > 0)) {
-            output_group.Insert(std::make_shared<COutput>(coin), /*ancestors=*/0, /*descendants=*/0);
-        }
-        // If positive_only was specified, nothing was inserted, leading to an empty output group
+        output_group.Insert(coin, /*ancestors=*/0, /*descendants=*/0, positive_only);
+        // If positive_only was specified, nothing may have been inserted, leading to an empty outpout group
         // that would be invalid for the BnB algorithm
         valid_outputgroup = !positive_only || output_group.GetSelectionAmount() > 0;
         if (valid_outputgroup && fuzzed_data_provider.ConsumeBool()) {
