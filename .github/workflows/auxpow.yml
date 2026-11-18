@@ -47,6 +47,8 @@ jobs:
           make -C src -j2 bitcoinoild
       - name: Encrypted wallet upgrade from the official previous version
         run: QT_QPA_PLATFORM=offscreen python3 contrib/auxpow/wallet_upgrade_regtest.py --old-binary=/tmp/btco-old/src/bitcoinoild --binary=src/qt/bitcoinoil-qt --tmpdir=/tmp/btco-wallet-upgrade
+      - name: Upgrade boundary with the previous official daemon (ASERT and MWEB activation)
+        run: python3 contrib/mweb/upgrade_boundary_regtest.py --old-binary=/tmp/btco-old/src/bitcoinoild --tmpdir=/tmp/btco-upgrade-boundary
       - name: Fast activation, headers, pruning and reorg regression
         run: python3 contrib/auxpow/activation_regtest.py --height=120 --tmpdir=/tmp/btco-auxpow-fast
       - name: Exact 154999 / 155000 boundary
