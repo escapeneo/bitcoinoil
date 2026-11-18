@@ -2290,30 +2290,24 @@ public:
     // New functions with pindex as argument
     int PeriodWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
         if (!pindex) {
-            LogPrintf("DEBUG: Using default nMinerConfirmationWindow (pindex is null)\n");
             return params.nMinerConfirmationWindow;
         }
 
         if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nMinerConfirmationWindow at height %d\n", pindex->nHeight);
             return params.nMinerConfirmationWindow;
         } else {
-            LogPrintf("DEBUG: Using V2MinerConfirmationWindow at height %d\n", pindex->nHeight);
             return params.nMinerConfirmationWindowV2;
         }
     }
 
     int ThresholdWithHeight(const Consensus::Params& params, const CBlockIndex* pindex) const {
         if (!pindex) {
-            LogPrintf("DEBUG: Using default nRuleChangeActivationThreshold (pindex is null)\n");
             return params.nRuleChangeActivationThreshold;
         }
 
         if (pindex->nHeight < params.V2ForkHeight) {
-            LogPrintf("DEBUG: Using nRuleChangeActivationThreshold at height %d\n", pindex->nHeight);
             return params.nRuleChangeActivationThreshold;
         } else {
-            LogPrintf("DEBUG: Using V2RuleChangeActivationThreshold at height %d\n", pindex->nHeight);
             return params.nRuleChangeActivationThresholdV2;
         }
     }
@@ -3066,15 +3060,11 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
             ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(), warningcache.at(bit));
             if (pindex && pindex->nHeight >= consensusParams.V2ForkHeight) {
                 if (bit == 2) {
-                    LogPrintf("DEBUG: Checking versionbit %i: state = %d (Taproot - V2ForkHeight Active)\n", 
-                              bit, static_cast<int>(ThresholdState::ACTIVE));
                     continue;
                 }
             }
-            LogPrintf("DEBUG: Checking versionbit %i: state = %d\n", bit, static_cast<int>(state));
 
 
-    	    LogPrintf("Checking versionbit %i: state = %d\n", bit, static_cast<int>(state));
 
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
