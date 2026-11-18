@@ -18,7 +18,7 @@ there.
 
 | Item | Value |
 |---|---|
-| Activation height (ASERT and MWEB) | 300 |
+| Activation height (ASERT and MWEB) | 110 |
 | P2P port | 29712 |
 | RPC port | 29711 |
 | Block target | 6 minutes |
@@ -27,8 +27,28 @@ there.
 | Start option | `-testnet` |
 
 The BitcoinOil testnet has no public nodes and no blocks yet, so the rehearsal
-starts from the genesis block. Difficulty 1 is not practical on a CPU; the
-chain needs merge-mined work from a pool.
+starts from the genesis block.
+
+## How much hashrate this needs
+
+Very little, and only for a short time.
+
+- Every block below height 116 is at difficulty 1, whatever the hashrate,
+  because the current difficulty algorithm (LWMA) needs 116 blocks of history
+  before it adjusts. The activation height, 110, is below that on purpose.
+- Any ASIC gets through those 109 blocks in a few minutes. A 6 TH/s miner
+  needs well under a millisecond of hashing per block at difficulty 1; the
+  pool software, not the miner, sets the pace.
+- From block 110 on ASERT is in charge. It raises the difficulty while blocks
+  arrive faster than one every 6 minutes and halves it for every 2 hours
+  without a block, so the chain recovers by itself after a miner leaves.
+- Coinbase outputs mature after 100 blocks, so MWEB transactions can be tested
+  as soon as activation is reached.
+
+In practice: **connect a miner for 15 to 30 minutes**, long enough to pass
+block 110 and mine a few dozen blocks after it. There is no need to leave a
+rig running. A small device of a few MH/s cannot bootstrap the chain alone
+(about 70 minutes per difficulty-1 block at 1 MH/s) but can join later.
 
 ## Build
 
@@ -86,7 +106,7 @@ Point a small share of hashrate at the testnet daemon through the same
 merge-mining interface used on mainnet (`createauxblock` / `submitauxblock`,
 or `getauxblock`). No stratum change is expected.
 
-`getblocktemplate` is different after activation: from block 299 on, the
+`getblocktemplate` is different after activation: from block 109 on, the
 request must include the `mweb` rule, for example
 `{"rules": ["mweb", "segwit"]}`, and the template carries an `mweb` field
 with the extension block. Pools that only use the AuxPoW RPCs are not
@@ -100,9 +120,9 @@ mining payout.
 Please note the block height and the daemon's `debug.log` lines for anything
 that does not match.
 
-1. **Before activation (blocks 1 to 299):** blocks are found and accepted,
+1. **Before activation (blocks 1 to 109):** blocks are found and accepted,
    `getmininginfo` shows `asert.enabled` false.
-2. **Activation block 300:** it is mined without any special transaction.
+2. **Activation block 110:** it is mined without any special transaction.
    `getblock <hash> 2` shows a last transaction with no inputs and one output
    of value 0 (the first HogEx), and an `mweb` section.
 3. **After activation:** blocks keep coming, `getmininginfo` shows
@@ -115,7 +135,7 @@ that does not match.
    - Sending from that balance to another MWEB address stays inside MWEB.
    - Sending from that balance to a normal address pegs out. Pegged-out
      coins need 6 confirmations before they can be spent.
-5. **A node left on 25.2.0** stops at block 299 and never accepts block 300.
+5. **A node left on 25.2.0** stops at block 109 and never accepts block 110.
    This is the expected behaviour of a hard fork.
 6. **Restart** the daemon after activation and confirm it comes back on the
    same tip. Running once with `-reindex` is a useful extra check.
@@ -125,7 +145,7 @@ that does not match.
 - The first MWEB block does not need a peg-in. Litecoin stalls at activation
   until one is mined; BitcoinOil accepts an empty first HogEx instead.
 - The wallet and the mempool refuse MWEB transactions until the next block
-  can carry them (block 299 on testnet).
+  can carry them (block 109 on testnet).
 - Kernel lock heights are enforced from the first MWEB block.
 - BitcoinOil keeps its own relay policy: one `OP_RETURN` output per
   transaction with at most 83 bytes, and opt-in RBF enabled.

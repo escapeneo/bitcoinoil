@@ -232,10 +232,12 @@ public:
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
         // Testnet rehearses the mainnet hard fork: ASERT and MWEB activate together.
-        // The height leaves room for coinbase maturity (100 blocks) before the first peg-in.
-        consensus.nAsertHeight = 300;
+        // Height 110 is past coinbase maturity (100 blocks), so peg-ins work at once, and
+        // below the LWMA window (116 blocks), so every block before it is at minimum
+        // difficulty and the rehearsal needs very little hashrate to get there.
+        consensus.nAsertHeight = 110;
         consensus.nAsertHalfLife = Consensus::ASERT_HALF_LIFE;
-        consensus.MWEBHeight = 300;
+        consensus.MWEBHeight = 110;
 
         pchMessageStart[0] = 0x27;
         pchMessageStart[1] = 0x7b;
