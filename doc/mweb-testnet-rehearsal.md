@@ -144,11 +144,35 @@ Point a small share of hashrate at the testnet daemon through the same
 merge-mining interface used on mainnet (`createauxblock` / `submitauxblock`,
 or `getauxblock`). No stratum change is expected.
 
-`getblocktemplate` is different after activation: from block 109 on, the
-request must include the `mweb` rule, for example
+`getblocktemplate` is different after activation: once the tip is block 109,
+the request must include the `mweb` rule, for example
 `{"rules": ["mweb", "segwit"]}`, and the template carries an `mweb` field
 with the extension block. Pools that only use the AuxPoW RPCs are not
 affected, because the daemon builds the whole block itself.
+
+A pool that builds its own block from the template has to submit it in this
+format, the same one Litecoin uses:
+
+```text
+header | tx count | coinbase | template transactions | 01 | template "mweb"
+```
+
+- The template for block 109 (requested with `{"rules": ["segwit"]}`) has no
+  `mweb` field and the block is submitted exactly as today.
+- From the template for block 110 on, a request without the `mweb` rule
+  fails with "getblocktemplate must be called with the segwit & mweb rule
+  set".
+- Copy each transaction's `data` unchanged and keep the order. The last one
+  is the HogEx; in block 110 it has no inputs.
+- After the last transaction append the byte `01` and then the template's
+  `mweb` hex. A block without that part fails with "Block decode failed".
+- The merkle root uses the `txid` fields as usual, and
+  `default_witness_commitment` can be used as it is.
+- MWEB-to-MWEB transactions do not appear in `transactions`; they live inside
+  the `mweb` field.
+
+`test/functional/mweb_pool_template.py` builds blocks this way, byte by byte,
+across activation.
 
 The payout address must be a normal address. MWEB addresses are refused as
 mining payout.
