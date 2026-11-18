@@ -100,6 +100,23 @@ addnode=<address of the second testnet node>:29712
 Remove `maxtipage` once blocks are arriving normally. `fallbackfee` is needed
 for wallet sends because a new chain has no fee estimates.
 
+## Joining the rehearsal chain
+
+A rehearsal chain already exists, so there is no need to start from the
+genesis block. The coordinating node is behind a home connection and cannot
+accept incoming connections. Instead:
+
+1. Run your testnet node on a machine with a public address and leave the
+   P2P port (29712) open.
+2. Send that address to the coordinator. Their node connects out to yours and
+   your node downloads the chain from it.
+3. Ask for testnet coins if you want to try MWEB transactions without waiting
+   for your own coinbase outputs to mature.
+
+There is no public testnet stratum. The point of the rehearsal is to run your
+own pool software against the new daemon, because that is what has to work on
+mainnet.
+
 ## What the pool needs to do
 
 Point a small share of hashrate at the testnet daemon through the same
