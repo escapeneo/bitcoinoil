@@ -4,6 +4,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test version bits warning system.
 
+BitcoinOil: the unknown-rules warning is disabled from V2ForkHeight on, so this
+test checks that signalling an unknown bit produces no warning.
+
 Generate chains with block versions that appear to be signalling unknown
 soft-forks, and test that warning alerts are generated.
 """
@@ -96,11 +99,13 @@ class VersionBitsWarningTest(BitcoinOilTestFramework):
         self.wait_until(lambda: not node.getblockchaininfo()['initialblockdownload'])
         # Generating one more block will be enough to generate an error.
         self.generatetoaddress(node, 1, node_deterministic_address)
-        # Check that get*info() shows the versionbits unknown rules warning
-        assert WARN_UNKNOWN_RULES_ACTIVE in node.getmininginfo()["warnings"]
-        assert WARN_UNKNOWN_RULES_ACTIVE in node.getnetworkinfo()["warnings"]
-        # Check that the alert file shows the versionbits unknown rules warning
-        self.wait_until(lambda: self.versionbits_in_alert_file())
+        # BitcoinOil treats every unused version bit as inactive from V2ForkHeight
+        # on (height 0 on regtest), because merge-mined block versions carry the
+        # chain ID in those bits. Upstream warns here; BitcoinOil must stay silent.
+        assert not VB_PATTERN.search(node.getmininginfo()["warnings"])
+        assert not VB_PATTERN.search(node.getnetworkinfo()["warnings"])
+        assert WARN_UNKNOWN_RULES_ACTIVE not in node.getmininginfo()["warnings"]
+        assert not os.path.exists(self.alert_filename) or not self.versionbits_in_alert_file()
 
 if __name__ == '__main__':
     VersionBitsWarningTest().main()
