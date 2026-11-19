@@ -27,7 +27,8 @@ there.
 | Start option | `-testnet` |
 
 The BitcoinOil testnet has no public nodes and no blocks yet, so the rehearsal
-starts from the genesis block.
+starts from the genesis block. As on mainnet, SegWit and the older soft forks
+are active from the first block.
 
 ## How much hashrate this needs
 

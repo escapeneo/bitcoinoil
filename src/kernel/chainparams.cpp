@@ -195,13 +195,17 @@ public:
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 185900;
-        consensus.BIP34Height = 21111;
+        // As on mainnet, the soft forks inherited from Bitcoin are active from the
+        // start. The heights of Bitcoin's testnet3 were left here before, which kept
+        // SegWit off for the first 834624 blocks: blocks with a witness commitment
+        // were rejected and MWEB, which builds on SegWit, could not work.
+        consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256();
-        consensus.BIP65Height = 581885; 
-        consensus.BIP66Height = 330776; 
-        consensus.CSVHeight = 770112; 
-        consensus.SegwitHeight = 834624; 
-        consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 0;
+        consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  24 * 60;
         consensus.nPowTargetSpacing = 6 * 60;
