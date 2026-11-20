@@ -2,7 +2,7 @@
 
 This document is for pool operators and node runners who help rehearse the
 next BitcoinOil hard fork on testnet. On mainnet the hard fork activates at
-**block 157000**.
+**block 157500**.
 
 The hard fork activates two things in the same block:
 
@@ -13,8 +13,8 @@ Merge mining (AuxPoW, chain ID 2828) does not change. On mainnet it has been
 active since block 155000; on testnet it is allowed from the first block.
 
 Everything below describes the testnet. The mainnet rules are the same, with
-activation at block 157000, MWEB addresses starting with `btcomweb1…`, and the
-`mweb` rule required by `getblocktemplate` once the tip is block 156999.
+activation at block 157500, MWEB addresses starting with `btcomweb1…`, and the
+`mweb` rule required by `getblocktemplate` once the tip is block 157499.
 
 ## Testnet parameters
 
@@ -86,7 +86,7 @@ Check that the right branch was built:
 src/bitcoinoild --version
 ```
 
-It must report `v25.3.0`. If it reports `v25.2.0` or `v25.2.0rc2`, the
+It must report `v25.3.1`. If it reports `v25.2.0` or `v25.2.0rc2`, the
 binary comes from the current release and has neither ASERT nor MWEB:
 
 ```bash
