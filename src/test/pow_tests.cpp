@@ -235,9 +235,11 @@ BOOST_AUTO_TEST_CASE(asert_schedule_and_bounds)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
-    // Not scheduled on mainnet.
-    BOOST_CHECK_EQUAL(consensus.nAsertHeight, Consensus::ASERT_DISABLED);
-    BOOST_CHECK(!consensus.IsAsertEnabled(1000000000));
+    // Mainnet: ASERT and MWEB share one fixed height.
+    BOOST_CHECK_EQUAL(consensus.nAsertHeight, 157000);
+    BOOST_CHECK_EQUAL(consensus.MWEBHeight, 157000);
+    BOOST_CHECK(!consensus.IsAsertEnabled(156999));
+    BOOST_CHECK(consensus.IsAsertEnabled(157000));
 
     const arith_uint256 pow_limit{UintToArith256(consensus.powLimit)};
     const int64_t T{consensus.nPowTargetSpacing};

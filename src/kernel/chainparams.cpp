@@ -113,8 +113,10 @@ public:
         consensus.nAuxpowStartHeight = Consensus::MAINNET_AUXPOW_START_HEIGHT;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
-        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        // Second hard fork: ASERT difficulty and MWEB activate in the same block.
+        consensus.nAsertHeight = Consensus::MAINNET_ASERT_MWEB_HEIGHT;
         consensus.nAsertHalfLife = Consensus::ASERT_HALF_LIFE;
+        consensus.MWEBHeight = Consensus::MAINNET_ASERT_MWEB_HEIGHT;
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.

@@ -18,6 +18,8 @@ namespace Consensus {
 /** Fixed mainnet hard-fork height. Not configurable by mainnet operators. */
 static constexpr int MAINNET_AUXPOW_START_HEIGHT{155000};
 static constexpr int32_t AUXPOW_CHAIN_ID{0x0B0C};
+/** Fixed mainnet height of the second hard fork: ASERT and MWEB activate together. */
+static constexpr int MAINNET_ASERT_MWEB_HEIGHT{157000};
 /** ASERT has no activation height on this network. */
 static constexpr int ASERT_DISABLED{std::numeric_limits<int>::max()};
 /** Two hours. Chosen from simulation on mainnet data of November 2026:
