@@ -5058,6 +5058,28 @@ bool ChainstateManager::LoadBlockIndex()
             }
         }
 
+        // BitcoinOil: a release from before the ASERT + MWEB hard fork stores headers
+        // at or above the fork height that were only checked against the old
+        // difficulty rule, and AcceptBlockHeader() does not recheck a known header.
+        // Such a block index comes from the old chain: refuse it, so that the node
+        // is rebuilt with -reindex under the new rules instead of following it.
+        {
+            const Consensus::Params& consensus{GetConsensus()};
+            for (const CBlockIndex* pindex : vSortedByHeight) {
+                if (!pindex->pprev || !consensus.IsAsertEnabled(pindex->nHeight)) continue;
+                if (pindex->nStatus & BLOCK_FAILED_MASK) continue;
+                CBlockHeader header;
+                header.nTime = pindex->nTime;
+                header.nBits = pindex->nBits;
+                if (pindex->nBits != GetNextWorkRequired(pindex->pprev, &header, consensus)) {
+                    LogPrintf("%s: block %s at height %d does not follow the ASERT + MWEB hard fork rules (activation height %d). "
+                              "This block index was written by an older release after the hard fork. Restart with -reindex.\n",
+                              __func__, pindex->GetBlockHash().ToString(), pindex->nHeight, consensus.nAsertHeight);
+                    return false;
+                }
+            }
+        }
+
         for (CBlockIndex* pindex : vSortedByHeight) {
             if (ShutdownRequested()) return false;
             if (pindex->IsAssumedValid() ||

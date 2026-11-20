@@ -227,11 +227,21 @@ util::Result<CreatedTransactionResult> TxBuilder::Build(const std::optional<int3
                 return util::Error{_("Cannot pay to an MWEB peg-in script directly")};
             }
         }
-    } else if (!nLockTime.has_value() && !m_tx.vin.empty() && mweb_height > 0 && mweb_height < std::numeric_limits<int>::max()
-               && m_tx.nLockTime < uint32_t(mweb_height - 1)) {
+    } else if (!m_tx.vin.empty() && mweb_height > 0 && mweb_height < std::numeric_limits<int>::max()) {
         // Keep a peg-in that is already broadcast out of any block below the
         // activation height, also after a reorg: it can only be mined from that height on.
-        m_tx.nLockTime = uint32_t(mweb_height - 1);
+        // This also applies when the caller passed a lock time, because the sending
+        // RPCs always pass one (0 when the user gave none).
+        if (m_tx.nLockTime >= LOCKTIME_THRESHOLD) {
+            return util::Error{_("A transaction with MWEB outputs needs a block-height lock time")};
+        }
+        if (m_tx.nLockTime < uint32_t(mweb_height - 1)) {
+            m_tx.nLockTime = uint32_t(mweb_height - 1);
+        }
+        // The lock time is only enforced when at least one input is not final.
+        if (std::all_of(m_tx.vin.begin(), m_tx.vin.end(), [](const CTxIn& in) { return in.nSequence == CTxIn::SEQUENCE_FINAL; })) {
+            m_tx.vin.front().nSequence = CTxIn::MAX_SEQUENCE_NONFINAL;
+        }
     }
 
     if (GetTxType() != TxType::BTC_TO_BTC) {

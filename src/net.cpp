@@ -1898,7 +1898,13 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             // for feelers, only require they be a full node (only because most
             // SPV clients don't have a good address DB available)
             if (!fFeeler && !HasAllDesirableServiceFlags(addr.nServices)) {
-                continue;
+                // BitcoinOil: address records from before the upgrade do not carry
+                // NODE_MWEB even when the peer has upgraded since. When nothing
+                // better turned up, probe such an address: the handshake updates
+                // the record and drops the peer if it really lacks MWEB.
+                if (nTries < 20 || !HasAllDesirableServiceFlags(ServiceFlags(addr.nServices | NODE_MWEB))) {
+                    continue;
+                }
             } else if (fFeeler && !MayHaveUsefulAddressDB(addr.nServices)) {
                 continue;
             }

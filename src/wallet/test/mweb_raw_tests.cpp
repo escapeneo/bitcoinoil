@@ -357,7 +357,8 @@ BOOST_AUTO_TEST_CASE(PeginDraftFundingAndRawSigningAreEndToEnd)
     const FundTransactionResult funding = FundSuccessfully(draft, CoinControl());
 
     BOOST_CHECK_EQUAL(draft.tx.nVersion, 2);
-    BOOST_CHECK_EQUAL(draft.tx.nLockTime, 123U);
+    // A peg-in keeps the caller's lock time only from the block before MWEB activation on.
+    BOOST_CHECK_EQUAL(draft.tx.nLockTime, uint32_t(Params().GetConsensus().MWEBHeight - 1));
     BOOST_REQUIRE_EQUAL(draft.tx.vin.size(), 1U);
     BOOST_REQUIRE_EQUAL(draft.tx.vout.size(), 1U);
     BOOST_CHECK(draft.tx.mweb_tx.inputs.empty());
@@ -653,7 +654,9 @@ BOOST_AUTO_TEST_CASE(RPCMixedFundingChargesOnlySelectedRecipients)
                             continue;
                         }
                         const auto funding = FundSuccessfully(draft, CoinControl(false), selected);
-                        BOOST_CHECK_EQUAL(draft.tx.nLockTime, 123U);
+                        // With transparent inputs this is a peg-in, whose lock time is raised to
+                        // the block before MWEB activation. Without them the caller's value stays.
+                        BOOST_CHECK_EQUAL(draft.tx.nLockTime, draft.tx.vin.empty() ? 123U : uint32_t(Params().GetConsensus().MWEBHeight - 1));
                         for (const CTxIn& input : draft.tx.vin) {
                             BOOST_CHECK_EQUAL(input.nSequence, uint32_t{CTxIn::MAX_SEQUENCE_NONFINAL});
                         }

@@ -1,5 +1,7 @@
 #include <wallet/transactiondraft.h>
 
+#include <algorithm>
+
 #include <core_io.h>
 #include <key_io.h>
 #include <rpc/protocol.h>
@@ -228,6 +230,16 @@ FundTransactionResult TransactionDraft::FundTransaction(CWallet& wallet, const i
 
         if (lockUnspents) {
             wallet.LockCoin(tx_input.GetID());
+        }
+    }
+
+    if (!res->tx.mweb_tx.IsNull()) {
+        // BitcoinOil: keep the lock time the builder gave a transaction with MWEB
+        // data, so that a peg-in cannot be mined below the activation height. It is
+        // only enforced when at least one input is not final.
+        tx.nLockTime = res->tx.nLockTime;
+        if (!tx.vin.empty() && std::all_of(tx.vin.begin(), tx.vin.end(), [](const CTxIn& in) { return in.nSequence == CTxIn::SEQUENCE_FINAL; })) {
+            tx.vin.front().nSequence = CTxIn::MAX_SEQUENCE_NONFINAL;
         }
     }
 
