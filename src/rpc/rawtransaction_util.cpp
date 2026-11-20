@@ -21,7 +21,7 @@
 #include <util/strencodings.h>
 #include <util/translation.h>
 
-void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optional<bool> rbf)
+void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optional<bool> rbf, bool allow_mweb)
 {
     UniValue inputs;
     if (inputs_in.isNull()) {
@@ -33,6 +33,27 @@ void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optio
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
         const UniValue& input = inputs[idx];
         const UniValue& o = input.get_obj();
+
+        if (o.exists("mweb_out")) {
+            if (!allow_mweb) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "MWEB inputs cannot be represented in raw transaction hex; use createpsbt or walletcreatefundedpsbt");
+            }
+            if (o.exists("txid") || o.exists("vout")) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, specify either mweb_out or txid and vout");
+            }
+            if (o.exists("sequence") || o.exists("weight")) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence and weight do not apply to MWEB inputs");
+            }
+
+            RPCTypeCheckObj(o, {{"mweb_out", UniValueType(UniValue::VSTR)}});
+            const std::string output_id = o["mweb_out"].get_str();
+            if (output_id.size() != 64 || !IsHex(output_id)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, mweb_out must be a 64-character hexadecimal string");
+            }
+
+            rawTx.mweb_tx.inputs.emplace_back(mw::Hash::FromHex(output_id));
+            continue;
+        }
 
         uint256 txid = ParseHashO(o, "txid");
 
@@ -70,7 +91,7 @@ void AddInputs(CMutableTransaction& rawTx, const UniValue& inputs_in, std::optio
     }
 }
 
-void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
+void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in, bool allow_mweb)
 {
     if (outputs_in.isNull()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, output argument must be non-null");
@@ -78,6 +99,10 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
 
     const bool outputs_is_obj = outputs_in.isObject();
     UniValue outputs = outputs_is_obj ? outputs_in.get_obj() : outputs_in.get_array();
+
+    if (!rawTx.vin.empty() && !rawTx.mweb_tx.inputs.empty()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Mixed transparent and MWEB inputs require explicit peg-in or pegout metadata; use walletcreatefundedpsbt");
+    }
 
     if (!outputs_is_obj) {
         // Translate array of key-value pairs into dict
@@ -119,16 +144,39 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ") + name_);
             }
 
-            CScript scriptPubKey = GetScriptForDestination(destination);
+            GenericAddress address(destination);
             CAmount nAmount = AmountFromValue(outputs[name_]);
 
-            CTxOut out(nAmount, scriptPubKey);
-            rawTx.vout.push_back(out);
+            if (address.IsMWEB()) {
+                if (!allow_mweb) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "MWEB outputs cannot be represented in raw transaction hex; use createpsbt or walletcreatefundedpsbt for MWEB transaction drafts");
+                }
+
+                mw::MutableOutput mweb_output;
+                mweb_output.address = address.GetMWEBAddress();
+                mweb_output.amount = nAmount;
+                rawTx.mweb_tx.outputs.push_back(std::move(mweb_output));
+            } else {
+                CTxOut out(nAmount, address.GetScript());
+                rawTx.vout.push_back(out);
+            }
+        }
+    }
+
+    // With MWEB-only inputs, transparent destinations are unambiguously
+    // pegouts. Keep them in the MWEB kernel instead of the canonical vout.
+    if (!rawTx.mweb_tx.inputs.empty()) {
+        for (const CTxOut& output : rawTx.vout) {
+            rawTx.mweb_tx.AddPegout(output.scriptPubKey, output.nValue, /*subtract_fee_from_amount=*/false);
+        }
+        rawTx.vout.clear();
+        if (rawTx.mweb_tx.kernels.empty()) {
+            rawTx.mweb_tx.kernels.emplace_back();
         }
     }
 }
 
-CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf)
+CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniValue& outputs_in, const UniValue& locktime, std::optional<bool> rbf, bool allow_mweb)
 {
     CMutableTransaction rawTx;
 
@@ -139,8 +187,8 @@ CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniVal
         rawTx.nLockTime = nLockTime;
     }
 
-    AddInputs(rawTx, inputs_in, rbf);
-    AddOutputs(rawTx, outputs_in);
+    AddInputs(rawTx, inputs_in, rbf, allow_mweb);
+    AddOutputs(rawTx, outputs_in, allow_mweb);
 
     if (rbf.has_value() && rbf.value() && rawTx.vin.size() > 0 && !SignalsOptInRBF(CTransaction(rawTx))) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter combination: Sequence number(s) contradict replaceable option");
@@ -166,7 +214,7 @@ static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::
     vErrorsRet.push_back(entry);
 }
 
-void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keystore, std::map<COutPoint, Coin>& coins)
+void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keystore, std::map<AnyOutputID, AnyCoin>& coins)
 {
     if (!prevTxsUnival.isNull()) {
         const UniValue& prevTxs = prevTxsUnival.get_array();
@@ -198,9 +246,9 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
 
             {
                 auto coin = coins.find(out);
-                if (coin != coins.end() && !coin->second.IsSpent() && coin->second.out.scriptPubKey != scriptPubKey) {
+                if (coin != coins.end() && !coin->second.IsSpent() && coin->second.ToBTC().out.scriptPubKey != scriptPubKey) {
                     std::string err("Previous output scriptPubKey mismatch:\n");
-                    err = err + ScriptToAsmStr(coin->second.out.scriptPubKey) + "\nvs:\n"+
+                    err = err + ScriptToAsmStr(coin->second.ToBTC().out.scriptPubKey) + "\nvs:\n" +
                         ScriptToAsmStr(scriptPubKey);
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
@@ -211,7 +259,7 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
                     newcoin.out.nValue = AmountFromValue(find_value(prevOut, "amount"));
                 }
                 newcoin.nHeight = 1;
-                coins[out] = std::move(newcoin);
+                coins[out] = AnyCoin(out, std::move(newcoin));
             }
 
             // if redeemScript and private keys were given, add redeemScript to the keystore so it can be signed
@@ -287,25 +335,14 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
     }
 }
 
-void SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, const std::map<COutPoint, Coin>& coins, const UniValue& hashType, UniValue& result)
-{
-    int nHashType = ParseSighashString(hashType);
-
-    // Script verification errors
-    std::map<int, bilingual_str> input_errors;
-
-    bool complete = SignTransaction(mtx, keystore, coins, nHashType, input_errors);
-    SignTransactionResultToJSON(mtx, complete, coins, input_errors, result);
-}
-
-void SignTransactionResultToJSON(CMutableTransaction& mtx, bool complete, const std::map<COutPoint, Coin>& coins, const std::map<int, bilingual_str>& input_errors, UniValue& result)
+void SignTransactionResultToJSON(CMutableTransaction& mtx, bool complete, const std::map<AnyOutputID, AnyCoin>& coins, const std::map<int, bilingual_str>& input_errors, UniValue& result)
 {
     // Make errors UniValue
     UniValue vErrors(UniValue::VARR);
     for (const auto& err_pair : input_errors) {
         if (err_pair.second.original == "Missing amount") {
             // This particular error needs to be an exception for some reason
-            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing amount for %s", coins.at(mtx.vin.at(err_pair.first).prevout).out.ToString()));
+            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing amount for %s", coins.at(mtx.vin.at(err_pair.first).prevout).ToBTC().out.ToString()));
         }
         TxInErrorToJSON(mtx.vin.at(err_pair.first), vErrors, err_pair.second.original);
     }

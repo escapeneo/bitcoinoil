@@ -62,6 +62,9 @@
 /** Maximum number of block-relay-only anchor connections */
 static constexpr size_t MAX_BLOCK_RELAY_ONLY_ANCHORS = 2;
 static_assert (MAX_BLOCK_RELAY_ONLY_ANCHORS <= static_cast<size_t>(MAX_BLOCK_RELAY_ONLY_CONNECTIONS), "MAX_BLOCK_RELAY_ONLY_ANCHORS must not exceed MAX_BLOCK_RELAY_ONLY_CONNECTIONS.");
+static_assert(
+    MAX_PROTOCOL_MESSAGE_LENGTH > MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB,
+    "MAX_PROTOCOL_MESSAGE_LENGTH must exceed MAX_BLOCK_SERIALIZED_SIZE_WITH_MWEB.");
 /** Anchor IP address database file name */
 const char* const ANCHORS_DATABASE_FILENAME = "anchors.dat";
 
@@ -861,7 +864,11 @@ size_t CConnman::SocketSendData(CNode& node) const
             if (node.nSendOffset == data.size()) {
                 node.nSendOffset = 0;
                 node.nSendSize -= data.size();
-                node.fPauseSend = node.nSendSize > nSendBufferMaxSize;
+                const bool pause_send{node.nSendSize > nSendBufferMaxSize};
+                if (pause_send && !node.fPauseSend) {
+                    node.m_pause_send_since = GetTime<std::chrono::seconds>();
+                }
+                node.fPauseSend = pause_send;
                 it++;
             } else {
                 // could not send full message; stop sending more
@@ -976,7 +983,11 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - m_max_outbound;
 
-    AddWhitelistPermissionFlags(permission_flags, addr);
+    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
+
+    // Inbound Tor connections arrive from the Tor daemon's address, not the
+    // peer's. Do not apply address-based whitelist permissions to them.
+    if (!inbound_onion) AddWhitelistPermissionFlags(permission_flags, addr);
     if (NetPermissions::HasFlag(permission_flags, NetPermissionFlags::Implicit)) {
         NetPermissions::ClearFlag(permission_flags, NetPermissionFlags::Implicit);
         if (gArgs.GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) NetPermissions::AddFlag(permission_flags, NetPermissionFlags::ForceRelay);
@@ -1043,7 +1054,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         nodeServices = static_cast<ServiceFlags>(nodeServices | NODE_BLOOM);
     }
 
-    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
                              std::move(sock),
                              addr,
@@ -1202,6 +1212,17 @@ bool CConnman::InactivityCheck(const CNode& node) const
     if (now > last_recv + TIMEOUT_INTERVAL) {
         LogPrint(BCLog::NET, "socket receive timeout: %is peer=%d\n", count_seconds(now - last_recv), node.GetId());
         return true;
+    }
+
+    // A peer that keeps its send buffer full never gets its queued
+    // announcements drained. Peers without nonced pings (pre-BIP31) are not
+    // covered by the ping timeout, so bound the time a peer may stay paused.
+    if (node.fPauseSend) {
+        const auto pause_since{node.m_pause_send_since.load()};
+        if (now > pause_since + TIMEOUT_INTERVAL) {
+            LogPrint(BCLog::NET, "send buffer full for %is peer=%d\n", count_seconds(now - pause_since), node.GetId());
+            return true;
+        }
     }
 
     if (!node.fSuccessfullyConnected) {
@@ -1877,7 +1898,13 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             // for feelers, only require they be a full node (only because most
             // SPV clients don't have a good address DB available)
             if (!fFeeler && !HasAllDesirableServiceFlags(addr.nServices)) {
-                continue;
+                // BitcoinOil: address records from before the upgrade do not carry
+                // NODE_MWEB even when the peer has upgraded since. When nothing
+                // better turned up, probe such an address: the handshake updates
+                // the record and drops the peer if it really lacks MWEB.
+                if (nTries < 20 || !HasAllDesirableServiceFlags(ServiceFlags(addr.nServices | NODE_MWEB))) {
+                    continue;
+                }
             } else if (fFeeler && !MayHaveUsefulAddressDB(addr.nServices)) {
                 continue;
             }
@@ -2882,7 +2909,10 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         pnode->AccountForSentBytes(msg.m_type, nTotalSize);
         pnode->nSendSize += nTotalSize;
 
-        if (pnode->nSendSize > nSendBufferMaxSize) pnode->fPauseSend = true;
+        if (pnode->nSendSize > nSendBufferMaxSize && !pnode->fPauseSend) {
+            pnode->m_pause_send_since = GetTime<std::chrono::seconds>();
+            pnode->fPauseSend = true;
+        }
         pnode->vSendMsg.push_back(std::move(serializedHeader));
         if (nMessageSize) pnode->vSendMsg.push_back(std::move(msg.data));
 
@@ -2939,13 +2969,13 @@ void CaptureMessageToFile(const CAddress& addr,
     AutoFile f{fsbridge::fopen(path, "ab")};
 
     ser_writedata64(f, now.count());
-    f.write(MakeByteSpan(msg_type));
+    f << Span{msg_type};
     for (auto i = msg_type.length(); i < CMessageHeader::COMMAND_SIZE; ++i) {
         f << uint8_t{'\0'};
     }
     uint32_t size = data.size();
     ser_writedata32(f, size);
-    f.write(AsBytes(data));
+    f << data;
 }
 
 std::function<void(const CAddress& addr,

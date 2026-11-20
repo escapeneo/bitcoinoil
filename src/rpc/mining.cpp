@@ -174,8 +174,12 @@ static bool getScriptFromDescriptor(const std::string& descriptor, CScript& scri
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Ranged descriptor not accepted. Maybe pass through deriveaddresses first?");
         }
 
+        if (desc->GetOutputType() == OutputType::MWEB) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot mine to an MWEB address");
+        }
+
         FlatSigningProvider provider;
-        std::vector<CScript> scripts;
+        std::vector<GenericAddress> scripts;
         if (!desc->Expand(0, key_provider, scripts, provider)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot derive script without private keys");
         }
@@ -184,13 +188,13 @@ static bool getScriptFromDescriptor(const std::string& descriptor, CScript& scri
         CHECK_NONFATAL(scripts.size() > 0 && scripts.size() <= 4);
 
         if (scripts.size() == 1) {
-            script = scripts.at(0);
+            script = scripts.at(0).GetScript();
         } else if (scripts.size() == 4) {
             // For uncompressed keys, take the 3rd script, since it is p2wpkh
-            script = scripts.at(2);
+            script = scripts.at(2).GetScript();
         } else {
             // Else take the 2nd script, since it is p2pkh
-            script = scripts.at(1);
+            script = scripts.at(1).GetScript();
         }
 
         return true;
@@ -270,7 +274,7 @@ static RPCHelpMan generatetoaddress()
     const uint64_t max_tries{request.params[2].isNull() ? DEFAULT_MAX_TRIES : request.params[2].getInt<int>()};
 
     CTxDestination destination = DecodeDestination(request.params[1].get_str());
-    if (!IsValidDestination(destination)) {
+    if (!IsValidDestination(destination) || std::holds_alternative<StealthAddress>(destination)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
     }
 
@@ -322,6 +326,9 @@ static RPCHelpMan generateblock()
         if (!IsValidDestination(destination)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address or descriptor");
         }
+        if (std::holds_alternative<StealthAddress>(destination)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot mine to an MWEB address");
+        }
 
         coinbase_script = GetScriptForDestination(destination);
     }
@@ -367,10 +374,14 @@ static RPCHelpMan generateblock()
         block = blocktemplate->block;
     }
 
-    CHECK_NONFATAL(block.vtx.size() == 1);
+    // Once MWEB is active the template ends with the HogEx, which has to stay
+    // last. The given transactions go before it; ones that peg in or carry MWEB
+    // data are not supported here and fail the validity test below.
+    const bool has_hogex{block.vtx.size() == 2 && block.vtx.back()->IsHogEx()};
+    CHECK_NONFATAL(block.vtx.size() == 1 || has_hogex);
 
     // Add transactions
-    block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
+    block.vtx.insert(has_hogex ? block.vtx.end() - 1 : block.vtx.end(), txs.begin(), txs.end());
     RegenerateCommitments(block, chainman);
 
     {
@@ -411,6 +422,7 @@ static RPCHelpMan getmininginfo()
                     {
                         {RPCResult::Type::NUM, "blocks", "The current block"},
                         {RPCResult::Type::NUM, "currentblockweight", /*optional=*/true, "The block weight of the last assembled block (only present if a block was ever assembled)"},
+                        {RPCResult::Type::NUM, "currentblockmwebweight", /*optional=*/true, "The MWEB weight of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::NUM, "currentblocktx", /*optional=*/true, "The number of block transactions of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
@@ -444,6 +456,7 @@ static RPCHelpMan getmininginfo()
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("blocks",           active_chain.Height());
     if (BlockAssembler::m_last_block_weight) obj.pushKV("currentblockweight", *BlockAssembler::m_last_block_weight);
+    if (BlockAssembler::m_last_block_mweb_weight) obj.pushKV("currentblockmwebweight", *BlockAssembler::m_last_block_mweb_weight);
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
     obj.pushKV("difficulty",       (double)GetDifficultyForBits(active_chain.Tip()->nBits));
     obj.pushKV("networkhashps",    getnetworkhashps().HandleRequest(request));
@@ -557,6 +570,8 @@ static RPCHelpMan getblocktemplate()
                 {"rules", RPCArg::Type::ARR, RPCArg::Optional::NO, "A list of strings",
                 {
                     {"segwit", RPCArg::Type::STR, RPCArg::Optional::NO, "(literal) indicates client side segwit support"},
+                    {"mweb", RPCArg::Type::STR, RPCArg::Optional::NO, "(literal) indicates client side MWEB support"},
+                    {"signet", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "(literal) indicates client side signet support"},
                     {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "other client side supported softfork deployment"},
                 }},
             },
@@ -619,11 +634,12 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::NUM, "height", "The height of the next block"},
                 {RPCResult::Type::STR_HEX, "signet_challenge", /*optional=*/true, "Only on signet"},
                 {RPCResult::Type::STR_HEX, "default_witness_commitment", /*optional=*/true, "a valid witness commitment for the unmodified block template"},
+                {RPCResult::Type::STR_HEX, "mweb", /*optional=*/true, "the MWEB block serialized as hex"},
             }},
         },
         RPCExamples{
-                    HelpExampleCli("getblocktemplate", "'{\"rules\": [\"segwit\"]}'")
-            + HelpExampleRpc("getblocktemplate", "{\"rules\": [\"segwit\"]}")
+                    HelpExampleCli("getblocktemplate", "'{\"rules\": [\"mweb\", \"segwit\", \"signet\"]}'")
+            + HelpExampleRpc("getblocktemplate", "{\"rules\": [\"mweb\", \"segwit\", \"signet\"]}")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -754,14 +770,19 @@ static RPCHelpMan getblocktemplate()
 
     const Consensus::Params& consensusParams = chainman.GetParams().GetConsensus();
 
-    // GBT must be called with 'signet' set in the rules for signet chains
     if (consensusParams.signet_blocks && setClientRules.count("signet") != 1) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"segwit\", \"signet\"]})");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"signet\"]})");
     }
 
     // GBT must be called with 'segwit' set in the rules
     if (setClientRules.count("segwit") != 1) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
+    }
+
+    // BitcoinOil: 'mweb' is only required once the next block must carry an
+    // extension block, so miners that predate MWEB keep working until activation.
+    if (DeploymentActiveAfter(WITH_LOCK(cs_main, return chainman.ActiveChain().Tip()), chainman, Consensus::DEPLOYMENT_MWEB) && setClientRules.count("mweb") != 1) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit & mweb rule set (call with {\"rules\": [\"mweb\", \"segwit\"]})");
     }
 
     // Update block
@@ -853,11 +874,8 @@ static RPCHelpMan getblocktemplate()
     UniValue aRules(UniValue::VARR);
     aRules.push_back("csv");
     if (!fPreSegWit) aRules.push_back("!segwit");
-    if (consensusParams.signet_blocks) {
-        // indicate to miner that they must understand signet rules
-        // when attempting to mine with this template
-        aRules.push_back("!signet");
-    }
+    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_MWEB)) aRules.push_back("mweb");
+    if (consensusParams.signet_blocks) aRules.push_back("!signet");
 
     UniValue vbavailable(UniValue::VOBJ);
     for (int j = 0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
@@ -929,13 +947,17 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
-
     if (consensusParams.signet_blocks) {
         result.pushKV("signet_challenge", HexStr(consensusParams.signet_challenge));
     }
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment));
+    }
+
+    const auto& mweb_block = pblocktemplate->block.mweb_block;
+    if (!mweb_block.IsNull()) {
+        result.pushKV("mweb", HexStr(mweb_block.m_block->Serialized()));
     }
 
     return result;
@@ -1106,6 +1128,9 @@ static RPCHelpMan createauxblock()
     if (!IsValidDestination(coinbaseScript)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Error: Invalid coinbase payout address");
+    }
+    if (std::holds_alternative<StealthAddress>(coinbaseScript)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot mine to an MWEB address");
     }
     const CScript scriptPubKey = GetScriptForDestination(coinbaseScript);
 

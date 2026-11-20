@@ -90,6 +90,7 @@ void SendCoinsEntry::clear()
     if (model && model->getOptionsModel()) {
         ui->checkboxSubtractFeeFromAmount->setChecked(model->getOptionsModel()->getSubFeeFromAmount());
     }
+    ui->checkboxSubtractFeeFromAmount->setEnabled(true);
     ui->messageTextLabel->clear();
     ui->messageTextLabel->hide();
     ui->messageLabel->hide();

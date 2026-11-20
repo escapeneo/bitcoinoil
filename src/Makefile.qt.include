@@ -157,7 +157,6 @@ BITCOINOIL_QT_H = \
   qt/transactiondescdialog.h \
   qt/transactionfilterproxy.h \
   qt/transactionoverviewwidget.h \
-  qt/transactionrecord.h \
   qt/transactiontablemodel.h \
   qt/transactionview.h \
   qt/utilitydialog.h \
@@ -271,7 +270,6 @@ BITCOINOIL_QT_WALLET_CPP = \
   qt/transactiondescdialog.cpp \
   qt/transactionfilterproxy.cpp \
   qt/transactionoverviewwidget.cpp \
-  qt/transactionrecord.cpp \
   qt/transactiontablemodel.cpp \
   qt/transactionview.cpp \
   qt/walletcontroller.cpp \
@@ -356,9 +354,10 @@ QT_QM=$(QT_TS:.ts=.qm)
 
 SECONDARY: $(QT_QM)
 
+# Include GUI startup warnings using _() in the core translation context.
 $(srcdir)/qt/bitcoinoilstrings.cpp: FORCE
 	@test -n $(XGETTEXT) || echo "xgettext is required for updating translations"
-	$(AM_V_GEN) cd $(srcdir); XGETTEXT=$(XGETTEXT) COPYRIGHT_HOLDERS="$(COPYRIGHT_HOLDERS)" $(PYTHON) ../share/qt/extract_strings_qt.py $(libbitcoinoil_node_a_SOURCES) $(libbitcoinoil_wallet_a_SOURCES) $(libbitcoinoil_common_a_SOURCES) $(libbitcoinoil_zmq_a_SOURCES) $(libbitcoinoil_consensus_a_SOURCES) $(libbitcoinoil_util_a_SOURCES)
+	$(AM_V_GEN) cd $(srcdir); XGETTEXT=$(XGETTEXT) COPYRIGHT_HOLDERS="$(COPYRIGHT_HOLDERS)" $(PYTHON) ../share/qt/extract_strings_qt.py $(libbitcoinoil_node_a_SOURCES) $(libbitcoinoil_wallet_a_SOURCES) $(libbitcoinoil_common_a_SOURCES) $(libbitcoinoil_zmq_a_SOURCES) $(libbitcoinoil_consensus_a_SOURCES) $(libbitcoinoil_util_a_SOURCES) qt/initexecutor.cpp
 
 # The resulted bitcoinoil_en.xlf source file should follow Transifex requirements.
 # See: https://docs.transifex.com/formats/xliff#how-to-distinguish-between-a-source-file-and-a-translation-file

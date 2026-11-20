@@ -12,6 +12,17 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <util/time.h>
+#include <mweb/mweb_models.h>
+
+/** A 256-byte blob to use instead of uint256 for representing PoW (scrypt) hashes.
+ * This provides type safety for calls to CheckProofOfWork, ensuring consumers
+ * always provide the scrypt hash, not the sha256d hash.
+ */
+class PoWHash : public uint256 {
+public:
+    constexpr PoWHash() {}
+    explicit PoWHash(const uint256& u256) : uint256(u256) {}
+};
 
 #include <memory>
 
@@ -70,8 +81,12 @@ public:
     // network and disk
     std::vector<CTransactionRef> vtx;
 
-    // memory only
-    mutable bool fChecked;
+    // Memory-only flags for caching expensive checks
+    mutable bool fChecked;                            // CheckBlock()
+    mutable bool m_checked_witness_commitment{false}; // CheckWitnessCommitment()
+    mutable bool m_checked_merkle_root{false};        // CheckMerkleRoot()
+
+    MWEB::Block mweb_block;
 
     CBlock()
     {
@@ -86,8 +101,15 @@ public:
 
     SERIALIZE_METHODS(CBlock, obj)
     {
+        SER_READ(obj, obj.fChecked = false);
+        SER_READ(obj, obj.mweb_block.SetNull());
         READWRITEAS(CBlockHeader, obj);
         READWRITE(obj.vtx);
+        if (!(s.GetVersion() & SERIALIZE_NO_MWEB)) {
+            if (obj.vtx.size() >= 2 && obj.vtx.back()->IsHogEx()) {
+                READWRITE(obj.mweb_block);
+            }
+        }
     }
 
     void SetNull()
@@ -95,6 +117,9 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         fChecked = false;
+        m_checked_witness_commitment = false;
+        m_checked_merkle_root = false;
+        mweb_block.SetNull();
     }
 
     CBlockHeader GetBlockHeader() const
@@ -111,6 +136,9 @@ public:
     }
 
     std::string ToString() const;
+
+    // Returns the hogex (integrating) transaction, if it exists.
+    CTransactionRef GetHogEx() const noexcept;
 };
 
 /** Describes a place in the block chain to another node such that if the

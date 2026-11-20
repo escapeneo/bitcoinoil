@@ -7,11 +7,13 @@
 #define BITCOINOIL_TXMEMPOOL_H
 
 #include <atomic>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -25,6 +27,7 @@
 #include <kernel/mempool_entry.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>
+#include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <random.h>
 #include <sync.h>
@@ -36,14 +39,18 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index_container.hpp>
+#include <caches/Cache.h>
 
 class CBlockIndex;
 class CChain;
 class Chainstate;
+struct DisconnectedBlockTransactions;
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
 
+/** Default size of CMemPool's recentTxsByKernel cache */
+static const unsigned int DEFAULT_MEMPOOL_MWEB_CACHE_SIZE = 1000;
 /**
  * Test whether the LockPoints height and time are still valid on the current chain
  */
@@ -154,7 +161,8 @@ public:
 
 /** \class CompareTxMemPoolEntryByAncestorScore
  *
- *  Sort an entry by min(score/size of entry's tx, score/size with all ancestors).
+ * Sort by the minimum of the transaction's and its ancestor package's fee
+ * rates after subtracting their required MWEB fees.
  */
 class CompareTxMemPoolEntryByAncestorFee
 {
@@ -181,18 +189,35 @@ public:
     template <typename T>
     void GetModFeeAndSize(const T &a, double &mod_fee, double &size) const
     {
+        const auto [tx_fee, tx_size] = GetFeeAndSize(a.GetModifiedFee(), a.GetTxSize(), a.GetMWEBWeight());
+        const auto [ancestor_fee, ancestor_size] = GetFeeAndSize(a.GetModFeesWithAncestors(), a.GetSizeWithAncestors(), a.GetMWEBWeightWithAncestors());
+
         // Compare feerate with ancestors to feerate of the transaction, and
         // return the fee/size for the min.
-        double f1 = (double)a.GetModifiedFee() * a.GetSizeWithAncestors();
-        double f2 = (double)a.GetModFeesWithAncestors() * a.GetTxSize();
+        const double f1 = tx_fee * ancestor_size;
+        const double f2 = ancestor_fee * tx_size;
 
         if (f1 > f2) {
-            mod_fee = a.GetModFeesWithAncestors();
-            size = a.GetSizeWithAncestors();
+            mod_fee = ancestor_fee;
+            size = ancestor_size;
         } else {
-            mod_fee = a.GetModifiedFee();
-            size = a.GetTxSize();
+            mod_fee = tx_fee;
+            size = tx_size;
         }
+    }
+
+private:
+    static std::pair<double, double> GetFeeAndSize(CAmount fee, uint64_t size, uint64_t mweb_weight)
+    {
+        // Convert before subtracting so even extreme negative priority deltas cannot overflow.
+        const double effective_fee = static_cast<double>(fee) - static_cast<double>(BASE_MWEB_FEE) * mweb_weight;
+        if (size == 0) {
+            // With no canonical bytes, covering the MWEB charge (including exactly)
+            // satisfies any canonical fee floor. Use a nonzero denominator so the
+            // cross-products above never multiply zero by infinity.
+            return {effective_fee >= 0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity(), 1};
+        }
+        return {effective_fee, static_cast<double>(size)};
     }
 };
 
@@ -220,6 +245,9 @@ struct TxMempoolInfo
 
     /** Virtual size of the transaction. */
     size_t vsize;
+
+    /** MWEB weight */
+    uint64_t mweb_weight;
 
     /** The fee delta. */
     int64_t nFeeDelta;
@@ -445,8 +473,21 @@ private:
                                                               const Limits& limits
                                                               ) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    void removeConflict(const AnyOutputID& input_id, const CTransaction* tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
 public:
-    indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
+    std::map<AnyOutputID, const CTransaction*> mapNextTx GUARDED_BY(cs);
+
+    /**
+     * Maps MWEB output IDs to mempool transactions that create them.
+     */
+    std::map<mw::Hash, const CTransaction*> mapTxOutputs_MWEB GUARDED_BY(cs);
+
+    /**
+     * FIFO cache of txs recently removed from the mempool keyed by kernel ID.
+     */
+    FIFOCache<mw::Hash, CTransactionRef> recentTxsByKernel GUARDED_BY(cs){DEFAULT_MEMPOOL_MWEB_CACHE_SIZE};
+
     std::map<uint256, CAmount> mapDeltas GUARDED_BY(cs);
 
     using Options = kernel::MemPoolOptions;
@@ -459,6 +500,7 @@ public:
     const bool m_permit_bare_multisig;
     const std::optional<unsigned> m_max_datacarrier_bytes;
     const bool m_require_standard;
+    const bool m_enable_rbf;
     const bool m_full_rbf;
 
     const Limits m_limits;
@@ -498,11 +540,11 @@ public:
      * */
     void removeForReorg(CChain& chain, std::function<bool(txiter)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeForBlock(const CBlock& block, unsigned int nBlockHeight, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb, bool wtxid=false);
     void queryHashes(std::vector<uint256>& vtxid) const;
-    bool isSpent(const COutPoint& outpoint) const;
+    bool isSpent(const AnyOutputID& output_id) const;
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
     /**
@@ -517,10 +559,13 @@ public:
     void ClearPrioritisation(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Get the transaction in the pool that spends the same prevout */
-    const CTransaction* GetConflictTx(const COutPoint& prevout) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    const CTransaction* GetConflictTx(const AnyOutputID& input_id) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Returns an iterator to the given hash, if found */
     std::optional<txiter> GetIter(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    /** Returns an iterator to the transaction the input spends from, if found */
+    std::optional<txiter> GetIter(const AnyOutputID& input_id) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Translate a set of hashes into a set of pool iterators to avoid repeated lookups */
     setEntries GetIterSet(const std::set<uint256>& hashes) const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -631,7 +676,7 @@ public:
      * When ancestors is non-zero (ie, the transaction itself is in the mempool),
      * ancestorsize and ancestorfees will also be set to the appropriate values.
      */
-    void GetTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) const;
+    void GetTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr, size_t* ancestor_mweb_weight = nullptr) const;
 
     /**
      * @returns true if we've made an attempt to load the mempool regardless of
@@ -670,6 +715,17 @@ public:
             return (mapTx.get<index_by_wtxid>().count(gtxid.GetHash()) != 0);
         }
         return (mapTx.count(gtxid.GetHash()) != 0);
+    }
+
+    bool GetCreatedTx(const mw::Hash& output_id, uint256& hash) const
+    {
+        LOCK(cs);
+        auto iter = mapTxOutputs_MWEB.find(output_id);
+        if (iter != mapTxOutputs_MWEB.end()) {
+            hash = iter->second->GetHash();
+            return true;
+        }
+        return false;
     }
 
     CTransactionRef get(const uint256& hash) const;
@@ -810,14 +866,17 @@ class CCoinsViewMemPool : public CCoinsViewBacked
     * validation, since we can access transaction outputs without submitting them to mempool.
     */
     std::unordered_map<COutPoint, Coin, SaltedOutpointHasher> m_temp_added;
+    std::unordered_map<mw::Hash, mw::Coin::CPtr, SaltedMWHashHasher> m_temp_added_mweb;
 protected:
     const CTxMemPool& mempool;
 
 public:
     CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn);
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
+    bool HaveCoin(const AnyOutputID& index) const override;
+    bool GetMWEBCoin(const mw::Hash& output_id, mw::Coin::CPtr& coin) const override;
     /** Add the coins created by this transaction. These coins are only temporarily stored in
-     * m_temp_added and cannot be flushed to the back end. Only used for package validation. */
+     * m_temp_added/m_temp_added_mweb and cannot be flushed to the back end. Only used for package validation. */
     void PackageAddTransaction(const CTransactionRef& tx);
 };
 
@@ -878,8 +937,10 @@ struct DisconnectedBlockTransactions {
 
     void addTransaction(const CTransactionRef& tx)
     {
-        queuedTx.insert(tx);
-        cachedInnerUsage += RecursiveDynamicUsage(tx);
+        if (queuedTx.find(tx->GetHash()) == queuedTx.end()) {
+            queuedTx.insert(tx);
+            cachedInnerUsage += RecursiveDynamicUsage(tx);
+        }
     }
 
     // Remove entries based on txid_index, and update memory usage.

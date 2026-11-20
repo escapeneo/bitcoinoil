@@ -160,9 +160,9 @@ public:
         }
     }
 
-    bool HaveCoin(const COutPoint& outpoint) const final
+    bool HaveCoin(const AnyOutputID& index) const final
     {
-        return m_data.count(outpoint);
+        return index.IsOutPoint() && m_data.count(index.ToOutPoint());
     }
 
     uint256 GetBestBlock() const final { return {}; }
@@ -170,7 +170,7 @@ public:
     std::unique_ptr<CCoinsViewCursor> Cursor() const final { return {}; }
     size_t EstimateSize() const final { return m_data.size(); }
 
-    bool BatchWrite(CCoinsMap& data, const uint256&, bool erase) final
+    bool BatchWrite(CCoinsMap& data, const uint256&, const mw::CoinsViewCache::Ptr&, bool erase) final
     {
         for (auto it = data.begin(); it != data.end(); it = erase ? data.erase(it) : std::next(it)) {
             if (it->second.flags & CCoinsCacheEntry::DIRTY) {

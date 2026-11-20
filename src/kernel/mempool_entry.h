@@ -76,10 +76,11 @@ private:
     mutable Children m_children;
     const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
     const size_t nTxWeight;         //!< ... and avoid recomputing tx weight (also used for GetTxSize())
+    const uint64_t mweb_weight;
     const size_t nUsageSize;        //!< ... and total memory usage
     const int64_t nTime;            //!< Local time when entering the mempool
     const unsigned int entryHeight; //!< Chain height when entering the mempool
-    const bool spendsCoinbase;      //!< keep track of transactions that spend a coinbase
+    const bool spendsCoinbaseOrPegout;      //!< keep track of transactions that spend a coinbase or pegout
     const int64_t sigOpCost;        //!< Total sigop cost
     CAmount m_modified_fee;         //!< Used for determining the priority of the transaction for mining in a block
     LockPoints lockPoints;          //!< Track the height and time at which tx was final
@@ -90,33 +91,38 @@ private:
     uint64_t nCountWithDescendants{1}; //!< number of descendant transactions
     uint64_t nSizeWithDescendants;     //!< ... and size
     CAmount nModFeesWithDescendants;   //!< ... and total fees (all including us)
+    uint64_t nMWEBWeightWithDescendants;
 
     // Analogous statistics for ancestor transactions
     uint64_t nCountWithAncestors{1};
     uint64_t nSizeWithAncestors;
     CAmount nModFeesWithAncestors;
     int64_t nSigOpCostWithAncestors;
+    uint64_t nMWEBWeightWithAncestors;
 
 public:
     CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
                     int64_t time, unsigned int entry_height,
-                    bool spends_coinbase,
+                    bool spends_coinbase_or_pegout,
                     int64_t sigops_cost, LockPoints lp)
         : tx{tx},
           nFee{fee},
           nTxWeight(GetTransactionWeight(*tx)),
+          mweb_weight(tx->mweb_tx.GetMWEBWeight()),
           nUsageSize{RecursiveDynamicUsage(tx)},
           nTime{time},
           entryHeight{entry_height},
-          spendsCoinbase{spends_coinbase},
+          spendsCoinbaseOrPegout{spends_coinbase_or_pegout},
           sigOpCost{sigops_cost},
           m_modified_fee{nFee},
           lockPoints{lp},
           nSizeWithDescendants{GetTxSize()},
           nModFeesWithDescendants{nFee},
+          nMWEBWeightWithDescendants{mweb_weight},
           nSizeWithAncestors{GetTxSize()},
           nModFeesWithAncestors{nFee},
-          nSigOpCostWithAncestors{sigOpCost} {}
+          nSigOpCostWithAncestors{sigOpCost},
+          nMWEBWeightWithAncestors{mweb_weight} {}
 
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
@@ -126,6 +132,7 @@ public:
         return GetVirtualTransactionSize(nTxWeight, sigOpCost, ::nBytesPerSigOp);
     }
     size_t GetTxWeight() const { return nTxWeight; }
+    size_t GetMWEBWeight() const { return mweb_weight; }
     std::chrono::seconds GetTime() const { return std::chrono::seconds{nTime}; }
     unsigned int GetHeight() const { return entryHeight; }
     int64_t GetSigOpCost() const { return sigOpCost; }
@@ -134,9 +141,9 @@ public:
     const LockPoints& GetLockPoints() const { return lockPoints; }
 
     // Adjusts the descendant state.
-    void UpdateDescendantState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount);
+    void UpdateDescendantState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifyMWEBWeight);
     // Adjusts the ancestor state
-    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps);
+    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps, int64_t modifyMWEBWeight);
     // Updates the modified fees with descendants/ancestors.
     void UpdateModifiedFee(CAmount fee_diff)
     {
@@ -154,13 +161,15 @@ public:
     uint64_t GetCountWithDescendants() const { return nCountWithDescendants; }
     uint64_t GetSizeWithDescendants() const { return nSizeWithDescendants; }
     CAmount GetModFeesWithDescendants() const { return nModFeesWithDescendants; }
+    uint64_t GetMWEBWeightWithDescendants() const { return nMWEBWeightWithDescendants; }
 
-    bool GetSpendsCoinbase() const { return spendsCoinbase; }
+    bool GetSpendsCoinbaseOrPegout() const { return spendsCoinbaseOrPegout; }
 
     uint64_t GetCountWithAncestors() const { return nCountWithAncestors; }
     uint64_t GetSizeWithAncestors() const { return nSizeWithAncestors; }
     CAmount GetModFeesWithAncestors() const { return nModFeesWithAncestors; }
     int64_t GetSigOpCostWithAncestors() const { return nSigOpCostWithAncestors; }
+    uint64_t GetMWEBWeightWithAncestors() const { return nMWEBWeightWithAncestors; }
 
     const Parents& GetMemPoolParentsConst() const { return m_parents; }
     const Children& GetMemPoolChildrenConst() const { return m_children; }

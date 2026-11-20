@@ -15,6 +15,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string.h>
@@ -188,6 +189,7 @@ template<typename X> const X& ReadWriteAsHelper(const X& x) { return x; }
     }                                                                               \
     FORMATTER_METHODS(cls, obj)
 
+// clang-format off
 #ifndef CHAR_EQUALS_INT8
 template <typename Stream> void Serialize(Stream&, char) = delete; // char serialization forbidden. Use uint8_t or int8_t
 #endif
@@ -201,8 +203,7 @@ template<typename Stream> inline void Serialize(Stream& s, int64_t a ) { ser_wri
 template<typename Stream> inline void Serialize(Stream& s, uint64_t a) { ser_writedata64(s, a); }
 template<typename Stream, int N> inline void Serialize(Stream& s, const char (&a)[N]) { s.write(MakeByteSpan(a)); }
 template<typename Stream, int N> inline void Serialize(Stream& s, const unsigned char (&a)[N]) { s.write(MakeByteSpan(a)); }
-template<typename Stream> inline void Serialize(Stream& s, const Span<const unsigned char>& span) { s.write(AsBytes(span)); }
-template<typename Stream> inline void Serialize(Stream& s, const Span<unsigned char>& span) { s.write(AsBytes(span)); }
+template <typename Stream, typename B> void Serialize(Stream& s, Span<B> span) { (void)/* force byte-type */UCharCast(span.data()); s.write(AsBytes(span)); }
 
 #ifndef CHAR_EQUALS_INT8
 template <typename Stream> void Unserialize(Stream&, char) = delete; // char serialization forbidden. Use uint8_t or int8_t
@@ -217,10 +218,11 @@ template<typename Stream> inline void Unserialize(Stream& s, int64_t& a ) { a = 
 template<typename Stream> inline void Unserialize(Stream& s, uint64_t& a) { a = ser_readdata64(s); }
 template<typename Stream, int N> inline void Unserialize(Stream& s, char (&a)[N]) { s.read(MakeWritableByteSpan(a)); }
 template<typename Stream, int N> inline void Unserialize(Stream& s, unsigned char (&a)[N]) { s.read(MakeWritableByteSpan(a)); }
-template<typename Stream> inline void Unserialize(Stream& s, Span<unsigned char>& span) { s.read(AsWritableBytes(span)); }
+template <typename Stream, typename B> void Unserialize(Stream& s, Span<B> span) { (void)/* force byte-type */UCharCast(span.data()); s.read(AsWritableBytes(span)); }
 
 template <typename Stream> inline void Serialize(Stream& s, bool a) { uint8_t f = a; ser_writedata8(s, f); }
 template <typename Stream> inline void Unserialize(Stream& s, bool& a) { uint8_t f = ser_readdata8(s); a = f; }
+// clang-format on
 
 
 /**
@@ -543,6 +545,19 @@ struct ChronoFormatter {
 template <typename U>
 using LossyChronoFormatter = ChronoFormatter<U, true>;
 
+class CompactSizeReader
+{
+protected:
+    uint64_t& n;
+public:
+    explicit CompactSizeReader(uint64_t& n_in) : n(n_in) {}
+
+    template<typename Stream>
+    void Unserialize(Stream &s) const {
+        n = ReadCompactSize<Stream>(s);
+    }
+};
+
 class CompactSizeWriter
 {
 protected:
@@ -683,11 +698,63 @@ template<typename Stream, typename T> void Serialize(Stream& os, const std::shar
 template<typename Stream, typename T> void Unserialize(Stream& os, std::shared_ptr<const T>& p);
 
 /**
+ * CTransaction
+ */
+class CTransaction;
+template<typename Stream> void Unserialize(Stream& is, std::shared_ptr<const CTransaction>& item);
+
+/**
  * unique_ptr
  */
 template<typename Stream, typename T> void Serialize(Stream& os, const std::unique_ptr<const T>& p);
 template<typename Stream, typename T> void Unserialize(Stream& os, std::unique_ptr<const T>& p);
 
+/**
+ * optional
+ */
+template<typename Stream, typename T> void Serialize(Stream& os, const std::optional<T>& item);
+template<typename Stream, typename T> void Unserialize(Stream& is, std::optional<T>& item);
+
+
+template <class T>
+class OptionalPtr
+{
+protected:
+    T& obj;
+
+public:
+    explicit OptionalPtr(T& _obj) : obj(_obj) {}
+
+    template <typename Stream>
+    void Serialize(Stream& os) const
+    {
+        uint8_t is_set = obj != nullptr ? 1 : 0;
+        os << is_set;
+
+        if (is_set == 1) {
+            ::Serialize(os, obj);
+        }
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& is)
+    {
+        uint8_t is_set = 0;
+        is >> is_set;
+
+        if (is_set == 1) {
+            ::Unserialize(is, obj);
+        } else {
+            obj.reset();
+        }
+    }
+};
+
+template <typename I>
+OptionalPtr<I> WrapOptionalPtr(I& n)
+{
+    return OptionalPtr<I>(n);
+}
 
 
 /**
@@ -967,9 +1034,39 @@ Serialize(Stream& os, const std::shared_ptr<const T>& p)
 template<typename Stream, typename T>
 void Unserialize(Stream& is, std::shared_ptr<const T>& p)
 {
-    p = std::make_shared<const T>(deserialize, is);
+    T obj;
+    is >> obj;
+    p = std::make_shared<const T>(std::move(obj));
 }
 
+
+/**
+ * optional
+ */
+template <typename Stream, typename T>
+void Serialize(Stream& os, const std::optional<T>& p)
+{
+    uint8_t is_set = !!p ? 1 : 0;
+    Serialize(os, is_set);
+
+    if (is_set == 1) {
+        Serialize(os, (*p));
+    }
+}
+
+template <typename Stream, typename T>
+void Unserialize(Stream& is, std::optional<T>& p)
+{
+    uint8_t is_set = 0;
+    Unserialize(is, is_set);
+
+    if (is_set == 1) {
+        T val;
+        Unserialize(is, val);
+
+        p = std::make_optional(std::move(val));
+    }
+}
 
 
 /**

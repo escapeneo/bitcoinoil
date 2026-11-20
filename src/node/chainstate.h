@@ -34,6 +34,7 @@ struct ChainstateLoadOptions {
     int64_t check_level{DEFAULT_CHECKLEVEL};
     std::function<bool()> check_interrupt;
     std::function<void()> coins_error_cb;
+    std::function<bool()> confirm_db_upgrade;
 };
 
 //! Chainstate load status. Simple applications can just check for the success

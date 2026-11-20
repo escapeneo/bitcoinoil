@@ -126,7 +126,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
                 }
                 (void)signature_creator.CreateSig(provider, vch_sig, address, ConsumeScript(fuzzed_data_provider), fuzzed_data_provider.PickValueInArray({SigVersion::BASE, SigVersion::WITNESS_V0}));
             }
-            std::map<COutPoint, Coin> coins;
+            std::map<AnyOutputID, AnyCoin> coins;
             LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000) {
                 const std::optional<COutPoint> outpoint = ConsumeDeserializable<COutPoint>(fuzzed_data_provider);
                 if (!outpoint) {
@@ -136,7 +136,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
                 if (!coin) {
                     break;
                 }
-                coins[*outpoint] = *coin;
+                coins[*outpoint] = AnyCoin{*outpoint, *coin};
             }
             std::map<int, bilingual_str> input_errors;
             (void)SignTransaction(sign_transaction_tx_to, &provider, coins, fuzzed_data_provider.ConsumeIntegral<int>(), input_errors);

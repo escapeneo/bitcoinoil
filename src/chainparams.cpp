@@ -48,6 +48,15 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
         }
         options.asert_height = height;
     }
+    if (args.IsArgSet("-mwebheight")) {
+        const std::string value = args.GetArg("-mwebheight", "");
+        int32_t height;
+        if (!ParseInt32(value, &height) || height < 0 || height >= std::numeric_limits<int>::max()) {
+            throw std::runtime_error(strprintf("Invalid -mwebheight value (%s).", value));
+        }
+        options.mweb_height = height;
+    }
+
     if (args.IsArgSet("-aserthalflife")) {
         const std::string value = args.GetArg("-aserthalflife", "");
         int64_t half_life;
@@ -81,8 +90,8 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
 
     for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
         std::vector<std::string> vDeploymentParams = SplitString(strDeployment, ':');
-        if (vDeploymentParams.size() < 3 || 4 < vDeploymentParams.size()) {
-            throw std::runtime_error("Version bits parameters malformed, expecting deployment:start:end[:min_activation_height]");
+        if (vDeploymentParams.size() < 3 || 5 < vDeploymentParams.size()) {
+            throw std::runtime_error("Version bits parameters malformed, expecting deployment:start:end[:heightstart:heightend]");
         }
         CChainParams::VersionBitsParameters vbparams{};
         if (!ParseInt64(vDeploymentParams[1], &vbparams.start_time)) {

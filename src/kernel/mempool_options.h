@@ -24,6 +24,9 @@ static constexpr unsigned int DEFAULT_BLOCKSONLY_MAX_MEMPOOL_SIZE_MB{5};
 static constexpr unsigned int DEFAULT_MEMPOOL_EXPIRY_HOURS{336};
 /** Default for -mempoolfullrbf, if the transaction replaceability signaling is ignored */
 static constexpr bool DEFAULT_MEMPOOL_FULL_RBF{false};
+/** Default for -mempoolreplacement, if opt-in RBF is enabled */
+// BitcoinOil keeps opt-in RBF on by default; Litecoin turns it off.
+static constexpr bool DEFAULT_ENABLE_REPLACEMENT{true};
 
 namespace kernel {
 /**
@@ -48,12 +51,15 @@ struct MemPoolOptions {
      * A data carrying output is an unspendable output containing data. The script
      * type is designated as TxoutType::NULL_DATA.
      *
-     * Maximum size of TxoutType::NULL_DATA scripts that this node considers standard.
-     * If nullopt, any size is nonstandard.
+     * Maximum aggregate size of main-chain TxoutType::NULL_DATA scripts that this node
+     * considers standard. MWEB peg-outs retain their separate 83-byte and single-output
+     * restrictions, and also respect a smaller configured limit. If nullopt, all data
+     * carriers are nonstandard.
      */
     std::optional<unsigned> max_datacarrier_bytes{DEFAULT_ACCEPT_DATACARRIER ? std::optional{MAX_OP_RETURN_RELAY} : std::nullopt};
     bool permit_bare_multisig{DEFAULT_PERMIT_BAREMULTISIG};
     bool require_standard{true};
+    bool enable_rbf{DEFAULT_ENABLE_REPLACEMENT};
     bool full_rbf{DEFAULT_MEMPOOL_FULL_RBF};
     MemPoolLimits limits{};
 };

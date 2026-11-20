@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     connman.Handshake(
         /*node=*/dummyNode1,
         /*successfully_connected=*/true,
-        /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
-        /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
+        /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB),
+        /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB),
         /*version=*/PROTOCOL_VERSION,
         /*relay_txs=*/true);
     TestOnlyResetTimeData();
@@ -121,7 +121,7 @@ static void AddRandomOutboundPeer(NodeId& id, std::vector<CNode*>& vNodes, PeerM
     CNode &node = *vNodes.back();
     node.SetCommonVersion(PROTOCOL_VERSION);
 
-    peerLogic.InitializeNode(node, ServiceFlags(NODE_NETWORK | NODE_WITNESS));
+    peerLogic.InitializeNode(node, ServiceFlags(NODE_NETWORK | NODE_WITNESS | NODE_MWEB));
     node.fSuccessfullyConnected = true;
 
     connman.AddTestNode(node);

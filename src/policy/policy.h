@@ -25,6 +25,10 @@ static constexpr unsigned int DEFAULT_BLOCK_MAX_WEIGHT{MAX_BLOCK_WEIGHT - 4000};
 static constexpr unsigned int DEFAULT_BLOCK_MIN_TX_FEE{1000};
 /** The maximum weight for transactions we're willing to relay/mine */
 static constexpr unsigned int MAX_STANDARD_TX_WEIGHT{400000};
+/** Default total size of OP_RETURN scriptPubKeys in a transaction for -datacarriersize.
+ *  BitcoinOil keeps Bitcoin Core 25's value: 80 bytes of data, +1 for OP_RETURN, +2 for the pushdata opcodes.
+ *  Litecoin 24.x raises it to a quarter of the maximum standard transaction weight. */
+static constexpr unsigned int MAX_OP_RETURN_RELAY{83};
 /** The minimum non-witness size for transactions we're willing to relay/mine: one larger than 64  */
 static constexpr unsigned int MIN_STANDARD_TX_NONWITNESS_SIZE{65};
 /** Maximum number of signature check operations in an IsStandard() P2SH script */
@@ -55,6 +59,8 @@ static constexpr unsigned int MAX_STANDARD_SCRIPTSIG_SIZE{1650};
 static constexpr unsigned int DUST_RELAY_TX_FEE{3000};
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE{1000};
+/** The standard fee per MWEB weight */
+static constexpr unsigned int BASE_MWEB_FEE{100};
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
 static constexpr unsigned int DEFAULT_ANCESTOR_LIMIT{25};
 /** Default for -limitancestorsize, maximum kilobytes of tx + all in-mempool ancestors */
@@ -105,7 +111,7 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFee);
 
 bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFee);
 
-bool IsStandard(const CScript& scriptPubKey, const std::optional<unsigned>& max_datacarrier_bytes, TxoutType& whichType);
+bool IsStandard(const CScript& scriptPubKey, TxoutType& whichType);
 
 
 // Changing the default transaction version requires a two step process: first

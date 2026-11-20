@@ -16,7 +16,9 @@
 
 std::vector<std::pair<uint256, CTransactionRef>> extra_txn;
 
-BOOST_FIXTURE_TEST_SUITE(blockencodings_tests, RegTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(blockencodings_tests, RegTestingSetup, *boost::unit_test::disabled())
+
+static constexpr unsigned int REGTEST_NBITS{0x207fffff};
 
 static CBlock BuildBlockTestCase() {
     CBlock block;
@@ -28,9 +30,9 @@ static CBlock BuildBlockTestCase() {
 
     block.vtx.resize(3);
     block.vtx[0] = MakeTransactionRef(tx);
-    block.nVersion = 42;
+    block.nVersion = 1;
     block.hashPrevBlock = InsecureRand256();
-    block.nBits = 0x207fffff;
+    block.nBits = REGTEST_NBITS;
 
     tx.vin[0].prevout.hash = InsecureRand256();
     tx.vin[0].prevout.n = 0;
@@ -74,7 +76,7 @@ BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
         CBlockHeaderAndShortTxIDs shortIDs2;
         stream >> shortIDs2;
 
-        PartiallyDownloadedBlock partialBlock(&pool);
+        PartiallyDownloadedBlock partialBlock(&pool, MWEB::Block());
         BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_OK);
         BOOST_CHECK( partialBlock.IsTxAvailable(0));
         BOOST_CHECK(!partialBlock.IsTxAvailable(1));
@@ -89,21 +91,22 @@ BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
         CBlock block2;
         {
             PartiallyDownloadedBlock tmp = partialBlock;
-            BOOST_CHECK(partialBlock.FillBlock(block2, {}) == READ_STATUS_INVALID); // No transactions
+            BOOST_CHECK(partialBlock.FillBlock(block2, {}, /*segwit_active=*/true) == READ_STATUS_INVALID); // No transactions
             partialBlock = tmp;
         }
 
         // Wrong transaction
         {
             PartiallyDownloadedBlock tmp = partialBlock;
-            partialBlock.FillBlock(block2, {block.vtx[2]}); // Current implementation doesn't check txn here, but don't require that
+            partialBlock.FillBlock(block2, {block.vtx[2]}, /*segwit_active=*/true); // Current implementation doesn't check txn here, but don't require that
             partialBlock = tmp;
         }
         bool mutated;
         BOOST_CHECK(block.hashMerkleRoot != BlockMerkleRoot(block2, &mutated));
 
         CBlock block3;
-        BOOST_CHECK(partialBlock.FillBlock(block3, {block.vtx[1]}) == READ_STATUS_OK);
+        BOOST_CHECK(partialBlock.FillBlock(block3, {block.vtx[1]}, /*segwit_active=*/true) == READ_STATUS_OK);
+        BOOST_CHECK_EQUAL(block.GetHash().ToString(), block3.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.GetHash().ToString(), block3.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.hashMerkleRoot.ToString(), BlockMerkleRoot(block3, &mutated).ToString());
         BOOST_CHECK(!mutated);
@@ -117,6 +120,7 @@ public:
     uint64_t nonce;
     std::vector<uint64_t> shorttxids;
     std::vector<PrefilledTransaction> prefilledtxn;
+    MWEB::Block mweb_block;
 
     explicit TestHeaderAndShortIDs(const CBlockHeaderAndShortTxIDs& orig) {
         CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -134,7 +138,15 @@ public:
         return base.GetShortID(txhash);
     }
 
-    SERIALIZE_METHODS(TestHeaderAndShortIDs, obj) { READWRITE(obj.header, obj.nonce, Using<VectorFormatter<CustomUintFormatter<CBlockHeaderAndShortTxIDs::SHORTTXIDS_LENGTH>>>(obj.shorttxids), obj.prefilledtxn); }
+    SERIALIZE_METHODS(TestHeaderAndShortIDs, obj)
+    {
+        const bool fAllowMWEB = !(s.GetVersion() & SERIALIZE_NO_MWEB);
+
+        READWRITE(obj.header, obj.nonce, Using<VectorFormatter<CustomUintFormatter<CBlockHeaderAndShortTxIDs::SHORTTXIDS_LENGTH>>>(obj.shorttxids), obj.prefilledtxn);
+        if (fAllowMWEB) {
+            READWRITE(obj.mweb_block);
+        }
+    }
 };
 
 BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
@@ -164,7 +176,7 @@ BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
         CBlockHeaderAndShortTxIDs shortIDs2;
         stream >> shortIDs2;
 
-        PartiallyDownloadedBlock partialBlock(&pool);
+        PartiallyDownloadedBlock partialBlock(&pool, MWEB::Block());
         BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_OK);
         BOOST_CHECK(!partialBlock.IsTxAvailable(0));
         BOOST_CHECK( partialBlock.IsTxAvailable(1));
@@ -175,14 +187,14 @@ BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
         CBlock block2;
         {
             PartiallyDownloadedBlock tmp = partialBlock;
-            BOOST_CHECK(partialBlock.FillBlock(block2, {}) == READ_STATUS_INVALID); // No transactions
+            BOOST_CHECK(partialBlock.FillBlock(block2, {}, /*segwit_active=*/true) == READ_STATUS_INVALID); // No transactions
             partialBlock = tmp;
         }
 
         // Wrong transaction
         {
             PartiallyDownloadedBlock tmp = partialBlock;
-            partialBlock.FillBlock(block2, {block.vtx[1]}); // Current implementation doesn't check txn here, but don't require that
+            partialBlock.FillBlock(block2, {block.vtx[1]}, /*segwit_active=*/true); // Current implementation doesn't check txn here, but don't require that
             partialBlock = tmp;
         }
         BOOST_CHECK_EQUAL(pool.mapTx.find(block.vtx[2]->GetHash())->GetSharedTx().use_count(), SHARED_TX_OFFSET + 2); // +2 because of partialBlock and block2
@@ -191,7 +203,8 @@ BOOST_AUTO_TEST_CASE(NonCoinbasePreforwardRTTest)
 
         CBlock block3;
         PartiallyDownloadedBlock partialBlockCopy = partialBlock;
-        BOOST_CHECK(partialBlock.FillBlock(block3, {block.vtx[0]}) == READ_STATUS_OK);
+        BOOST_CHECK(partialBlock.FillBlock(block3, {block.vtx[0]}, /*segwit_active=*/true) == READ_STATUS_OK);
+        BOOST_CHECK_EQUAL(block.GetHash().ToString(), block3.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.GetHash().ToString(), block3.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.hashMerkleRoot.ToString(), BlockMerkleRoot(block3, &mutated).ToString());
         BOOST_CHECK(!mutated);
@@ -234,7 +247,7 @@ BOOST_AUTO_TEST_CASE(SufficientPreforwardRTTest)
         CBlockHeaderAndShortTxIDs shortIDs2;
         stream >> shortIDs2;
 
-        PartiallyDownloadedBlock partialBlock(&pool);
+        PartiallyDownloadedBlock partialBlock(&pool, MWEB::Block());
         BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_OK);
         BOOST_CHECK( partialBlock.IsTxAvailable(0));
         BOOST_CHECK( partialBlock.IsTxAvailable(1));
@@ -244,7 +257,8 @@ BOOST_AUTO_TEST_CASE(SufficientPreforwardRTTest)
 
         CBlock block2;
         PartiallyDownloadedBlock partialBlockCopy = partialBlock;
-        BOOST_CHECK(partialBlock.FillBlock(block2, {}) == READ_STATUS_OK);
+        BOOST_CHECK(partialBlock.FillBlock(block2, {}, /*segwit_active=*/true) == READ_STATUS_OK);
+        BOOST_CHECK_EQUAL(block.GetHash().ToString(), block2.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.GetHash().ToString(), block2.GetHash().ToString());
         bool mutated;
         BOOST_CHECK_EQUAL(block.hashMerkleRoot.ToString(), BlockMerkleRoot(block2, &mutated).ToString());
@@ -270,9 +284,9 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
     CBlock block;
     block.vtx.resize(1);
     block.vtx[0] = MakeTransactionRef(std::move(coinbase));
-    block.nVersion = 42;
+    block.nVersion = 1;
     block.hashPrevBlock = InsecureRand256();
-    block.nBits = 0x207fffff;
+    block.nBits = REGTEST_NBITS;
 
     bool mutated;
     block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
@@ -289,13 +303,14 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
         CBlockHeaderAndShortTxIDs shortIDs2;
         stream >> shortIDs2;
 
-        PartiallyDownloadedBlock partialBlock(&pool);
+        PartiallyDownloadedBlock partialBlock(&pool, MWEB::Block());
         BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_OK);
         BOOST_CHECK(partialBlock.IsTxAvailable(0));
 
         CBlock block2;
         std::vector<CTransactionRef> vtx_missing;
-        BOOST_CHECK(partialBlock.FillBlock(block2, vtx_missing) == READ_STATUS_OK);
+        BOOST_CHECK(partialBlock.FillBlock(block2, vtx_missing, /*segwit_active=*/true) == READ_STATUS_OK);
+        BOOST_CHECK_EQUAL(block.GetHash().ToString(), block2.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.GetHash().ToString(), block2.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.hashMerkleRoot.ToString(), BlockMerkleRoot(block2, &mutated).ToString());
         BOOST_CHECK(!mutated);

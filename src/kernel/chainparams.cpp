@@ -113,8 +113,10 @@ public:
         consensus.nAuxpowStartHeight = Consensus::MAINNET_AUXPOW_START_HEIGHT;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
-        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        // Second hard fork: ASERT difficulty and MWEB activate in the same block.
+        consensus.nAsertHeight = Consensus::MAINNET_ASERT_MWEB_HEIGHT;
         consensus.nAsertHalfLife = Consensus::ASERT_HALF_LIFE;
+        consensus.MWEBHeight = Consensus::MAINNET_ASERT_MWEB_HEIGHT;
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -147,6 +149,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
 
         bech32_hrp = "btco";
+        mweb_hrp = "btcomweb";
 
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
@@ -194,13 +197,17 @@ public:
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 185900;
-        consensus.BIP34Height = 21111;
+        // As on mainnet, the soft forks inherited from Bitcoin are active from the
+        // start. The heights of Bitcoin's testnet3 were left here before, which kept
+        // SegWit off for the first 834624 blocks: blocks with a witness commitment
+        // were rejected and MWEB, which builds on SegWit, could not work.
+        consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256();
-        consensus.BIP65Height = 581885; 
-        consensus.BIP66Height = 330776; 
-        consensus.CSVHeight = 770112; 
-        consensus.SegwitHeight = 834624; 
-        consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 0;
+        consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  24 * 60;
         consensus.nPowTargetSpacing = 6 * 60;
@@ -230,8 +237,13 @@ public:
         consensus.nAuxpowStartHeight = 0;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
-        consensus.nAsertHeight = Consensus::ASERT_DISABLED;
+        // Testnet rehearses the mainnet hard fork: ASERT and MWEB activate together.
+        // Height 110 is past coinbase maturity (100 blocks), so peg-ins work at once, and
+        // below the LWMA window (116 blocks), so every block before it is at minimum
+        // difficulty and the rehearsal needs very little hashrate to get there.
+        consensus.nAsertHeight = 110;
         consensus.nAsertHalfLife = Consensus::ASERT_HALF_LIFE;
+        consensus.MWEBHeight = 110;
 
         pchMessageStart[0] = 0x27;
         pchMessageStart[1] = 0x7b;
@@ -278,6 +290,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tbtco";
+        mweb_hrp = "tbtcomweb";
 
 
         fDefaultConsistencyChecks = false;
@@ -430,6 +443,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tbtco";
+        mweb_hrp = "sbtcomweb";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
@@ -451,6 +465,9 @@ public:
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 150;
+        // Regtest only: one frozen MWEB output ID so the freeze logic stays under test.
+        // BitcoinOil freezes nothing on the other networks.
+        consensus.frozen_mweb_output_ids = {uint256(ParseHex("2f3a08d9f5ef5f388386c11efe935394b14b524220cff4ec5c81942b82e694f7"))};
         consensus.BIP34Height = 1; // Always active unless overridden
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1;  // Always active unless overridden
@@ -488,6 +505,7 @@ public:
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = -1;
         consensus.nAsertHeight = opts.asert_height.value_or(Consensus::ASERT_DISABLED);
+        consensus.MWEBHeight = opts.mweb_height.value_or(std::numeric_limits<int>::max());
         consensus.nAsertHalfLife = opts.asert_half_life.value_or(Consensus::ASERT_HALF_LIFE);
 
         pchMessageStart[0] = 0xfe;
@@ -585,6 +603,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "rbtco";
+        mweb_hrp = "rbtcomweb";
     }
 };
 

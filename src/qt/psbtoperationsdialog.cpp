@@ -19,10 +19,43 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 using node::AnalyzePSBT;
 using node::DEFAULT_MAX_RAW_TX_FEE_RATE;
 using node::PSBTAnalysis;
+
+namespace {
+struct PSBTRecipient {
+    CTxDestination destination;
+    CAmount amount;
+};
+
+// PSBTv0 and PSBTv2 both populate output metadata; pegouts live in the kernels.
+std::vector<PSBTRecipient> GetPSBTRecipients(const PartiallySignedTransaction& psbt)
+{
+    std::vector<PSBTRecipient> recipients;
+    for (const PSBTOutput& output : psbt.outputs) {
+        // Peg-in outputs transfer value between layers, rather than to another recipient.
+        if (output.script && output.script->IsMWEBPegin()) continue;
+        CTxDestination destination;
+        if (output.mweb_stealth_address) {
+            destination = *output.mweb_stealth_address;
+        } else if (output.script) {
+            ExtractDestination(*output.script, destination);
+        }
+        recipients.push_back({destination, *output.amount});
+    }
+    for (const PSBTKernel& kernel : psbt.kernels) {
+        for (const PegOutCoin& pegout : kernel.pegouts) {
+            CTxDestination destination;
+            ExtractDestination(pegout.GetScriptPubKey(), destination);
+            recipients.push_back({destination, pegout.GetAmount()});
+        }
+    }
+    return recipients;
+}
+} // namespace
 
 PSBTOperationsDialog::PSBTOperationsDialog(
     QWidget* parent, WalletModel* wallet_model, ClientModel* client_model) : QDialog(parent, GUIUtil::dialog_flags),
@@ -52,7 +85,7 @@ void PSBTOperationsDialog::openWithPSBT(PartiallySignedTransaction psbtx)
 {
     m_transaction_data = psbtx;
 
-    bool complete = FinalizePSBT(psbtx); // Make sure all existing signatures are fully combined before checking for completeness.
+    bool complete = FinalizePSBT(psbtx).has_value(); // Make sure all existing signatures are fully combined before checking for completeness.
     if (m_wallet_model) {
         size_t n_could_sign;
         TransactionError err = m_wallet_model->wallet().fillPSBT(SIGHASH_ALL, /*sign=*/false, /*bip32derivs=*/true, &n_could_sign, m_transaction_data, complete);
@@ -105,15 +138,15 @@ void PSBTOperationsDialog::signTransaction()
 
 void PSBTOperationsDialog::broadcastTransaction()
 {
-    CMutableTransaction mtx;
-    if (!FinalizeAndExtractPSBT(m_transaction_data, mtx)) {
+    util::Result<CMutableTransaction> result = FinalizePSBT(m_transaction_data);
+    if (!result) {
         // This is never expected to fail unless we were given a malformed PSBT
         // (e.g. with an invalid signature.)
         showStatus(tr("Unknown error processing transaction."), StatusLevel::ERR);
         return;
     }
 
-    CTransactionRef tx = MakeTransactionRef(mtx);
+    CTransactionRef tx = MakeTransactionRef(result.value());
     std::string err_string;
     TransactionError error =
         m_client_model->node().broadcastTransaction(tx, DEFAULT_MAX_RAW_TX_FEE_RATE.GetFeePerK(), err_string);
@@ -139,20 +172,13 @@ void PSBTOperationsDialog::saveTransaction() {
     ssTx << m_transaction_data;
 
     QString selected_filter;
-    QString filename_suggestion = "";
-    bool first = true;
-    for (const CTxOut& out : m_transaction_data.tx->vout) {
-        if (!first) {
-            filename_suggestion.append("-");
-        }
-        CTxDestination address;
-        ExtractDestination(out.scriptPubKey, address);
-        QString amount = BitcoinOilUnits::format(m_client_model->getOptionsModel()->getDisplayUnit(), out.nValue);
-        QString address_str = QString::fromStdString(EncodeDestination(address));
-        filename_suggestion.append(address_str + "-" + amount);
-        first = false;
+    QStringList filename_parts;
+    for (const PSBTRecipient& recipient : GetPSBTRecipients(m_transaction_data)) {
+        QString amount = BitcoinOilUnits::format(m_client_model->getOptionsModel()->getDisplayUnit(), recipient.amount);
+        QString address = QString::fromStdString(EncodeDestination(recipient.destination));
+        filename_parts.append(address + "-" + amount);
     }
-    filename_suggestion.append(".psbt");
+    QString filename_suggestion = filename_parts.join("-") + ".psbt";
     QString filename = GUIUtil::getSaveFileName(this,
         tr("Save Transaction Data"), filename_suggestion,
         //: Expanded name of the binary PSBT file format. See: BIP 174.
@@ -175,19 +201,19 @@ std::string PSBTOperationsDialog::renderTransaction(const PartiallySignedTransac
 {
     QString tx_description = "";
     CAmount totalAmount = 0;
-    for (const CTxOut& out : psbtx.tx->vout) {
-        CTxDestination address;
-        ExtractDestination(out.scriptPubKey, address);
-        totalAmount += out.nValue;
+    for (const PSBTRecipient& recipient : GetPSBTRecipients(psbtx)) {
+        QString address = QString::fromStdString(EncodeDestination(recipient.destination));
+        if (address.isEmpty()) address = tr("(unknown)");
+        totalAmount += recipient.amount;
         tx_description.append(tr(" * Sends %1 to %2")
-            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTCO, out.nValue))
-            .arg(QString::fromStdString(EncodeDestination(address))));
+            .arg(BitcoinOilUnits::formatWithUnit(BitcoinOilUnit::BTCO, recipient.amount))
+            .arg(address));
         tx_description.append("<br>");
     }
 
     PSBTAnalysis analysis = AnalyzePSBT(psbtx);
     tx_description.append(" * ");
-    if (!*analysis.fee) {
+    if (!analysis.fee) {
         // This happens if the transaction is missing input UTXO information.
         tx_description.append(tr("Unable to calculate transaction fee or total transaction amount."));
     } else {

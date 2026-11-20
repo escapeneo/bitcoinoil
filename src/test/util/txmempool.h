@@ -34,4 +34,14 @@ struct TestMemPoolEntryHelper {
     TestMemPoolEntryHelper& SigOpsCost(unsigned int _sigopsCost) { sigOpCost = _sigopsCost; return *this; }
 };
 
+/** Remove every transaction from the mempool. Bitcoin Core 25 no longer has
+ *  CTxMemPool::clear(); the MWEB tests ported from Litecoin still need it. */
+inline void ClearMempool(CTxMemPool& pool)
+{
+    LOCK2(::cs_main, pool.cs);
+    std::vector<CTransactionRef> txs;
+    for (const auto& entry : pool.mapTx) txs.push_back(entry.GetSharedTx());
+    for (const auto& tx : txs) pool.removeRecursive(*tx, MemPoolRemovalReason::REPLACED);
+}
+
 #endif // BITCOINOIL_TEST_UTIL_TXMEMPOOL_H

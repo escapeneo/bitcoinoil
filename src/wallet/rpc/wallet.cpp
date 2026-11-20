@@ -510,6 +510,7 @@ static RPCHelpMan sethdseed()
     return RPCHelpMan{"sethdseed",
                 "\nSet or generate a new HD wallet seed. Non-HD wallets will not be upgraded to being a HD wallet. Wallets that are already\n"
                 "HD will have a new HD seed set so that new keys added to the keypool will be derived from this new seed.\n"
+                "Replacing an existing HD seed is not supported for MWEB-enabled wallets. Setting an initial seed is allowed.\n"
                 "\nNote that you will need to MAKE A NEW BACKUP of your wallet after setting the HD wallet seed." +
         HELP_REQUIRING_PASSPHRASE,
                 {
@@ -546,6 +547,11 @@ static RPCHelpMan sethdseed()
     }
 
     EnsureWalletIsUnlocked(*pwallet);
+
+    // Legacy MWEB key management cannot retain access to inactive keychains after seed replacement.
+    if (spk_man.IsHDEnabled() && pwallet->CanSupportFeature(FEATURE_MWEB)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot replace the HD seed of an MWEB-enabled wallet");
+    }
 
     bool flush_key_pool = true;
     if (!request.params[0].isNull()) {
@@ -701,9 +707,9 @@ RPCHelpMan simulaterawtransaction()
         }
 
         // Fetch previous transactions (inputs)
-        std::map<COutPoint, Coin> coins;
-        for (const CTxIn& txin : mtx.vin) {
-            coins[txin.prevout]; // Create empty map entry keyed by prevout.
+        std::map<AnyOutputID, AnyCoin> coins;
+        for (const AnyInput& tx_input : mtx.GetInputs()) {
+            coins[tx_input.GetID()]; // Create empty map entry keyed by prevout.
         }
         wallet.chain().findCoins(coins);
 
@@ -734,8 +740,9 @@ RPCHelpMan simulaterawtransaction()
         const auto& hash = mtx.GetHash();
         for (size_t i = 0; i < mtx.vout.size(); ++i) {
             const auto& txout = mtx.vout[i];
-            bool is_mine = 0 < (wallet.IsMine(txout) & filter);
-            changes += new_utxos[COutPoint(hash, i)] = is_mine ? txout.nValue : 0;
+            COutPoint outpoint(hash, i);
+            bool is_mine = 0 < (wallet.IsMine(AnyOutput(outpoint, txout)) & filter);
+            changes += new_utxos[outpoint] = is_mine ? txout.nValue : 0;
         }
     }
 
@@ -881,6 +888,7 @@ RPCHelpMan signmessage();
 RPCHelpMan listreceivedbyaddress();
 RPCHelpMan listreceivedbylabel();
 RPCHelpMan listtransactions();
+RPCHelpMan listwallettransactions();
 RPCHelpMan listsinceblock();
 RPCHelpMan gettransaction();
 RPCHelpMan abandontransaction();
@@ -1037,6 +1045,7 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &listunspent},
         {"wallet", &listwalletdir},
         {"wallet", &listwallets},
+        {"wallet", &listwallettransactions},
         {"wallet", &loadwallet},
         {"wallet", &lockunspent},
         {"wallet", &migratewallet},

@@ -18,6 +18,8 @@ namespace Consensus {
 /** Fixed mainnet hard-fork height. Not configurable by mainnet operators. */
 static constexpr int MAINNET_AUXPOW_START_HEIGHT{155000};
 static constexpr int32_t AUXPOW_CHAIN_ID{0x0B0C};
+/** Fixed mainnet height of the second hard fork: ASERT and MWEB activate together. */
+static constexpr int MAINNET_ASERT_MWEB_HEIGHT{157000};
 /** ASERT has no activation height on this network. */
 static constexpr int ASERT_DISABLED{std::numeric_limits<int>::max()};
 /** Two hours. Chosen from simulation on mainnet data of November 2026:
@@ -36,8 +38,9 @@ enum BuriedDeployment : int16_t {
     DEPLOYMENT_DERSIG,
     DEPLOYMENT_CSV,
     DEPLOYMENT_SEGWIT,
+    DEPLOYMENT_MWEB, // MWEB (LIPs 0002-0004). BitcoinOil activates it at a fixed height, not by version bits.
 };
-constexpr bool ValidDeployment(BuriedDeployment dep) { return dep <= DEPLOYMENT_SEGWIT; }
+constexpr bool ValidDeployment(BuriedDeployment dep) { return dep <= DEPLOYMENT_MWEB; }
 
 enum DeploymentPos : uint16_t {
     DEPLOYMENT_TESTDUMMY,
@@ -141,6 +144,18 @@ struct Params {
     bool signet_blocks{false};
     std::vector<uint8_t> signet_challenge;
 
+    /** Optional one-block grandfather for the known MWEB input-metadata exploit. */
+    uint256 mweb_input_metadata_grandfather_blockhash;
+
+    /** MWEB kernels signaling pegouts must contain at least one pegout at and after this height. */
+    int mweb_pegout_feature_activation_height{0};
+
+    /** MWEB kernels signaling extra data must contain non-empty extra data at and after this height. */
+    int mweb_extradata_feature_activation_height{0};
+
+    /** Frozen MWEB output IDs that may not be spent. */
+    std::vector<uint256> frozen_mweb_output_ids;
+
     int DeploymentHeight(BuriedDeployment dep) const
     {
         switch (dep) {
@@ -154,12 +169,16 @@ struct Params {
             return CSVHeight;
         case DEPLOYMENT_SEGWIT:
             return SegwitHeight;
+        case DEPLOYMENT_MWEB:
+            return MWEBHeight;
         } // no default case, so the compiler can warn about missing cases
         return std::numeric_limits<int>::max();
     }
 
     /** Auxpow parameters */
     int32_t nAuxpowChainId;
+    /** Block height at which MWEB becomes active. Disabled on every network until an activation height is chosen. */
+    int MWEBHeight{std::numeric_limits<int>::max()};
     int nAuxpowStartHeight;
     bool fStrictChainId;
     int nLegacyBlocksBefore; // -1 for "always allow"

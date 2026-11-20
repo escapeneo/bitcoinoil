@@ -107,7 +107,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
         assert(pubkey.IsValid());
         assert(pubkey.IsFullyValid());
         assert(HexToPubKey(HexStr(pubkey)) == pubkey);
-        assert(GetAllDestinationsForKey(pubkey).size() == 3);
+        assert(GetAllDestinationsForKey(pubkey, SecretKey{}).size() == 3);
     }
 
     {
@@ -154,12 +154,12 @@ FUZZ_TARGET_INIT(key, initialize_key)
         assert(fillable_signing_provider_pub.HaveKey(pubkey.GetID()));
 
         TxoutType which_type_tx_pubkey;
-        const bool is_standard_tx_pubkey = IsStandard(tx_pubkey_script, std::nullopt, which_type_tx_pubkey);
+        const bool is_standard_tx_pubkey = IsStandard(tx_pubkey_script, which_type_tx_pubkey);
         assert(is_standard_tx_pubkey);
         assert(which_type_tx_pubkey == TxoutType::PUBKEY);
 
         TxoutType which_type_tx_multisig;
-        const bool is_standard_tx_multisig = IsStandard(tx_multisig_script, std::nullopt, which_type_tx_multisig);
+        const bool is_standard_tx_multisig = IsStandard(tx_multisig_script, which_type_tx_multisig);
         assert(is_standard_tx_multisig);
         assert(which_type_tx_multisig == TxoutType::MULTISIG);
 
@@ -178,7 +178,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
         assert(v_solutions_ret_tx_multisig[2].size() == 1);
 
         OutputType output_type{};
-        const CTxDestination tx_destination = GetDestinationForKey(pubkey, output_type);
+        const CTxDestination tx_destination = GetDestinationForKey(pubkey, output_type, SecretKey{});
         assert(output_type == OutputType::LEGACY);
         assert(IsValidDestination(tx_destination));
         assert(CTxDestination{PKHash{pubkey}} == tx_destination);

@@ -14,7 +14,6 @@
 #include <pow.h>
 #include <reverse_iterator.h>
 #include <shutdown.h>
-#include <signet.h>
 #include <streams.h>
 #include <undo.h>
 #include <util/fs.h>
@@ -497,11 +496,14 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
 
 bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
 {
-    const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
+    FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
 
     if (pos.IsNull()) {
         return error("%s: no undo data available", __func__);
     }
+
+    // Rewind 4 bytes in order to read the size
+    pos.nPos -= 4;
 
     // Open history file to read
     AutoFile filein{OpenUndoFile(pos, true)};
@@ -509,12 +511,16 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
         return error("%s: OpenUndoFile failed", __func__);
     }
 
+    // Read undo size
+    unsigned int undo_size = 0;
+    filein >> undo_size;
+
     // Read block
     uint256 hashChecksum;
     HashVerifier verifier{filein}; // Use HashVerifier as reserializing may lose data, c.f. commit d342424301013ec47dc146a4beb49d5c9319d80a
     try {
         verifier << pindex->pprev->GetBlockHash();
-        verifier >> blockundo;
+        UnserializeBlockUndo(blockundo, verifier, undo_size);
         filein >> hashChecksum;
     } catch (const std::exception& e) {
         return error("%s: Deserialize or I/O error - %s", __func__, e.what());
@@ -762,11 +768,6 @@ static bool ReadBlockOrHeader(T& block, const FlatFilePos& pos, const Consensus:
     // Check the header
     if (!CheckProofOfWork(block, consensusParams)) {
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-    }
-
-    // Signet only: check block solution
-    if (consensusParams.signet_blocks && !CheckSignetBlockSolution(block, consensusParams)) {
-        return error("ReadBlockFromDisk: Errors in block solution at %s", pos.ToString());
     }
 
     return true;

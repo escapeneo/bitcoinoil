@@ -238,7 +238,6 @@ BitcoinOilGUI::~BitcoinOilGUI()
         trayIcon->hide();
 #ifdef Q_OS_MACOS
     delete m_app_nap_inhibitor;
-    delete appMenuBar;
     MacDockIconHandler::cleanup();
 #endif
 
@@ -466,13 +465,7 @@ void BitcoinOilGUI::createActions()
 
 void BitcoinOilGUI::createMenuBar()
 {
-#ifdef Q_OS_MACOS
-    // Create a decoupled menu bar on Mac which stays even if the window is closed
-    appMenuBar = new QMenuBar();
-#else
-    // Get the main window's menu bar on other platforms
     appMenuBar = menuBar();
-#endif
 
     // Configure the menus
     QMenu *file = appMenuBar->addMenu(tr("&File"));
@@ -860,6 +853,7 @@ void BitcoinOilGUI::createTrayIconMenu()
     // Note: On macOS, the Dock icon is used to provide the tray's functionality.
     MacDockIconHandler* dockIconHandler = MacDockIconHandler::instance();
     connect(dockIconHandler, &MacDockIconHandler::dockIconClicked, [this] {
+        if (m_node.shutdownRequested()) return; // nothing to show, node is shutting down.
         show();
         activateWindow();
     });
@@ -871,6 +865,8 @@ void BitcoinOilGUI::createTrayIconMenu()
         // See https://bugreports.qt.io/browse/QTBUG-91697
         trayIconMenu.get(), &QMenu::aboutToShow,
         [this, show_hide_action, send_action, receive_action, sign_action, verify_action, options_action, node_window_action, quit_action] {
+            if (m_node.shutdownRequested()) return; // nothing to do, node is shutting down.
+
             if (show_hide_action) show_hide_action->setText(
                 (!isHidden() && !isMinimized() && !GUIUtil::isObscured(this)) ?
                     tr("&Hide") :
@@ -1231,6 +1227,7 @@ void BitcoinOilGUI::message(const QString& title, QString message, unsigned int 
         QMessageBox mBox(static_cast<QMessageBox::Icon>(nMBoxIcon), strTitle, message, buttons, this);
         mBox.setTextFormat(Qt::PlainText);
         mBox.setDetailedText(detailed_message);
+        if (buttons & QMessageBox::Cancel) mBox.setDefaultButton(QMessageBox::Cancel);
         int r = mBox.exec();
         if (ret != nullptr)
             *ret = r == QMessageBox::Ok;

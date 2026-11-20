@@ -11,6 +11,7 @@
 #include <kernel/cs_main.h>
 #include <sync.h>
 #include <util/fs.h>
+#include <mw/node/CoinsView.h>
 
 #include <memory>
 #include <optional>
@@ -61,15 +62,27 @@ protected:
     DBParams m_db_params;
     CoinsViewOptions m_options;
     std::unique_ptr<CDBWrapper> m_db;
+    mw::ICoinsView::Ptr mweb_view;
+    //! Set when an MWEB flush fails mid-write. Once set, all further batch
+    //! writes are refused so nothing can mark the database consistent while
+    //! the failed batch's coin updates are missing; the node must shut down
+    //! and recover on restart (via ReplayBlocks if a partial batch committed).
+    bool m_mweb_flush_failed{false};
 public:
     explicit CCoinsViewDB(DBParams db_params, CoinsViewOptions options);
 
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
-    bool HaveCoin(const COutPoint &outpoint) const override;
+    bool HaveCoin(const AnyOutputID& index) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
-    bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase = true) override;
+    bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock, const mw::CoinsViewCache::Ptr& derivedView, bool erase = true) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
+    CDBWrapper* GetDB() noexcept { return m_db.get(); }
+    //! Whether ResizeCache() replaces the database object (it does not for in-memory databases).
+    bool ResizeReopensDB() const noexcept { return !m_db_params.memory_only; }
+    void SetMWEBView(const mw::ICoinsView::Ptr& view) { mweb_view = view; }
+    mw::ICoinsView::Ptr GetMWEBView() const final { return mweb_view; }
+    bool GetMWEBCoin(const mw::Hash& output_id, mw::Coin::CPtr& coin) const final;
 
     //! Whether an unsupported database format is used.
     bool NeedsUpgrade();

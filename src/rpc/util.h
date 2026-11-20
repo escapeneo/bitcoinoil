@@ -11,6 +11,7 @@
 #include <pubkey.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
+#include <script/address.h>
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/standard.h>
@@ -110,7 +111,7 @@ UniValue JSONRPCTransactionError(TransactionError terr, const std::string& err_s
 std::pair<int64_t, int64_t> ParseDescriptorRange(const UniValue& value);
 
 /** Evaluate a descriptor given as a string, or as a {"desc":...,"range":...} object, with default range of 1000. */
-std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider);
+std::vector<GenericAddress> EvalDescriptorStringOrObject(const UniValue& scanobject, FlatSigningProvider& provider);
 
 /** Returns, given services flags, a list of humanly readable (known) network services */
 UniValue GetServicesNames(ServiceFlags services);

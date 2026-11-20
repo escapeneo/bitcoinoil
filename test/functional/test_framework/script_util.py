@@ -39,6 +39,11 @@ assert MIN_PADDING == 5
 DUMMY_MIN_OP_RETURN_SCRIPT = CScript([OP_RETURN] + ([OP_0] * (MIN_PADDING - 1)))
 assert len(DUMMY_MIN_OP_RETURN_SCRIPT) == MIN_PADDING
 
+# Used by the MWEB tests (Core 25 dropped these).
+DUMMY_P2WPKH_SCRIPT = CScript([b'a' * 21])
+DUMMY_2_P2WPKH_SCRIPT = CScript([b'b' * 21])
+
+
 def key_to_p2pk_script(key):
     key = check_key(key)
     return CScript([key, OP_CHECKSIG])
@@ -109,6 +114,10 @@ def script_to_p2sh_p2wsh_script(script):
 def output_key_to_p2tr_script(key):
     assert len(key) == 32
     return program_to_witness_script(1, key)
+
+
+def hogaddr_script(mweb_hash):
+    return program_to_witness_script(8, mweb_hash)
 
 
 def check_key(key):

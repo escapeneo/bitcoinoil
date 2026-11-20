@@ -33,6 +33,7 @@
 #include <chrono>
 #include <fstream>
 #include <memory>
+#include <variant>
 
 #include <QFontMetrics>
 #include <QScrollBar>
@@ -188,7 +189,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         connect(ui->customFee, &BitcoinOilAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-        CAmount requiredFee = model->wallet().getRequiredFee(1000);
+        CAmount requiredFee = model->wallet().getRequiredFee(1000, 0);
         ui->customFee->SetMinValue(requiredFee);
         if (ui->customFee->value() < requiredFee) {
             ui->customFee->setValue(requiredFee);
@@ -471,7 +472,12 @@ bool SendCoinsDialog::signWithExternalSigner(PartiallySignedTransaction& psbtx, 
         return false;
     }
     // fillPSBT does not always properly finalize
-    complete = FinalizeAndExtractPSBT(psbtx, mtx);
+    util::Result<CMutableTransaction> finalize_result = FinalizePSBT(psbtx);
+    complete = finalize_result.has_value();
+    if (finalize_result.has_value()) {
+        mtx = finalize_result.value();
+    }
+
     return true;
 }
 
@@ -867,7 +873,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     m_coin_control->m_feerate.reset(); // Explicitly use only fee estimation rate for smart fee labels
     int returned_target;
     FeeReason reason;
-    CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, *m_coin_control, &returned_target, &reason));
+    CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, 0, *m_coin_control, &returned_target, &reason));
 
     ui->labelSmartFee->setText(tr("%1/kvB").arg(BitcoinOilUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())));
 
@@ -1039,7 +1045,11 @@ void SendCoinsDialog::coinControlUpdateLabels()
         if(entry && !entry->isHidden())
         {
             SendCoinsRecipient rcp = entry->getValue();
-            CoinControlDialog::payAmounts.append(rcp.amount);
+            CoinControlDialog::PayAmountType pay_amount_type{CoinControlDialog::PayAmountType::BTC};
+            if (std::holds_alternative<StealthAddress>(DecodeDestination(rcp.address.toStdString()))) {
+                pay_amount_type = CoinControlDialog::PayAmountType::MWEB;
+            }
+            CoinControlDialog::payAmounts.append(CoinControlDialog::PayAmount{rcp.amount, pay_amount_type});
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
         }

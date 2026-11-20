@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 25)
-define(_CLIENT_VERSION_MINOR, 2)
+define(_CLIENT_VERSION_MINOR, 3)
 define(_CLIENT_VERSION_BUILD, 0)
 define(_CLIENT_VERSION_RC, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
@@ -1638,6 +1638,9 @@ if test "$use_zmq" = "yes"; then
     ;;
   esac
 fi
+
+dnl MWEB (libmw) formats its messages with libfmt
+PKG_CHECK_MODULES([LIBFMT], [fmt],, [AC_MSG_ERROR([libfmt not found.])])
 
 dnl libmultiprocess library check
 

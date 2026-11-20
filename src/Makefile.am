@@ -24,11 +24,17 @@ check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
-BITCOINOIL_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
+SECP256K1_INCLUDES=-I$(srcdir)/secp256k1/include
+LIBMW_INCLUDES=-I$(srcdir)/libmw/include -I$(srcdir)/libmw/deps/caches/include -I$(srcdir)/libmw/deps/mio/include -I$(srcdir)/libmw/deps/crypto/include $(BOOST_CPPFLAGS) $(LIBFMT_CFLAGS)
+BITCOINOIL_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS) $(LIBMW_INCLUDES) $(LIBFMT_CFLAGS)
 
 LIBBITCOINOIL_NODE=libbitcoinoil_node.a
 LIBBITCOINOIL_COMMON=libbitcoinoil_common.a
-LIBBITCOINOIL_CONSENSUS=libbitcoinoil_consensus.a
+# MWEB: libbitcoinoil_mwzkp.a is Litecoin's libsecp256k1 with the zkp modules,
+# built with every symbol renamed (mweb_zkp_prefix.h). It always follows the
+# consensus library, which is its only user.
+LIBBITCOINOIL_MWZKP=libbitcoinoil_mwzkp.a
+LIBBITCOINOIL_CONSENSUS=libbitcoinoil_consensus.a $(LIBBITCOINOIL_MWZKP)
 LIBBITCOINOIL_CLI=libbitcoinoil_cli.a
 LIBBITCOINOIL_UTIL=libbitcoinoil_util.a
 LIBBITCOINOIL_CRYPTO_BASE=crypto/libbitcoinoil_crypto_base.la
@@ -194,6 +200,12 @@ BITCOINOIL_CORE_H = \
   mapport.h \
   memusage.h \
   merkleblock.h \
+  mweb/mweb_miner.h \
+  mweb/mweb_models.h \
+  mweb/mweb_node.h \
+  mweb/mweb_policy.h \
+  mweb/mweb_wallet.h \
+  mweb/mweb_wtx_info.h \
   net.h \
   net_permissions.h \
   net_processing.h \
@@ -253,9 +265,11 @@ BITCOINOIL_CORE_H = \
   rpc/server_util.h \
   rpc/util.h \
   scheduler.h \
+  script/address.h \
   script/descriptor.h \
   script/keyorigin.h \
   script/miniscript.h \
+  script/pubkeyprovider.h \
   script/sigcache.h \
   script/sign.h \
   script/signingprovider.h \
@@ -323,8 +337,10 @@ BITCOINOIL_CORE_H = \
   validationinterface.h \
   versionbits.h \
   wallet/bdb.h \
+  wallet/change.h \
   wallet/coincontrol.h \
   wallet/coinselection.h \
+  wallet/componentid.h \
   wallet/context.h \
   wallet/crypter.h \
   wallet/db.h \
@@ -333,7 +349,12 @@ BITCOINOIL_CORE_H = \
   wallet/feebumper.h \
   wallet/fees.h \
   wallet/load.h \
+  wallet/mweb_psbt.h \
+  wallet/psbt_filler.h \
+  wallet/transactiondraft.h \
   wallet/receive.h \
+  wallet/recipient.h \
+  wallet/reserve.h \
   wallet/rpc/util.h \
   wallet/rpc/wallet.h \
   wallet/salvage.h \
@@ -342,6 +363,10 @@ BITCOINOIL_CORE_H = \
   wallet/sqlite.h \
   wallet/transaction.h \
   wallet/types.h \
+  wallet/txbuilder.h \
+  wallet/txlist.h \
+  wallet/txrecord.h \
+  wallet/utxo.h \
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/wallettool.h \
@@ -390,7 +415,16 @@ libbitcoinoil_node_a_SOURCES = \
   kernel/context.cpp \
   kernel/cs_main.cpp \
   kernel/mempool_persist.cpp \
+  libmw/src/db/CoinDB.cpp \
+  libmw/src/db/LeafDB.cpp \
+  libmw/src/db/MMRInfoDB.cpp \
+  libmw/src/mmr/PMMR.cpp \
+  libmw/src/node/BlockValidator.cpp \
+  libmw/src/node/BlockBuilder.cpp \
+  libmw/src/node/CoinsViewDB.cpp \
   mapport.cpp \
+  mweb/mweb_miner.cpp \
+  mweb/mweb_node.cpp \
   net.cpp \
   net_processing.cpp \
   netgroup.cpp \
@@ -477,6 +511,9 @@ endif
 libbitcoinoil_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS) $(BDB_CPPFLAGS) $(SQLITE_CFLAGS)
 libbitcoinoil_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoinoil_wallet_a_SOURCES = \
+  libmw/src/wallet/sign.cpp \
+  mweb/mweb_wallet.cpp \
+  wallet/change.cpp \
   wallet/coincontrol.cpp \
   wallet/context.cpp \
   wallet/crypter.cpp \
@@ -487,7 +524,11 @@ libbitcoinoil_wallet_a_SOURCES = \
   wallet/fees.cpp \
   wallet/interfaces.cpp \
   wallet/load.cpp \
+  wallet/mweb_psbt.cpp \
+  wallet/psbt_filler.cpp \
+  wallet/transactiondraft.cpp \
   wallet/receive.cpp \
+  wallet/reserve.cpp \
   wallet/rpc/addresses.cpp \
   wallet/rpc/backup.cpp \
   wallet/rpc/coins.cpp \
@@ -500,6 +541,9 @@ libbitcoinoil_wallet_a_SOURCES = \
   wallet/scriptpubkeyman.cpp \
   wallet/spend.cpp \
   wallet/transaction.cpp \
+  wallet/txbuilder.cpp \
+  wallet/txlist.cpp \
+  wallet/txrecord.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/walletutil.cpp \
@@ -523,7 +567,7 @@ libbitcoinoil_wallet_tool_a_SOURCES = \
 #
 
 # crypto #
-crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libbitcoinoil_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES)
 
 # Specify -static in both CXXFLAGS and LDFLAGS so libtool will only build a
 # static version of this library. We don't need a dynamic version, and a dynamic
@@ -561,7 +605,8 @@ crypto_libbitcoinoil_crypto_base_la_SOURCES = \
   crypto/sha512.cpp \
   crypto/sha512.h \
   crypto/siphash.cpp \
-  crypto/siphash.h
+  crypto/siphash.h \
+  libmw/src/crypto/Hasher.cpp
 
 if USE_ASM
 crypto_libbitcoinoil_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
@@ -607,7 +652,7 @@ crypto_libbitcoinoil_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
 # consensus #
 libbitcoinoil_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES)
 libbitcoinoil_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libbitcoinoil_consensus_a_SOURCES = \
+LIBBITCOINOIL_CONSENSUS_BASE_SOURCES = \
   arith_uint256.cpp \
   arith_uint256.h \
   consensus/amount.h \
@@ -644,6 +689,40 @@ libbitcoinoil_consensus_a_SOURCES = \
   version.h
 #
 
+libbitcoinoil_consensus_a_SOURCES = \
+  $(LIBBITCOINOIL_CONSENSUS_BASE_SOURCES) \
+  libmw/src/crypto/Bulletproofs.cpp \
+  libmw/src/crypto/ConversionUtil.cpp \
+  libmw/src/crypto/KeyDerivation.cpp \
+  libmw/src/crypto/MuSig.cpp \
+  libmw/src/crypto/Pedersen.cpp \
+  libmw/src/crypto/PublicKeys.cpp \
+  libmw/src/crypto/Schnorr.cpp \
+  libmw/src/crypto/SecretKeys.cpp \
+  libmw/src/models/crypto/Commitment.cpp \
+  libmw/src/models/crypto/PublicKey.cpp \
+  libmw/src/models/block/Block.cpp \
+  libmw/src/models/tx/Input.cpp \
+  libmw/src/models/tx/Kernel.cpp \
+  libmw/src/models/tx/Output.cpp \
+  libmw/src/models/tx/Transaction.cpp \
+  libmw/src/models/tx/TransactionValidation.cpp \
+  libmw/src/models/tx/TxBody.cpp
+
+# MWEB: private copy of libsecp256k1 (see LIBBITCOINOIL_MWZKP above)
+libbitcoinoil_mwzkp_a_CPPFLAGS = -UHAVE_CONFIG_H -include $(srcdir)/mweb_zkp_prefix.h \
+  -iquote $(srcdir)/secp256k1-zkp/src -iquote $(srcdir)/secp256k1-zkp \
+  -I$(srcdir)/secp256k1-zkp -I$(srcdir)/secp256k1-zkp/include -I$(srcdir)/secp256k1-zkp/src \
+  -DECMULT_WINDOW_SIZE=15 -DECMULT_GEN_PREC_BITS=4 \
+  -DENABLE_MODULE_RECOVERY -DENABLE_MODULE_EXTRAKEYS -DENABLE_MODULE_SCHNORRSIG \
+  -DENABLE_MODULE_GENERATOR -DENABLE_MODULE_COMMITMENT -DENABLE_MODULE_BULLETPROOF -DENABLE_MODULE_AGGSIG
+libbitcoinoil_mwzkp_a_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -Wno-unused-function
+libbitcoinoil_mwzkp_a_SOURCES = \
+  mweb_zkp_prefix.h \
+  secp256k1-zkp/src/secp256k1.c \
+  secp256k1-zkp/src/precomputed_ecmult.c \
+  secp256k1-zkp/src/precomputed_ecmult_gen.c
+
 # common #
 libbitcoinoil_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOINOIL_INCLUDES) $(BOOST_CPPFLAGS)
 libbitcoinoil_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -666,7 +745,20 @@ libbitcoinoil_common_a_SOURCES = \
   kernel/chainparams.cpp \
   key.cpp \
   key_io.cpp \
+  libmw/src/mmr/ILeafSet.cpp \
+  libmw/src/mmr/IMMR.cpp \
+  libmw/src/mmr/Index.cpp \
+  libmw/src/mmr/LeafSet.cpp \
+  libmw/src/mmr/LeafSetCache.cpp \
+  libmw/src/mmr/MemMMR.cpp \
+  libmw/src/mmr/MMRUtil.cpp \
+  libmw/src/mmr/PMMRCache.cpp \
+  libmw/src/mmr/PruneList.cpp \
+  libmw/src/mmr/Segment.cpp \
+  libmw/src/node/CoinsViewCache.cpp \
+  libmw/src/wallet/Keychain.cpp \
   merkleblock.cpp \
+  mweb/mweb_policy.cpp \
   net_types.cpp \
   netaddress.cpp \
   netbase.cpp \
@@ -676,11 +768,13 @@ libbitcoinoil_common_a_SOURCES = \
   policy/policy.cpp \
   protocol.cpp \
   psbt.cpp \
+  psbt_merge.cpp \
   rpc/external_signer.cpp \
   rpc/rawtransaction_util.cpp \
   rpc/request.cpp \
   rpc/util.cpp \
   scheduler.cpp \
+  script/address.cpp \
   script/descriptor.cpp \
   script/miniscript.cpp \
   script/sign.cpp \
@@ -702,6 +796,7 @@ libbitcoinoil_util_a_SOURCES = \
   support/lockedpool.cpp \
   chainparamsbase.cpp \
   clientversion.cpp \
+  libmw/src/file/File.cpp \
   logging.cpp \
   random.cpp \
   randomenv.cpp \
@@ -773,7 +868,7 @@ bitcoinoil_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoinoil_bin_ldadd += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
+bitcoinoil_bin_ldadd += $(BDB_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
 
 bitcoinoild_SOURCES = $(bitcoinoil_daemon_sources) init/bitcoinoild.cpp
 bitcoinoild_CPPFLAGS = $(bitcoinoil_bin_cppflags)
@@ -804,7 +899,7 @@ bitcoinoil_cli_LDADD = \
   $(LIBBITCOINOIL_UTIL) \
   $(LIBBITCOINOIL_CRYPTO)
 
-bitcoinoil_cli_LDADD += $(EVENT_LIBS)
+bitcoinoil_cli_LDADD += $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoinoil-tx binary #
@@ -842,7 +937,8 @@ bitcoinoil_wallet_LDADD = \
   $(LIBBITCOINOIL_CRYPTO) \
   $(LIBSECP256K1) \
   $(BDB_LIBS) \
-  $(SQLITE_LIBS)
+  $(SQLITE_LIBS) \
+  $(CRYPTO_LIBS)
 
 if TARGET_WINDOWS
 bitcoinoil_wallet_SOURCES += bitcoinoil-wallet-res.rc
@@ -994,11 +1090,16 @@ if BUILD_BITCOINOIL_LIBS
 lib_LTLIBRARIES += $(LIBBITCOINOILCONSENSUS)
 
 include_HEADERS = script/bitcoinoilconsensus.h
-libbitcoinoilconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoinoil_crypto_base_la_SOURCES) $(libbitcoinoil_consensus_a_SOURCES)
+libbitcoinoilconsensus_la_SOURCES = \
+  support/cleanse.cpp \
+  $(crypto_libbitcoinoil_crypto_base_la_SOURCES) \
+  $(LIBBITCOINOIL_CONSENSUS_BASE_SOURCES) \
+  libmw/src/models/tx/Transaction.cpp
 
 libbitcoinoilconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL
+# MWEB: the consensus sources include libmw, which needs its headers, libfmt and the zkp copy of libsecp256k1.
+libbitcoinoilconsensus_la_LIBADD = $(LIBSECP256K1) $(LIBBITCOINOIL_MWZKP) $(LIBFMT_LIBS)
+libbitcoinoilconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOINOIL_INTERNAL -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LIBMW_INCLUDES) $(LIBFMT_CFLAGS)
 libbitcoinoilconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif

@@ -9,6 +9,7 @@
 #include <policy/policy.h>
 #include <primitives/block.h>
 #include <txmempool.h>
+#include <mweb/mweb_miner.h>
 
 #include <memory>
 #include <optional>
@@ -43,18 +44,22 @@ struct CTxMemPoolModifiedEntry {
     {
         iter = entry;
         nSizeWithAncestors = entry->GetSizeWithAncestors();
+        nMWEBWeightWithAncestors = entry->GetMWEBWeightWithAncestors();
         nModFeesWithAncestors = entry->GetModFeesWithAncestors();
         nSigOpCostWithAncestors = entry->GetSigOpCostWithAncestors();
     }
 
     CAmount GetModifiedFee() const { return iter->GetModifiedFee(); }
     uint64_t GetSizeWithAncestors() const { return nSizeWithAncestors; }
+    uint64_t GetMWEBWeightWithAncestors() const { return nMWEBWeightWithAncestors; }
     CAmount GetModFeesWithAncestors() const { return nModFeesWithAncestors; }
     size_t GetTxSize() const { return iter->GetTxSize(); }
+    size_t GetMWEBWeight() const { return iter->GetMWEBWeight(); }
     const CTransaction& GetTx() const { return iter->GetTx(); }
 
     CTxMemPool::txiter iter;
     uint64_t nSizeWithAncestors;
+    uint64_t nMWEBWeightWithAncestors;
     CAmount nModFeesWithAncestors;
     int64_t nSigOpCostWithAncestors;
 };
@@ -121,6 +126,7 @@ struct update_for_parent_inclusion
         e.nModFeesWithAncestors -= iter->GetModifiedFee();
         e.nSizeWithAncestors -= iter->GetTxSize();
         e.nSigOpCostWithAncestors -= iter->GetSigOpCost();
+        e.nMWEBWeightWithAncestors -= iter->GetMWEBWeight();
     }
 
     CTxMemPool::txiter iter;
@@ -133,10 +139,15 @@ private:
     // The constructed block template
     std::unique_ptr<CBlockTemplate> pblocktemplate;
 
+    // MWEB Attributes
+    bool fIncludeMWEB{false};
+    MWEB::Miner mweb_miner;
     // Information on the current status of the block
     uint64_t nBlockWeight;
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
+    uint64_t nBlockMWEBWeight;
+    uint64_t nBlockMWEBInputs;
     CAmount nFees;
     CTxMemPool::setEntries inBlock;
 
@@ -165,6 +176,7 @@ public:
 
     inline static std::optional<int64_t> m_last_block_num_txs{};
     inline static std::optional<int64_t> m_last_block_weight{};
+    inline static std::optional<int64_t> m_last_block_mweb_weight{};
 
 private:
     const Options m_options;
@@ -173,7 +185,7 @@ private:
     /** Clear the block's state and prepare for assembling a new block */
     void resetBlock();
     /** Add a tx to the block */
-    void AddToBlock(CTxMemPool::txiter iter);
+    bool AddToBlock(CTxMemPool::txiter iter);
 
     // Methods for how to add transactions to a block.
     /** Add transactions based on feerate including unconfirmed ancestors
@@ -185,7 +197,9 @@ private:
     /** Remove confirmed (inBlock) entries from given set */
     void onlyUnconfirmed(CTxMemPool::setEntries& testSet);
     /** Test if a new package would "fit" in the block */
-    bool TestPackage(uint64_t packageSize, int64_t packageSigOpsCost) const;
+    bool TestPackage(uint64_t packageSize, int64_t packageSigOpsCost, int64_t packageMWEBWeight) const;
+    /** Test if a new package would exceed the MWEB input limit */
+    bool TestPackageMWEBInputs(uint64_t packageMWEBInputs) const;
     /** Perform checks on each transaction in a package:
       * locktime, premature-witness, serialized size (if necessary)
       * These checks should always succeed, and they're here
