@@ -52,9 +52,13 @@ class AddrReceiver(P2PInterface):
             if self.test_addr_contents:
                 # relay_tests checks the content of the addr messages match
                 # expectations based on the message creation in setup_addr_msg
-                assert_equal(addr.nServices, 9)
-                if not 19712 <= addr.port < 8343:
-                    raise AssertionError("Invalid addr.port of {} (19712-8342 expected)".format(addr.port))
+                # BitcoinOil: P2P_SERVICES also carries NODE_MWEB (1 << 24), so
+                # the relayed service bits are no longer Bitcoin's 9.
+                assert_equal(addr.nServices, P2P_SERVICES)
+                # BitcoinOil: setup_addr_msg uses ports 19712 + i (i < 10);
+                # Bitcoin's 8333-8342 range was only half renamed here.
+                if not 19712 <= addr.port < 19722:
+                    raise AssertionError("Invalid addr.port of {} (19712-19721 expected)".format(addr.port))
                 assert addr.ip.startswith('123.123.')
 
     def on_getaddr(self, message):

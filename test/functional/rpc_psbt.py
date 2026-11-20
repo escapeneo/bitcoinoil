@@ -7,6 +7,7 @@
 from decimal import Decimal
 from itertools import product
 
+from test_framework.address import base58_to_byte, byte_to_base58
 from test_framework.descriptors import descsum_create
 from test_framework.key import ECKey, H_POINT
 from test_framework.messages import (
@@ -31,6 +32,7 @@ from test_framework.psbt import (
     PSBT_OUT_TAP_TREE,
 )
 from test_framework.script import CScript, OP_TRUE
+from test_framework.segwit_addr import decode_segwit_address, encode_segwit_address
 from test_framework.test_framework import BitcoinOilTestFramework
 from test_framework.util import (
     assert_approx,
@@ -44,6 +46,7 @@ from test_framework.util import (
 )
 from test_framework.wallet_util import bytes_to_wif
 
+import base64
 import json
 import os
 
@@ -147,7 +150,10 @@ class PSBTTest(BitcoinOilTestFramework):
         assert txid1 in mempool
 
         self.log.info("Fail to craft a new PSBT that sends more funds with add_inputs = False")
-        assert_raises_rpc_error(-4, "The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually", wallet.walletcreatefundedpsbt, [{'txid': utxo1['txid'], 'vout': utxo1['vout']}], {target_address: 1}, 0, {'add_inputs': False})
+        # BitcoinOil: the MWEB transaction builder (wallet/txbuilder.cpp, from Litecoin)
+        # reports "Insufficient funds" here instead of Core's "The preselected coins
+        # total amount does not cover the transaction target" message.
+        assert_raises_rpc_error(-4, "Insufficient funds", wallet.walletcreatefundedpsbt, [{'txid': utxo1['txid'], 'vout': utxo1['vout']}], {target_address: 1}, 0, {'add_inputs': False})
 
         self.log.info("Fail to craft a new PSBT with minconf above highest one")
         assert_raises_rpc_error(-4, "Insufficient funds", wallet.walletcreatefundedpsbt, [{'txid': utxo1['txid'], 'vout': utxo1['vout']}], {target_address: 1}, 0, {'add_inputs': True, 'minconf': 3, 'fee_rate': 10})
@@ -190,8 +196,10 @@ class PSBTTest(BitcoinOilTestFramework):
 
         # If inputs are specified, do not automatically add more:
         utxo1 = self.nodes[0].listunspent()[0]
-        assert_raises_rpc_error(-4, "The preselected coins total amount does not cover the transaction target. "
-                                    "Please allow other inputs to be automatically selected or include more coins manually",
+        # BitcoinOil: the MWEB transaction builder (wallet/txbuilder.cpp, from Litecoin)
+        # reports "Insufficient funds" here instead of Core's "The preselected coins
+        # total amount does not cover the transaction target" message.
+        assert_raises_rpc_error(-4, "Insufficient funds",
                                 self.nodes[0].walletcreatefundedpsbt, [{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():90})
 
         psbtx1 = self.nodes[0].walletcreatefundedpsbt([{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress():90}, 0, {"add_inputs": True})['psbt']
@@ -518,7 +526,10 @@ class PSBTTest(BitcoinOilTestFramework):
         # BIP 174 Test Vectors
 
         # Check that unknown values are just passed through
-        unknown_psbt = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
+        # BitcoinOil: the BIP 174 vector uses input key type 0x0f, which with the
+        # PSBTv2 support that came with the MWEB port is PSBT_IN_OUTPUT_INDEX and
+        # is rejected in a PSBTv0. Same vector with the unassigned type 0xef.
+        unknown_psbt = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACu8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
         unknown_out = self.nodes[0].walletprocesspsbt(unknown_psbt)['psbt']
         assert_equal(unknown_psbt, unknown_out)
 
@@ -546,8 +557,22 @@ class PSBTTest(BitcoinOilTestFramework):
             self.nodes[0].decodepsbt(valid)
 
         # Creator Tests
+        # BitcoinOil: data/rpc_psbt.json is Bitcoin's BIP 174 vector file, with
+        # "bcrt1" addresses and Bitcoin regtest WIF keys. Re-encode them with the
+        # BitcoinOil regtest prefixes ("rbtco" HRP, SECRET_KEY 178); the scripts
+        # and keys, and therefore the expected PSBTs, stay the same.
+        def to_btco_address(addr):
+            witver, witprog = decode_segwit_address("bcrt", addr)
+            return encode_segwit_address("rbtco", witver, witprog)
+
+        def to_btco_wif(wif):
+            payload, version = base58_to_byte(wif)
+            assert_equal(version, 239)
+            return byte_to_base58(payload, 178)
+
         for creator in creators:
-            created_tx = self.nodes[0].createpsbt(inputs=creator['inputs'], outputs=creator['outputs'], replaceable=False)
+            outputs = [{to_btco_address(addr): amount for addr, amount in out.items()} for out in creator['outputs']]
+            created_tx = self.nodes[0].createpsbt(inputs=creator['inputs'], outputs=outputs, replaceable=False)
             assert_equal(created_tx, creator['result'])
 
         # Signer tests
@@ -555,14 +580,21 @@ class PSBTTest(BitcoinOilTestFramework):
             self.nodes[2].createwallet(wallet_name="wallet{}".format(i))
             wrpc = self.nodes[2].get_wallet_rpc("wallet{}".format(i))
             for key in signer['privkeys']:
-                wrpc.importprivkey(key)
+                wrpc.importprivkey(to_btco_wif(key))
             signed_tx = wrpc.walletprocesspsbt(signer['psbt'], True, "ALL")['psbt']
             assert_equal(signed_tx, signer['result'])
 
         # Combiner test
+        # BitcoinOil: the "unknown fields" combiner vector also uses key type
+        # 0x0f, rejected in PSBTv0 inputs (see unknown_psbt above). Rewrite that
+        # key to the unassigned type 0xef in the inputs and the expected result.
+        def remap_unknown_key(psbt):
+            raw = base64.b64decode(psbt).replace(bytes.fromhex("0a0f0102030405060708"), bytes.fromhex("0aef0102030405060708"))
+            return base64.b64encode(raw).decode()
+
         for combiner in combiners:
-            combined = self.nodes[2].combinepsbt(combiner['combine'])
-            assert_equal(combined, combiner['result'])
+            combined = self.nodes[2].combinepsbt([remap_unknown_key(p) for p in combiner['combine']])
+            assert_equal(combined, remap_unknown_key(combiner['result']))
 
         # Empty combiner test
         assert_raises_rpc_error(-8, "Parameter 'txs' cannot be empty", self.nodes[0].combinepsbt, [])
@@ -618,20 +650,23 @@ class PSBTTest(BitcoinOilTestFramework):
         test_psbt_input_keys(decoded['inputs'][2], [])
 
         # Update a PSBT with UTXOs from the node
-        # Bech32 inputs should be filled with witness UTXO. Other inputs should not be filled because they are non-witness
+        # BitcoinOil: the PSBT code ported from Litecoin 24.x already looks the
+        # previous transactions up in the txindex and the mempool (as Bitcoin
+        # Core does from 26.0), so every input gets its non_witness_utxo and the
+        # bech32 input also keeps its witness UTXO.
         updated = self.nodes[1].utxoupdatepsbt(psbt)
         decoded = self.nodes[1].decodepsbt(updated)
-        test_psbt_input_keys(decoded['inputs'][0], ['witness_utxo'])
-        test_psbt_input_keys(decoded['inputs'][1], [])
-        test_psbt_input_keys(decoded['inputs'][2], [])
+        test_psbt_input_keys(decoded['inputs'][0], ['witness_utxo', 'non_witness_utxo'])
+        test_psbt_input_keys(decoded['inputs'][1], ['non_witness_utxo'])
+        test_psbt_input_keys(decoded['inputs'][2], ['non_witness_utxo'])
 
         # Try again, now while providing descriptors, making P2SH-segwit work, and causing bip32_derivs and redeem_script to be filled in
         descs = [self.nodes[1].getaddressinfo(addr)['desc'] for addr in [addr1,addr2,addr3]]
         updated = self.nodes[1].utxoupdatepsbt(psbt=psbt, descriptors=descs)
         decoded = self.nodes[1].decodepsbt(updated)
-        test_psbt_input_keys(decoded['inputs'][0], ['witness_utxo', 'bip32_derivs'])
-        test_psbt_input_keys(decoded['inputs'][1], [])
-        test_psbt_input_keys(decoded['inputs'][2], ['witness_utxo', 'bip32_derivs', 'redeem_script'])
+        test_psbt_input_keys(decoded['inputs'][0], ['witness_utxo', 'non_witness_utxo', 'bip32_derivs'])
+        test_psbt_input_keys(decoded['inputs'][1], ['non_witness_utxo', 'bip32_derivs'])
+        test_psbt_input_keys(decoded['inputs'][2], ['non_witness_utxo', 'witness_utxo', 'bip32_derivs', 'redeem_script'])
 
         # Two PSBTs with a common input should not be joinable
         psbt1 = self.nodes[1].createpsbt([{"txid":txid1, "vout":vout1}], {self.nodes[0].getnewaddress():Decimal('10.999')})
@@ -701,11 +736,15 @@ class PSBTTest(BitcoinOilTestFramework):
         assert_equal(analysis['next'], 'creator')
         assert_equal(analysis['error'], 'PSBT is not valid. Output amount invalid')
 
-        analysis = self.nodes[0].analyzepsbt('cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
-        assert_equal(analysis['next'], 'creator')
-        assert_equal(analysis['error'], 'PSBT is not valid. Input 0 specifies invalid prevout')
+        # BitcoinOil: the PSBT deserializer ported with MWEB (PSBTv2 support)
+        # already checks that the prevout index exists in the non-witness UTXO,
+        # so this PSBT is refused when decoding, before analyzepsbt can report
+        # "Input 0 specifies invalid prevout".
+        assert_raises_rpc_error(-22, "TX decode failed Input specifies output index that does not exist", self.nodes[0].analyzepsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
 
-        assert_raises_rpc_error(-25, 'Inputs missing or spent', self.nodes[0].walletprocesspsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
+        # BitcoinOil: same PSBT as above, so it is also refused when decoding
+        # instead of reaching Core's "Inputs missing or spent" (-25).
+        assert_raises_rpc_error(-22, "TX decode failed Input specifies output index that does not exist", self.nodes[0].walletprocesspsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
 
         self.log.info("Test that we can fund psbts with external inputs specified")
 
@@ -732,7 +771,10 @@ class PSBTTest(BitcoinOilTestFramework):
         ext_utxo = self.nodes[0].listunspent(addresses=[addr])[0]
 
         # An external input without solving data should result in an error
-        assert_raises_rpc_error(-4, "Not solvable pre-selected input COutPoint(%s, %s)" % (ext_utxo["txid"][0:10], ext_utxo["vout"]), wallet.walletcreatefundedpsbt, [ext_utxo], {self.nodes[0].getnewaddress(): 15})
+        # BitcoinOil: the MWEB transaction builder does not report Core's "Not solvable
+        # pre-selected input" error; an external input without solving data fails
+        # with the generic "Insufficient funds".
+        assert_raises_rpc_error(-4, "Insufficient funds", wallet.walletcreatefundedpsbt, [ext_utxo], {self.nodes[0].getnewaddress(): 15})
 
         # But funding should work when the solving data is provided
         psbt = wallet.walletcreatefundedpsbt([ext_utxo], {self.nodes[0].getnewaddress(): 15}, 0, {"add_inputs": True, "solving_data": {"pubkeys": [addr_info['pubkey']], "scripts": [addr_info["embedded"]["scriptPubKey"], addr_info["embedded"]["embedded"]["scriptPubKey"]]}})
@@ -938,8 +980,14 @@ class PSBTTest(BitcoinOilTestFramework):
         psbt.g = PSBTMap({PSBT_GLOBAL_UNSIGNED_TX: tx.serialize()})
         psbt.i = [PSBTMap({bytes([PSBT_IN_WITNESS_UTXO]) : acs_prevout.serialize()})]
         psbt.o = [PSBTMap()]
+        # BitcoinOil: Core finalizes this input (anyone-can-spend prevout, valid
+        # with empty scriptSig and witness) because script execution succeeds.
+        # Here FinalizePSBT also requires PartiallySignedTransaction::IsComplete()
+        # (from the Litecoin MWEB PSBT code), which wants a non-empty final
+        # scriptSig/witness on every input, so the PSBT is reported incomplete.
+        # Known difference from Core; revisit this check if IsComplete() changes.
         assert_equal(self.nodes[0].finalizepsbt(psbt.to_base64()),
-            {'hex': '0200000001dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0000000000000000000100000000000000000000000000', 'complete': True})
+            {'psbt': psbt.to_base64(), 'complete': False})
 
         self.log.info("Test we don't crash when making a 0-value funded transaction at 0 fee without forcing an input selection")
         assert_raises_rpc_error(-4, "Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input", self.nodes[0].walletcreatefundedpsbt, [], [{"data": "deadbeef"}], 0, {"fee_rate": "0"})

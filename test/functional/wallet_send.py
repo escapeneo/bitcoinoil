@@ -414,8 +414,10 @@ class WalletSendTest(BitcoinOilTestFramework):
         assert res["complete"]
         utxo1 = w0.listunspent()[0]
         assert_equal(utxo1["amount"], 50)
-        ERR_NOT_ENOUGH_PRESET_INPUTS = "The preselected coins total amount does not cover the transaction target. " \
-                                       "Please allow other inputs to be automatically selected or include more coins manually"
+        # BitcoinOil: the MWEB transaction builder (wallet/txbuilder.cpp, from Litecoin)
+        # reports "Insufficient funds" here instead of Core's "The preselected coins
+        # total amount does not cover the transaction target" message.
+        ERR_NOT_ENOUGH_PRESET_INPUTS = "Insufficient funds"
         self.test_send(from_wallet=w0, to_wallet=w1, amount=51, inputs=[utxo1],
                        expect_error=(-4, ERR_NOT_ENOUGH_PRESET_INPUTS))
         self.test_send(from_wallet=w0, to_wallet=w1, amount=51, inputs=[utxo1], add_inputs=False,
@@ -435,7 +437,9 @@ class WalletSendTest(BitcoinOilTestFramework):
         res = self.test_send(from_wallet=w0, to_wallet=w1, amount=1, add_to_wallet=False, change_type="legacy", change_position=0)
         assert res["complete"]
         change_address = self.nodes[0].decodepsbt(res["psbt"])["tx"]["vout"][0]["scriptPubKey"]["address"]
-        assert change_address[0] == "m" or change_address[0] == "n"
+        # BitcoinOil: regtest P2PKH addresses use version byte 51, so they do
+        # not start with Bitcoin's "m"/"n"; check the script type instead.
+        assert_equal(self.nodes[0].decodepsbt(res["psbt"])["tx"]["vout"][0]["scriptPubKey"]["type"], "pubkeyhash")
 
         self.log.info("Set lock time...")
         height = self.nodes[0].getblockchaininfo()["blocks"]
@@ -525,7 +529,10 @@ class WalletSendTest(BitcoinOilTestFramework):
         ext_utxo = ext_fund.listunspent(addresses=[addr])[0]
 
         # An external input without solving data should result in an error
-        self.test_send(from_wallet=ext_wallet, to_wallet=self.nodes[0], amount=15, inputs=[ext_utxo], add_inputs=True, psbt=True, include_watching=True, expect_error=(-4, "Not solvable pre-selected input COutPoint(%s, %s)" % (ext_utxo["txid"][0:10], ext_utxo["vout"])))
+        # BitcoinOil: the MWEB transaction builder does not report Core's "Not solvable
+        # pre-selected input" error; an external input without solving data fails
+        # with the generic "Insufficient funds".
+        self.test_send(from_wallet=ext_wallet, to_wallet=self.nodes[0], amount=15, inputs=[ext_utxo], add_inputs=True, psbt=True, include_watching=True, expect_error=(-4, "Insufficient funds"))
 
         # But funding should work when the solving data is provided
         res = self.test_send(from_wallet=ext_wallet, to_wallet=self.nodes[0], amount=15, inputs=[ext_utxo], add_inputs=True, psbt=True, include_watching=True, solving_data={"pubkeys": [addr_info['pubkey']], "scripts": [addr_info["embedded"]["scriptPubKey"], addr_info["embedded"]["embedded"]["scriptPubKey"]]})
