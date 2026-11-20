@@ -1,10 +1,44 @@
-BitcoinOil Core integration/staging tree
-=====================================
+BitcoinOil Core
+===============
 
-https://bitcoincore.org
+BitcoinOil (BTCO) uses SHA-256d and supports AuxPoW merged mining.
 
-For an immediately usable, binary version of the BitcoinOil Core software, see
-https://bitcoincore.org/en/download/.
+Stable release: [v25.3.1 — source, binaries and checksums](https://github.com/escapeneo/bitcoinoil/releases/tag/v25.3.1).
+
+Mandatory upgrade: ASERT difficulty adjustment and MWEB activate together at
+**mainnet block 157500**. Upgrade nodes and pool daemons to v25.3.1 before that
+height. Activation is determined by block height, not an estimated calendar date.
+AuxPoW has been active since block 155000; the mining algorithm remains SHA-256d.
+
+Pool operators
+--------------
+
+Required integration changes depend on who constructs the BTCO block, including
+when BTCO is an auxiliary chain:
+
+- With `createauxblock` / `submitauxblock` or `getauxblock`, the upgraded daemon
+  constructs the complete block, including MWEB. A proxy that only passes work
+  hashes and AuxPoW proofs through these RPCs needs no MWEB block serialization.
+- With `getblocktemplate` + `submitblock`, request
+  `{"rules":["segwit","mweb"]}`. Once MWEB activates, preserve the template
+  transactions and their order, keep HogEx last, and append byte `01` followed
+  by the template's `mweb` hex after the transaction list.
+- Custom coinbases must preserve the required witness commitment and reward
+  limits. Recompute the BTCO merkle root before committing the child-block hash
+  into AuxPoW. Any intermediate proxy must pass the MWEB template data through.
+- Use a transparent payout address for mining rewards.
+
+See the [pool integration and testnet rehearsal guide](doc/mweb-testnet-rehearsal.md).
+Test the actual pool/proxy submission path after testnet activation, including
+transactions, before using it on mainnet.
+
+For a pinned production source checkout:
+
+```sh
+git clone --branch v25.3.1 https://github.com/escapeneo/bitcoinoil.git
+```
+
+Follow the build dependencies and instructions in the guide, including libfmt.
 
 What is BitcoinOil Core?
 ---------------------
@@ -24,14 +58,13 @@ information or see https://opensource.org/licenses/MIT.
 Development Process
 -------------------
 
-The `master` branch is regularly built (see `doc/build-*.md` for instructions) and tested, but it is not guaranteed to be
-completely stable. [Tags](https://github.com/bitcoinoil/bitcoinoil/tags) are created
-regularly from release branches to indicate new official, stable release versions of BitcoinOil Core.
+The `main` branch tracks the published stable code and its documentation.
+The `next` branch integrates changes for future releases. Changes in `next`
+are not a new stable release until explicitly tagged and published.
 
-The https://github.com/bitcoinoil-core/gui repository is used exclusively for the
-development of the GUI. Its master branch is identical in all monotree
-repositories. Release branches and tags do not exist, so please do not fork
-that repository unless it is for development reasons.
+Use a [release tag](https://github.com/escapeneo/bitcoinoil/releases) for production
+deployments rather than relying on a moving branch. Stable code is promoted to
+`main` after the release checks pass.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)
 and useful hints for developers can be found in [doc/developer-notes.md](doc/developer-notes.md).
