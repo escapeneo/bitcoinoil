@@ -781,8 +781,8 @@ static RPCHelpMan getblocktemplate()
 
     // BitcoinOil: the 'mweb' rule is not required. Merge-mining pool software
     // (YIIMP and others) calls getblocktemplate without it for every coin before
-    // it asks for aux work, and an error here made those pools stop mining at
-    // activation. A client that builds its own block still has to append the
+    // it asks for aux work, and an error here is the likely reason such a pool
+    // stopped mining at activation. A client that builds its own block still has to append the
     // "mweb" field of the result, or submitblock refuses the block.
 
     // Update block
