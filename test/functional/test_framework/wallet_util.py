@@ -112,7 +112,8 @@ def test_address(node, address, **kwargs):
 def bytes_to_wif(b, compressed=True):
     if compressed:
         b += b'\x01'
-    return byte_to_base58(b, 239)
+    # BitcoinOil: regtest SECRET_KEY prefix is 178 (Bitcoin uses 239).
+    return byte_to_base58(b, 178)
 
 def generate_wif_key():
     # Makes a WIF privkey for imports

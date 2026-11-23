@@ -398,6 +398,8 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
         m_selection_params.m_change_params = *change_params;
 
         const CAmount nTarget = CalcSelectionTarget(tx_type);
+        // A zero target cannot be met by selecting new coins (see the guard below).
+        if (nTarget <= 0 && !m_coin_control.HasSelected()) return {};
         CoinsResult available_coins_mut = available_coins;
         if (tx_type == TxType::PEGIN && has_mixed_recipients) {
             available_coins_mut.coins.erase(OutputType::MWEB);
@@ -421,6 +423,12 @@ util::Result<SelectionResult> TxBuilder::SelectInputCoins(const CoinsResult& ava
         candidate_types = {TxType::MWEB_TO_MWEB, TxType::PEGIN};
     } else {
         candidate_types = {TxType::BTC_TO_BTC, TxType::PEGOUT, TxType::PEGIN_PEGOUT};
+    }
+
+    // Same guard as Bitcoin Core: with nothing to pay, no fee and no chosen input,
+    // coin selection has no target and would pick an input it cannot account for.
+    if (!m_coin_control.HasSelected() && m_recipients.Sum() == 0 && GetFeeRate() == CFeeRate{0}) {
+        return util::Error{_("Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input")};
     }
 
     for (const TxType tx_type : candidate_types) {
