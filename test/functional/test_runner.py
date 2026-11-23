@@ -99,6 +99,7 @@ BASE_SCRIPTS = [
     'mweb_duplicate_pegin.py --descriptors',
     'mweb_empty_first_hogex.py --descriptors',
     'mweb_pool_template.py --descriptors',
+    'mining_pool_software.py --descriptors',
     'mweb_mempool.py --descriptors',
     'mweb_mining.py --descriptors',
     'mweb_newpowvalidblock.py --descriptors',
