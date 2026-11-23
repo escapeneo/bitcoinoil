@@ -53,11 +53,19 @@ class MWEBAuxpowTest(BitcoinOilTestFramework):
         node, peer = self.nodes
         self.payout = node.getnewaddress()
 
-        self.log.info("Mine up to the block before activation")
-        self.generate(node, ACTIVATION - 1)
+        self.log.info("Mine up to two blocks before activation")
+        self.generate(node, ACTIVATION - 3)
+        self.log.info("YIIMP style: blocks H-2 and H-1 through getauxblock, with stale work polled in between")
+        self.mine_aux(node, use_getauxblock=True)
+        stale = node.getauxblock()
+        self.mine_aux(node, use_getauxblock=True)
+        assert_equal(node.getblockcount(), ACTIVATION - 1)
+        work = node.getauxblock()
+        self.log.info("work for activation: height %s" % work['height'])
+        assert_equal(work['height'], ACTIVATION)
 
-        self.log.info("The activation block is merge-mined, with an empty HogEx")
-        block = self.mine_aux(node)
+        self.log.info("The activation block is merge-mined through getauxblock, with an empty HogEx")
+        block = self.mine_aux(node, use_getauxblock=True)
         assert_equal(block['height'], ACTIVATION)
         hogex = block['tx'][-1]
         assert_equal(hogex['vin'], [])

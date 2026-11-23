@@ -37,13 +37,10 @@ class MWEBMiningTest(MWEBTestFramework):
         node.generate(FIRST_MWEB_HEIGHT - 1, invalid_call=False)
         first_pegin_txid = node.sendtoaddress(node.getnewaddress(address_type='mweb'), 1)
 
-        self.log.info("getblocktemplate: mweb rule is required for MWEB templates")
-        assert_raises_rpc_error(
-            -8,
-            "getblocktemplate must be called with the segwit & mweb rule set",
-            node.getblocktemplate,
-            {'rules': ['segwit']},
-        )
+        self.log.info("getblocktemplate: a request without the mweb rule gets the same MWEB template")
+        legacy_template = node.getblocktemplate({'rules': ['segwit']})
+        assert "mweb" in legacy_template
+        assert "mweb" in legacy_template["rules"]
 
         first_template = node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)
         assert "mweb" in first_template

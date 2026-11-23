@@ -86,7 +86,7 @@ Check that the right branch was built:
 src/bitcoinoild --version
 ```
 
-It must report `v25.3.1`. If it reports `v25.2.0` or `v25.2.0rc2`, the
+It must report `v25.3.2`. If it reports `v25.2.0` or `v25.2.0rc2`, the
 binary comes from the current release and has neither ASERT nor MWEB:
 
 ```bash
@@ -148,10 +148,14 @@ merge-mining interface used on mainnet (`createauxblock` / `submitauxblock`,
 or `getauxblock`). No stratum change is expected.
 
 `getblocktemplate` is different after activation: once the tip is block 109,
-the request must include the `mweb` rule, for example
-`{"rules": ["mweb", "segwit"]}`, and the template carries an `mweb` field
-with the extension block. Pools that only use the AuxPoW RPCs are not
-affected, because the daemon builds the whole block itself.
+the template carries an `mweb` field with the extension block. Pools that
+only use the AuxPoW RPCs do not use that field, because the daemon builds the
+whole block itself.
+
+From 25.3.2 on the request does not need the `mweb` rule. Version 25.3.1
+answered a request without it with an error, and merge-mining pool software
+that probes `getblocktemplate` for every coin (YIIMP does) then stopped
+asking for aux work. That halted mainnet at block 157499.
 
 A pool that builds its own block from the template has to submit it in this
 format, the same one Litecoin uses:
@@ -162,9 +166,8 @@ header | tx count | coinbase | template transactions | 01 | template "mweb"
 
 - The template for block 109 (requested with `{"rules": ["segwit"]}`) has no
   `mweb` field and the block is submitted exactly as today.
-- From the template for block 110 on, a request without the `mweb` rule
-  fails with "getblocktemplate must be called with the segwit & mweb rule
-  set".
+- From the template for block 110 on, the result has an `mweb` field, with
+  or without the `mweb` rule in the request.
 - Copy each transaction's `data` unchanged and keep the order. The last one
   is the HogEx; in block 110 it has no inputs.
 - After the last transaction append the byte `01` and then the template's

@@ -16,7 +16,7 @@ import struct
 from test_framework.blocktools import create_coinbase
 from test_framework.messages import CTxInWitness, CTxOut, ser_compact_size
 from test_framework.test_framework import BitcoinOilTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_equal
 
 ACTIVATION = 432
 
@@ -88,9 +88,17 @@ class MWEBPoolTemplateTest(BitcoinOilTestFramework):
         assert_equal(node.submitblock(self.build(gbt, with_mweb=False)), None)
         assert_equal(node.getblockcount(), ACTIVATION - 1)
 
-        self.log.info("Activation block: the mweb rule is required")
-        assert_raises_rpc_error(-8, "segwit & mweb rule set", node.getblocktemplate, {'rules': ['segwit']})
+        self.log.info("Activation block: a request without the mweb rule still gets a template")
+        # Merge-mining pool software (YIIMP) probes getblocktemplate like this for
+        # every coin before it asks for aux work; an error here stopped mainnet.
+        probe = node.getblocktemplate({'rules': ['segwit']})
+        assert_equal(probe['height'], ACTIVATION)
+        assert 'mweb' in probe['rules']
+        assert 'mweb' in probe
+        aux = node.createauxblock(node.getnewaddress())
+        assert_equal(aux['height'], ACTIVATION)
         gbt = node.getblocktemplate({'rules': ['mweb', 'segwit']})
+        assert_equal(gbt['mweb'], probe['mweb'])
         assert_equal(gbt['height'], ACTIVATION)
         assert 'mweb' in gbt['rules']
         # The only template transaction is the HogEx, which has no inputs here.
