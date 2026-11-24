@@ -3,11 +3,11 @@ BitcoinOil Core
 
 BitcoinOil (BTCO) uses SHA-256d and supports AuxPoW merged mining.
 
-Stable release: [v25.3.1 — source, binaries and checksums](https://github.com/escapeneo/bitcoinoil/releases/tag/v25.3.1).
+Stable release: [v25.3.3 — source, binaries and checksums](https://github.com/escapeneo/bitcoinoil/releases/tag/v25.3.3).
 
-Mandatory upgrade: ASERT difficulty adjustment and MWEB activate together at
-**mainnet block 157500**. Upgrade nodes and pool daemons to v25.3.1 before that
-height. Activation is determined by block height, not an estimated calendar date.
+ASERT difficulty adjustment and MWEB have been active since **mainnet block 157500**
+(23 November 2026). Nodes on 25.2.0 or older cannot follow the chain past block
+157499 and must upgrade. v25.3.3 is recommended for pool daemons and wallets.
 AuxPoW has been active since block 155000; the mining algorithm remains SHA-256d.
 
 Pool operators
@@ -35,7 +35,7 @@ transactions, before using it on mainnet.
 For a pinned production source checkout:
 
 ```sh
-git clone --branch v25.3.1 https://github.com/escapeneo/bitcoinoil.git
+git clone --branch v25.3.3 https://github.com/escapeneo/bitcoinoil.git
 ```
 
 Follow the build dependencies and instructions in the guide, including libfmt.
