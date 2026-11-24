@@ -638,6 +638,17 @@ BOOST_FIXTURE_TEST_CASE (auxpow_miner_blockRegeneration, TestChain100Setup)
   const CBlock* pblock = miner.getCurrentBlock (scriptPubKey, target);
   BOOST_CHECK (pblock == pblock1 && pblock->GetHash () == hash1);
 
+  SetMockTime (baseTime + 1200);
+  pblock = miner.getCurrentBlock (scriptPubKey, target);
+  BOOST_CHECK (pblock == pblock1 && pblock->GetHash () == hash1);
+
+  /* After 20 minutes it is renewed, even without new transactions.  The old
+     block can still be submitted.  */
+  SetMockTime (baseTime + 1201);
+  pblock = miner.getCurrentBlock (scriptPubKey, target);
+  BOOST_CHECK (pblock != pblock1 && pblock->GetHash () != hash1);
+  BOOST_CHECK (miner.lookupSavedBlock (hash1.GetHex ()) == pblock1);
+
   /* Mine a block, then we should get a new auxpow block constructed.  Note that
      it can be the same *pointer* if the memory was reused after clearing it,
      so we can only verify that the hash is different.  */
@@ -656,15 +667,16 @@ BOOST_FIXTURE_TEST_CASE (auxpow_miner_blockRegeneration, TestChain100Setup)
     m_node.mempool->addUnchecked (entry.FromTx (mtx));
   }
 
-  /* We should still get back the cached block, for now.  */
-  SetMockTime (baseTime + 160);
+  /* We should still get back the cached block:  Transactions do not renew it
+     earlier.  */
+  SetMockTime (baseTime + 1201 + 1200);
   pblock = miner.getCurrentBlock (scriptPubKey, target);
   BOOST_CHECK (pblock == pblock2 && pblock->GetHash () == hash2);
 
   /* With time advanced too far, we get a new block.  This time, we should also
      definitely get a different pointer, as there is no clearing.  The old
      blocks are freed only after a new tip is found.  */
-  SetMockTime (baseTime + 161);
+  SetMockTime (baseTime + 1201 + 1201);
   const CBlock* pblock3 = miner.getCurrentBlock (scriptPubKey, target);
   BOOST_CHECK (pblock3 != pblock2 && pblock3->GetHash () != hash2);
 }

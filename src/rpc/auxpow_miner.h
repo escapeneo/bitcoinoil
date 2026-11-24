@@ -48,16 +48,21 @@ private:
   std::vector<std::unique_ptr<node::CBlockTemplate>> templates;
   /** Maps block hashes to pointers in vTemplates.  Does not own the memory.  */
   std::map<uint256, const CBlock*> blocks;
-  /** Maps coinbase script hashes to pointers in vTemplates.  Does not own the memory.  */
-  std::map<CScriptID, const CBlock*> curBlocks;
+  /** The current block for a coinbase script and when it was constructed.  */
+  struct CurrentBlock
+  {
+    /** Points into templates.  Does not own the memory.  */
+    const CBlock* pblock;
+    int64_t time;
+  };
+  /** Maps coinbase script hashes to their current blocks.  */
+  std::map<CScriptID, CurrentBlock> curBlocks;
 
   /** The current extra nonce for block creation.  */
   unsigned extraNonce = 0;
 
-  /* Some data about when the current block (pblock) was constructed.  */
-  unsigned txUpdatedLast;
+  /** The tip on which the current blocks were constructed.  */
   const CBlockIndex* pindexPrev = nullptr;
-  uint64_t startTime;
 
   /**
    * Constructs a new current block if necessary (checking the current state to
