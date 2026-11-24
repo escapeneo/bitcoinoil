@@ -86,7 +86,7 @@ Check that the right branch was built:
 src/bitcoinoild --version
 ```
 
-It must report `v25.3.2`. If it reports `v25.2.0` or `v25.2.0rc2`, the
+It must report `v25.3.3`. If it reports `v25.2.0` or `v25.2.0rc2`, the
 binary comes from the current release and has neither ASERT nor MWEB:
 
 ```bash
@@ -121,8 +121,8 @@ fallbackfee=0.0001
 addnode=<address of the second testnet node>:29712
 ```
 
-Remove `maxtipage` once blocks are arriving normally. `fallbackfee` is needed
-for wallet sends because a new chain has no fee estimates.
+Remove `maxtipage` once blocks are arriving normally. `fallbackfee` is the default
+from 25.3.3 on; older wallets need it because a new chain has no fee estimates.
 
 ## Joining the rehearsal chain
 
