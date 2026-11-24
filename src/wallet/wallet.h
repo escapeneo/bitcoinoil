@@ -83,8 +83,9 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, cons
 
 //! -paytxfee default
 constexpr CAmount DEFAULT_PAY_TX_FEE = 0;
-//! -fallbackfee default
-static const CAmount DEFAULT_FALLBACK_FEE = 0;
+//! -fallbackfee default. Enabled: blocks are rarely full of transactions, so fee
+//! estimation often has too little data and wallets could not send without a custom fee.
+static const CAmount DEFAULT_FALLBACK_FEE = 10000;
 //! -discardfee default
 static const CAmount DEFAULT_DISCARD_FEE = 10000;
 //! -mintxfee default

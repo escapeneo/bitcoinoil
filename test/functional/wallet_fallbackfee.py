@@ -6,7 +6,7 @@
 
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinOilTestFramework
-from test_framework.util import assert_raises_rpc_error
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 class WalletRBFTest(BitcoinOilTestFramework):
     def add_options(self, parser):
@@ -24,6 +24,16 @@ class WalletRBFTest(BitcoinOilTestFramework):
 
         # sending a transaction without fee estimations must be possible by default on regtest
         self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+
+        # the default must also allow it, without -fallbackfee in the configuration
+        self.nodes[0].replace_in_config([("fallbackfee=0.0002\n", "")])
+        self.restart_node(0)
+        assert_equal(self.nodes[0].estimatesmartfee(6).get('feerate'), None)
+        txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+        entry = self.nodes[0].getmempoolentry(txid)
+        # 10 sat/vB, give or take the signature size
+        feerate = entry['fees']['base'] * 100000000 / entry['vsize']
+        assert 9.5 < feerate < 10.5, feerate
 
         # test sending a tx with disabled fallback fee (must fail)
         self.restart_node(0, extra_args=["-fallbackfee=0"])
