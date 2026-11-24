@@ -23,6 +23,14 @@
 namespace
 {
 
+/** Work is renewed after this time while the tip does not change, so that the
+    block's timestamp is at most about this old.  New transactions do not renew
+    it earlier:  Stratum servers such as YIIMP submit the newest hash with a
+    proof for an older one, and use it in the merkle branches of other
+    merge-mined coins.  Until their parent job is rebuilt after each renewal,
+    they lose blocks.  */
+constexpr int64_t AUX_WORK_MAX_AGE = 20 * 60;
+
 using node::BlockAssembler;
 
 void auxMiningCheck(const node::NodeContext& node)
@@ -63,18 +71,24 @@ AuxpowMiner::getCurrentBlock (const ChainstateManager& chainman,
   {
     LOCK (cs_main);
     CScriptID scriptID (scriptPubKey);
-    auto iter = curBlocks.find(scriptID);
-    if (iter != curBlocks.end())
-      pblockCur = iter->second;
-
-    if (pblockCur == nullptr
-        || pindexPrev != chainman.ActiveChain ().Tip ()
-        || (mempool.GetTransactionsUpdated () != txUpdatedLast
-            && GetTime () - startTime > 60))
+    /* ASERT sees only timestamps:  If a block carries an old one, a long wait
+       lowers the difficulty one block late.  So the age of work is limited.  */
+    const bool newTip = (pindexPrev != chainman.ActiveChain ().Tip ());
+    auto iter = curBlocks.find (scriptID);
+    if (!newTip && iter != curBlocks.end ())
       {
-        if (pindexPrev != chainman.ActiveChain ().Tip ())
+        /* The age is negative if the clock was set back.  */
+        const int64_t age = GetTime () - iter->second.time;
+        if (age >= 0 && age <= AUX_WORK_MAX_AGE)
+          pblockCur = iter->second.pblock;
+      }
+
+    if (pblockCur == nullptr)
+      {
+        if (newTip)
           {
-            /* Clear old blocks since they're obsolete now.  */
+            /* Clear old blocks since they're obsolete now.  Until then, work
+               handed out before can still be submitted.  */
             blocks.clear ();
             templates.clear ();
             curBlocks.clear ();
@@ -88,9 +102,7 @@ AuxpowMiner::getCurrentBlock (const ChainstateManager& chainman,
           throw JSONRPCError (RPC_OUT_OF_MEMORY, "out of memory");
 
         /* Update state only when CreateNewBlock succeeded.  */
-        txUpdatedLast = mempool.GetTransactionsUpdated ();
         pindexPrev = chainman.ActiveTip ();
-        startTime = GetTime ();
 
         /* Finalise it by setting the version and building the merkle root.  */
         newBlock->block.hashMerkleRoot = BlockMerkleRoot (newBlock->block);
@@ -99,7 +111,7 @@ AuxpowMiner::getCurrentBlock (const ChainstateManager& chainman,
 
         /* Save in our map of constructed blocks.  */
         pblockCur = &newBlock->block;
-        curBlocks.emplace(scriptID, pblockCur);
+        curBlocks[scriptID] = {pblockCur, GetTime ()};
         blocks[pblockCur->GetHash ()] = pblockCur;
         templates.push_back (std::move (newBlock));
       }
