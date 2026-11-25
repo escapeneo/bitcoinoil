@@ -141,6 +141,7 @@ public:
         vSeeds.emplace_back("node2.petrobtc.org");
         // Public full node verified on 2026-11-01; also usable as an A-record seed.
         vSeeds.emplace_back("stratum.shears.co.uk");
+        vSeeds.emplace_back("btco-seed.rodb2008.com"); // rodb, DNS seed (github.com/Pan0ramix/btco-seeder)
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,26);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,25);
